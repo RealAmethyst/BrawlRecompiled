@@ -375,7 +375,7 @@ std::shared_ptr<Font> LoadFont(const std::string& name) {
     }
     auto font = std::make_shared<Font>();
     std::vector<uint8_t> data;
-    // Super Paper Mario's own font (JSystem "FONTbfn1": INF1/WID1/MAP1/GLY1 blocks), e.g. "papermarioset_US.bfn".
+    // Super Smash Bros. Brawl's own font (JSystem "FONTbfn1": INF1/WID1/MAP1/GLY1 blocks), e.g. "papermarioset_US.bfn".
     if (name.size() > 4 && name.compare(name.size() - 4, 4, ".bfn") == 0) {
         if (ReadDiscFile("/font/" + name, data) && data.size() > 0x40 && BE32(data.data()) == 0x464F4E54u) {
             size_t o = 0x20;

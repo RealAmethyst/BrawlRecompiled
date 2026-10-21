@@ -1447,7 +1447,7 @@ int RuntimeMain(int argc, char** argv) {
             NetplaySession::SetStallHandler(&NetplayUi::OnSessionStall);
         }
         if (RuntimeConfigFile::DiscordPresenceEnabled()) {
-            DiscordPresence::Initialize(RuntimeConfigFile::DiscordClientId(), "Super Paper Mario");
+            DiscordPresence::Initialize(RuntimeConfigFile::DiscordClientId(), "Super Smash Bros. Brawl");
         }
         SystemBridge::Initialize();
         TranslatedFunctionRegistry::Finalize();

@@ -1469,16 +1469,16 @@ void InitForAXOut(CpuContext* ctx) {
     Memory::Write32(g_axTaskPtr + 0x34u, kAxRequestCallback);
     if (ctx) {
         const uint32_t r13 = ctx->gpr[13];
-        Memory::Write32(g_axTaskPtr + 0x10u, Memory::Read16(r13 - 0x7bccu) /* axDspSlaveLength */);
-        Memory::Write16(g_axTaskPtr + 0x24u, Memory::Read16(r13 - 0x7bd0u) /* axDspInitVector */);
-        Memory::Write16(g_axTaskPtr + 0x26u, Memory::Read16(r13 - 0x7bceu) /* axDspResumeVector */);
+        Memory::Write32(g_axTaskPtr + 0x10u, Memory::Read16(r13 - 0x5904u) /* axDspSlaveLength */);
+        Memory::Write16(g_axTaskPtr + 0x24u, Memory::Read16(r13 - 0x5908u) /* axDspInitVector */);
+        Memory::Write16(g_axTaskPtr + 0x26u, Memory::Read16(r13 - 0x5906u) /* axDspResumeVector */);
     }
     Instance().ConfigureFromTask(g_axTaskPtr);
     LinkSingleDspTask(g_axTaskPtr);
     if (ctx) {
         const uint32_t r13 = ctx->gpr[13];
-        Memory::Write32(r13 - 0x7070u, 1);  // __AXDSPInitFlag (SPM __AXDSPInitCallback)
-        Memory::Write32(r13 - 0x7074u, 0);  // __AXDSPDoneFlag (SPM __AXDSPDoneCallback)
+        Memory::Write32(r13 - 0x3960u, 1);  // __AXDSPInitFlag (SPM __AXDSPInitCallback)
+        Memory::Write32(r13 - 0x3964u, 0);  // __AXDSPDoneFlag (SPM __AXDSPDoneCallback)
     }
 }
 

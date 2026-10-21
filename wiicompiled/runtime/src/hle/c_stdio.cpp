@@ -45,7 +45,7 @@ extern "C" uint32_t ConsoleWrite_HLE_80015500(
     }
 }
 
-PPC_NATIVE_OVERRIDE(8025E220, ConsoleWrite_HLE_80015500, uint32_t,
+PPC_NATIVE_OVERRIDE(803FC8AC, ConsoleWrite_HLE_80015500, uint32_t,
          (uint32_t handle, uint32_t bufferAddr, uint32_t lengthPtr, uint32_t refCon),
          (handle, bufferAddr, lengthPtr, refCon));
 

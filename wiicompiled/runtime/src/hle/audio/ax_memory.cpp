@@ -68,7 +68,7 @@ void MarkDspInitialized() {
 void ResetDspTaskGlobals() {
     Memory::TryWrite32(kDspAssertPendingAddr, 0);
     Memory::TryWrite32(kDspAssertTaskAddr, 0);
-    Memory::TryWrite32(0x8056DF58u, 0);  // __DSP_tmp_task (NSMBW)
+    Memory::TryWrite32(0x805A0B88u, 0);  // __DSP_tmp_task (NSMBW)
     Memory::TryWrite32(kDspCurrentTaskAddr, 0);
     Memory::TryWrite32(kDspFirstTaskAddr, 0);
     Memory::TryWrite32(kDspRunningTaskAddr, 0);

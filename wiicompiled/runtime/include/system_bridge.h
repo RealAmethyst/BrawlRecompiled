@@ -64,10 +64,10 @@ void WriteCrashArtifacts(std::string_view reason,
 // isa/ppc_isa_context.h - that is its standalone host seam, not a duplicate.)
 void ShowRuntimeFatalPopup(std::string_view category, std::string_view details) noexcept;
 
-// Super Paper Mario translated entry point (__start). The products always boot here, so
+// Super Smash Bros. Brawl translated entry point (__start). The products always boot here, so
 // this is applied as the default while parsing the command line; there is no
 // flag to override it.
-inline constexpr uint32_t kDefaultEntryAddress = 0x80006124u;
+inline constexpr uint32_t kDefaultEntryAddress = 0x80004374u;
 
 class SystemBridge {
 public:

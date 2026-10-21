@@ -387,7 +387,7 @@ inline void EnsureConfigFile() {
     // New Super Paper Bros. defaults: borderless 1080p (2.25 x 480 lines; 4.5 = 4K, 0 = the screen's own
     // size), cinematic 2.39:1, 120 fps interpolation, HD textures on. The launcher writes the same keys.
     output << "# New Super Paper Bros. user configuration\n"
-              "# paths.dvd_root is your Super Paper Mario (USA, R8PE01) extracted to a DATA folder; the\n"
+              "# paths.dvd_root is your Super Smash Bros. Brawl (USA, RSBE01) extracted to a DATA folder; the\n"
               "# launcher's Game disc page fills it in from a .iso/.ciso/.wbfs.\n\n"
               "[video]\n"
               "widescreen = true\n"

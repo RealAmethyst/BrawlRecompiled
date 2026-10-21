@@ -3,7 +3,8 @@
 Functions: identical masked instruction bodies (unique match), else the same name in the Brawl decomp's symbols.txt.
 Data: the matched functions' references (lis/addi pairs, r13/r2 small-data offsets) at the same instruction index.
 Imported by remap_runtime.py; run alone for a summary:  addr_map.py <spm main.dol> <brawl main.dol> <spm MAP.txt> <brawl symbols.txt>"""
-import bisect, collections, re, struct, sys, hashlib
+import bisect, collections, difflib, re, struct, sys, hashlib
+from pathlib import Path
 
 
 class Dol:
@@ -40,6 +41,48 @@ def r13_r2(dol):
             if n >> 26 == 24 and (n >> 21) & 31 == rd and (n >> 16) & 31 == rd:  # ori rd,rd,lo
                 regs.setdefault(rd, ((w[i] & 0xFFFF) << 16) | (n & 0xFFFF))
     return regs.get(13), regs.get(2)
+
+
+def dsy_checksum(w):
+    """Dolphin HashSignatureDB::ComputeCodeChecksum."""
+    s = 0
+    for x in w:
+        op = x & 0xFC000000
+        aux = op >> 26
+        op2 = op3 = 0
+        if aux == 4:
+            op2 = x & 0x3F
+            if op2 in (0, 8, 16, 21, 22):
+                op3 = x & 0x7C0
+        elif aux in (7, 8, 10, 11, 12, 13, 14, 15):
+            op2 = x & 0x03FF0000
+        elif aux in (19, 31, 63):
+            op2 = x & 0x7FF
+        elif aux == 59:
+            op2 = x & 0x3F
+            if op2 < 16:
+                op3 = x & 0x7C0
+        elif 32 <= aux < 56:
+            op2 = x & 0x03FF0000
+        s = ((s << 17) & 0xFFFE0000) | ((s >> 15) & 0x1FFFF)
+        s ^= op | op2 | op3
+    return s
+
+
+def load_dsy(path):
+    b = open(path, "rb").read()
+    n = struct.unpack("<I", b[:4])[0]
+    out = {}
+    for i in range(n):
+        o = 4 + i * 136
+        ck, size = struct.unpack("<II", b[o:o + 8])
+        name = b[o + 8:o + 136].split(bytes(1))[0].decode("latin-1").split(" ")[0].split("	")[0]
+        out.setdefault((ck, size), name)
+    return out
+
+
+def sext26(v):
+    return v - 0x4000000 if v & 0x2000000 else v
 
 
 def sext(v):
@@ -115,6 +158,17 @@ class Mapper:
                 self.bfunc.append((a, size, m[1]))
             self.bname.setdefault(m[1], a)
         self.bfunc.sort()
+        dsy = Path(brawl_syms).parents[3] / "totaldb.dsy"
+        if dsy.exists():  # Dolphin's signature database names SDK functions the decomp leaves as fn_
+            db = load_dsy(dsy)
+            seen = collections.defaultdict(list)
+            for a, size, n in self.bfunc:
+                hit = db.get((dsy_checksum(self.B.words(a, size)), size)) if size >= 0x20 else None
+                if hit:
+                    seen[hit].append(a)
+            for hit, addrs in seen.items():
+                if len(addrs) == 1:  # identical bodies (getter/setter twins) say nothing about which is which
+                    self.bname.setdefault(hit, addrs[0])
         self.bstart = [a for a, _, _ in self.bfunc]
         idx = collections.defaultdict(list)
         for a, size, n in self.bfunc:
@@ -122,6 +176,8 @@ class Mapper:
                 idx[(size, hashlib.sha1(repr(skeleton(self.B.words(a, size))).encode()).digest())].append(a)
         self.bidx = idx
         self._fcache = {}
+        self._busy = set()
+        self._failed = {}
 
     def spm_func(self, a):
         k = bisect.bisect_right(self.sstart, a) - 1
@@ -134,10 +190,16 @@ class Mapper:
         k = bisect.bisect_left(self.bstart, a)
         return self.bfunc[k][1] if k < len(self.bstart) and self.bstart[k] == a else None
 
-    def map_func(self, start):
-        """SPM function start -> (brawl start, how) or (None, why)."""
+    def map_func(self, start, depth=0):
+        """SPM function start -> (brawl start, how) or (None, why). depth > 0: a lookup made while matching another
+        function (cheaper methods only, results kept only when they succeed)."""
         if start in self._fcache:
             return self._fcache[start]
+        if self._failed.get(start, 99) <= depth:  # already failed with at least this much effort
+            return (None, "unmatched")
+        if start in self._busy:
+            return (None, "cycle")
+        self._busy.add(start)
         f = self.spm_func(start)
         res = (None, "nofunc")
         if f and f[0] == start:
@@ -151,14 +213,170 @@ class Mapper:
             byname = self.bname.get(name) if not name.startswith(("fn_", "func_")) else None
             if len(hits) == 1:
                 res = (hits[0], "body")
-            elif byname is not None and (not hits or byname in hits):
-                res = (byname, "name" + ("+body" if hits else ""))
-            elif hits:
-                res = (None, "ambiguous(%d)" % len(hits))
             else:
-                res = (None, "unmatched:" + name)
-        self._fcache[start] = res
+                res = self._by_neighbours(start, w, hits, depth)
+                if res[0] is None and byname is not None and (not hits or byname in hits):
+                    res = (byname, "name" + ("+body" if hits else ""))
+        self._busy.discard(start)
+        if depth == 0 or res[0] is not None:
+            self._fcache[start] = res
+        elif res[1] != "cycle":
+            self._failed[start] = min(self._failed.get(start, 99), depth)
         return res
+
+    def _anchors(self):
+        """Unique body matches that keep both dols in the same order (longest increasing run)."""
+        if hasattr(self, "_anch"):
+            return self._anch
+        pairs = []
+        for s in self.sstart:
+            if not self.S.is_text(s):
+                continue
+            k = bisect.bisect_right(self.sstart, s)
+            size = (self.sstart[k] if k < len(self.sstart) else s + 4) - s
+            w = self.S.words(s, size)
+            while w and w[-1] == 0:
+                w.pop()
+            if len(w) < 6:  # tiny bodies match by accident
+                continue
+            hits = self.bidx.get((len(w) * 4, hashlib.sha1(repr(skeleton(w)).encode()).digest()), [])
+            if len(hits) == 1:
+                pairs.append((s, hits[0]))
+        # Longest increasing subsequence on the Brawl side.
+        tails, prev, idx = [], [None] * len(pairs), []
+        for i, (_, b) in enumerate(pairs):
+            j = bisect.bisect_left(tails, b)
+            if j == len(tails):
+                tails.append(b); idx.append(i)
+            else:
+                tails[j] = b; idx[j] = i
+            prev[i] = idx[j - 1] if j else None
+        out, i = [], idx[-1] if idx else None
+        while i is not None:
+            out.append(pairs[i]); i = prev[i]
+        self._anch = sorted(out)
+        self._anch_s = [s for s, _ in self._anch]
+        return self._anch
+
+    def _by_neighbours(self, start, w, hits, depth=0):
+        anch = self._anchors()
+        k = bisect.bisect_right(self._anch_s, start) - 1
+        if k < 0 or k + 1 >= len(anch):
+            return (None, "unmatched")
+        (s0, b0), (s1, b1) = anch[k], anch[k + 1]
+        between_s = [a for a in self.sstart if s0 < a < s1]
+        between_b = [a for a in self.bstart if b0 < a < b1]
+        if hits:
+            near = [h for h in hits if b0 < h < b1]
+            if len(near) == 1:
+                return (near[0], "body+order")
+        if len(between_s) == len(between_b) and start in between_s:
+            c = between_b[between_s.index(start)]
+            return (c, "order")
+        if depth >= 3:
+            return (None, "unmatched")
+        # Called from a matched function: the call with the same ordinal in its Brawl counterpart.
+        votes = collections.Counter()
+        for caller, n in self._callers().get(start, []):
+            b, how = self.map_func(caller, depth + 1)
+            if b is None or not how.startswith(("body", "name", "order")):
+                continue
+            sl = self._bls(self.S, caller, self.spm_func(caller)[1])
+            bl = self._bls(self.B, b, self.brawl_func_size(b) or 4)
+            if len(sl) == len(bl):
+                votes[bl[n]] += 1
+        if votes:
+            (c, k), = votes.most_common(1)
+            if k * 2 > sum(votes.values()):
+                return (c, "caller(%d/%d)" % (k, sum(votes.values())))
+        # Address taken by a matched function (callbacks): the same instruction in its Brawl counterpart.
+        votes = collections.Counter()
+        for user, i in self._code_refs().get(start, []):
+            b, how = self.map_func(user, depth + 1)
+            if b is None:
+                continue
+            for j, t in refs(self.B, b, self.brawl_func_size(b) or 4, self.b13, self.b2):
+                if j == i and self.B.is_text(t):
+                    votes[t] += 1
+        if votes:
+            (c, k), = votes.most_common(1)
+            if k * 2 > sum(votes.values()):
+                return (c, "pointer(%d/%d)" % (k, sum(votes.values())))
+        # Rewritten in Brawl's SDK revision but calling the same functions: the Brawl function sharing most callees.
+        if depth <= 1:
+            mine = set()
+            for t in self._bls(self.S, start, len(w) * 4):
+                b, how = self.map_func(t, depth + 1) if t != start else (None, "")
+                if b is not None:
+                    mine.add(b)
+            if len(mine) >= 2:
+                score = collections.Counter()
+                for b in mine:
+                    for c in self._brawl_callers().get(b, ()):
+                        score[c] += 1
+                top = score.most_common(2)
+                if top and top[0][1] >= max(2, (len(mine) * 3 + 4) // 5) and (len(top) == 1 or top[1][1] < top[0][1]):
+                    return (top[0][0], "callees(%d/%d)" % (top[0][1], len(mine)))
+        if depth:
+            return (None, "unmatched")
+        # Different SDK revision: closest whole-body match among the functions between the anchors.
+        sk = skeleton(w)
+        best, score = None, 0.0
+        for c in (between_b if len(between_b) <= 200 else []):
+            cs = skeleton(self.B.words(c, self.brawl_func_size(c) or 4))
+            if not 0.6 < len(cs) / max(len(sk), 1) < 1.6:
+                continue
+            r = difflib.SequenceMatcher(None, sk, cs, autojunk=False).ratio()
+            if r > score:
+                best, score = c, r
+        if best is not None and score >= 0.8 and len(sk) >= 6:
+            return (best, "similar(%.2f)" % score)
+        return (None, "unmatched")
+
+    @staticmethod
+    def _bls(dol, a, size):
+        return [(a + 4 * i + (sext26(x & 0x03FFFFFC))) & 0xFFFFFFFF for i, x in enumerate(dol.words(a, size)) if x >> 26 == 18 and x & 3 == 1]
+
+    def _code_refs(self):
+        if hasattr(self, "_crefs"):
+            return self._crefs
+        cr = collections.defaultdict(list)
+        for k, s in enumerate(self.sstart):
+            if not self.S.is_text(s):
+                continue
+            size = (self.sstart[k + 1] if k + 1 < len(self.sstart) else s + 4) - s
+            if size > 0x10000:
+                continue
+            for i, t in refs(self.S, s, size, self.s13, self.s2):
+                if self.S.is_text(t):
+                    cr[t].append((s, i))
+        self._crefs = cr
+        return cr
+
+    def _brawl_callers(self):
+        if hasattr(self, "_bcallers"):
+            return self._bcallers
+        bc = collections.defaultdict(set)
+        for a, size, _ in self.bfunc:
+            for t in self._bls(self.B, a, size):
+                bc[t].add(a)
+        self._bcallers = bc
+        return bc
+
+    def _callers(self):
+        if hasattr(self, "_callmap"):
+            return self._callmap
+        cm = collections.defaultdict(list)
+        for k, s in enumerate(self.sstart):
+            if not self.S.is_text(s):
+                continue
+            size = (self.sstart[k + 1] if k + 1 < len(self.sstart) else s + 4) - s
+            if size > 0x10000:
+                continue
+            for n, t in enumerate(self._bls(self.S, s, size)):
+                cm[t].append((s, n))
+        self._callmap = cm
+        return cm
 
     def map_code(self, a):
         f = self.spm_func(a)

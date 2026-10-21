@@ -1,0 +1,44 @@
+schema_version: 1
+workspace_root: ../..
+
+# Super Smash Bros. Brawl, North America (RSBE01 rev 1): main.dol. The game's .rel modules (files/module) are
+# pre-linked at their load addresses separately (see tools/).
+project:
+  id: brawl-rsbe01
+  display_name: Super Smash Bros. Brawl (USA)
+  game_id: RSBE01
+  region: E
+  base_manifest_format: brawl-recomp-base-manifest
+  base_manifest_stem: brawl_base
+
+memory:
+  base: 0x80000000
+  size: 0x01800000
+  sda_base: 0x805A4420
+  sda2_base: 0x805A9320
+
+inputs:
+  dol:
+    path: ../game/main.dol
+    sha256: 179574a14c484279efef84db58e55fe31bc2e3cf6c99efc0d20e7b322ec088be
+
+translation:
+  entry_points:
+    - 0x8000403C
+  # Function starts from the Brawl decompilation (doldecomp/brawl, config/RSBE01_02/symbols.txt). Its rev 2 layout
+  # matches this rev 1 main.dol (every function end checked).
+  function_map:
+    path: projects/brawl/MAP.txt
+  allow_unsupported_instructions: false
+
+runtime:
+  native_registration_root: runtime/src
+  native_abi_directories:
+    - runtime/src/hle/gx
+
+output:
+  root: generated
+  functions: functions
+  runtime_config: RuntimeConfig.h
+  data_initializer: data_sections_init.cpp
+  base_manifest: ../build/base/brawl_base_manifest.json

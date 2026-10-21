@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from addr_map import Mapper
 
-root = Path(sys.argv[1])
+root = Path(sys.argv[1]).resolve()
 dry = "--dry" in sys.argv
 wc = root / "wiicompiled"
 spm = root.parent / "SuperPaperMarioRecomp"
@@ -68,8 +68,8 @@ for path in sorted((wc / "runtime").rglob("*")):
             new = M.b13 - b
             return f"{m.group(1)}{new:04X}{m.group(3)}" if m.group(2).isupper() else f"{m.group(1)}{new:04x}{m.group(3)}"
 
-        new = LIT.sub(lit, line)
-        new = SDA.sub(sda, new)
+        code, sep, comment = line.partition("//")  # comments keep the addresses of the game they were written for
+        new = SDA.sub(sda, LIT.sub(lit, code)) + sep + comment
         if drop[0] and not line.lstrip().startswith(("//", "#")):
             new = "#if 0  // BRAWL: no matching function in the Brawl dol\n" + new + "\n#endif"
         if new != line:

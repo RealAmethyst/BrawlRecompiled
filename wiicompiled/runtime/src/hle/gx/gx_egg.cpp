@@ -23,8 +23,8 @@ static void EGG__DrawGX__SetVtxState_HLE(uint32_t state) {
     case 0:
         setFmt(GX_VA_POS, GX_POS_XYZ, GX_S16, 0xE);
         setFmt(GX_VA_NRM, GX_NRM_XYZ, GX_S16, 0xE);
-        setArray(GX_VA_POS, 0x802574a0u, 6);
-        setArray(GX_VA_NRM, 0x802574e0u, 6);
+        setArray(GX_VA_POS, 0x803f4f4cu, 6);
+        setArray(GX_VA_NRM, 0x803f4f8cu, 6);
         setDesc(GX_VA_POS, GX_INDEX8);
         setDesc(GX_VA_NRM, GX_INDEX8);
         break;
@@ -46,13 +46,13 @@ static void EGG__DrawGX__SetVtxState_HLE(uint32_t state) {
         if (state == 7) setDesc(GX_VA_TEX0, GX_DIRECT);
         setFmt(GX_VA_POS, GX_POS_XY, GX_S16, 0xE); setFmt(GX_VA_NRM, GX_NRM_XYZ, GX_S16, 0xE);
         if (state == 7) setFmt(GX_VA_TEX0, GX_TEX_ST, GX_F32, 0);
-        setArray(GX_VA_POS, 0x80257520u, 4); setArray(GX_VA_NRM, 0x80388b80u, 6);
+        setArray(GX_VA_POS, 0x803F4FCCu, 4); setArray(GX_VA_NRM, 0x80388b80u, 6);
         break;
     case 9:
         setDesc(GX_VA_POS, GX_INDEX8); setDesc(GX_VA_NRM, GX_INDEX8); setDesc(GX_VA_TEX0, GX_DIRECT);
         setFmt(GX_VA_POS, GX_POS_XYZ, GX_S16, 0xE); setFmt(GX_VA_NRM, GX_NRM_XYZ, GX_S16, 0xE);
         setFmt(GX_VA_TEX0, GX_TEX_ST, GX_F32, 0);
-        setArray(GX_VA_POS, 0x80257540u, 6); setArray(GX_VA_NRM, 0x80388ba0u, 6);
+        setArray(GX_VA_POS, 0x803F4FECu, 6); setArray(GX_VA_NRM, 0x80388ba0u, 6);
         break;
     case 10: case 11: case 12: case 13: {
         const bool useAltPos = (state == 11 || state == 13);
@@ -72,12 +72,16 @@ static void EGG__DrawGX__SetVtxState_HLE(uint32_t state) {
 #endif
 #if 0  // NSMBW: MKW switch-case label; its function is native in NSMBW (was MKW-only)
 #if 0  // SPM: 0x8021b344: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(8021b344, EGG__DrawGX__SetVtxState_HLE, (uint32_t state), (state));
+#endif
 #endif
 #endif
 #if 0  // NSMBW: EGGDrawGX__SetVtxState is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x8021b688: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(8021b688, EGG__DrawGX__SetVtxState_HLE, (uint32_t state), (state));
+#endif
 #endif
 #endif
 
@@ -120,7 +124,9 @@ extern "C" void EGG__LightTexture__SetupTevFinish_HLE_8022e2bc(CpuContext* ctx) 
 }
 #if 0  // NSMBW: NSMBW's EGG::LightTexture has no SetupTevFinish (MKW-only)
 #if 0  // SPM: 0x8022e2bc: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(8022e2bc, EGG__LightTexture__SetupTevFinish_HLE_8022e2bc, (CpuContext* ctx), (ctx));
+#endif
 #endif
 #endif
 
@@ -129,12 +135,14 @@ PPC_NATIVE_OVERRIDE_VOID(8022e2bc, EGG__LightTexture__SetupTevFinish_HLE_8022e2b
 // ============================================================================
 
 extern "C" void EGG__AsyncDisplay__endRender_HLE_8020ff9c(CpuContext* ctx) {
-    uint32_t p = ctx->gpr[3]; ctx->gpr[3] = p; ctx->lr = 0x802BB820;
-    InvokeIndirectCpu(0x802BAED0u, ctx);
+    uint32_t p = ctx->gpr[3]; ctx->gpr[3] = p; ctx->lr = 0x8024D9E0;
+    InvokeIndirectCpu(0x8024D090u, ctx);
     InvokeIndirectCpu(0x801C51B0u, ctx);
 }
 #if 0  // NSMBW: MKW EGG::AsyncDisplay::endRender copied EFB->XFB; NSMBW's endRender (0x802BB820, 0x20 bytes) only toggles status bits, so the translated one runs
 #if 0  // SPM: endRender__Q23EGG12AsyncDisplayFv: name not in SPM
-PPC_NATIVE_OVERRIDE_VOID(802BB820, EGG__AsyncDisplay__endRender_HLE_8020ff9c, (CpuContext* ctx), (ctx));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(8024D9E0, EGG__AsyncDisplay__endRender_HLE_8020ff9c, (CpuContext* ctx), (ctx));
+#endif
 #endif
 #endif
