@@ -1377,10 +1377,10 @@ void DrawStartupScreen() {
         // the game can start), else in the overlay's font.
         constexpr const char* kTitle = "Made by JosiahG";
         constexpr const char* kCredit =
-            "A Super Paper Mario PC recomp. Built on WiiCompiled's code.";
+            "A Super Smash Bros. Brawl PC recomp. Built on WiiCompiled's code.";
         // At the bottom of the screen.
         constexpr const char* kReport = "";
-        // Super Paper Mario's own font, read from the game folder (font/papermarioset_US.bfn).
+        // Super Smash Bros. Brawl's own font, read from the game folder (font/papermarioset_US.bfn).
         static const std::shared_ptr<GameLayout::Font> pmFont = GameLayout::LoadFont("papermarioset_US.bfn");
         float startY = 0.0f;
         float titleHeight = ImGui::GetTextLineHeight();
@@ -2144,7 +2144,7 @@ void PatchBootStrings() {
         "\x82\xb5\x82\xc4\x82\xad\x82\xbe\x82\xb3\x82\xa2\x81\x42",  // Japanese, Shift-JIS
     };
     static constexpr std::string_view kText = "Enjoy New Super Paper Bros!";
-    constexpr uint32_t kStart = 0x80004000u, kSize = 0x00600000u;  // main.dol's sections
+    constexpr uint32_t kStart = 0x80004338u, kSize = 0x00600000u;  // main.dol's sections
     uint8_t* const mem = Memory::Contains(kStart, kSize) ? Memory::GetPointer(kStart, kSize) : nullptr;
     if (mem == nullptr) return;
     int patched = 0;

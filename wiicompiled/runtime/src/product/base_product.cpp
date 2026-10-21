@@ -5,7 +5,7 @@ namespace RuntimeProduct {
 const Descriptor& Active() noexcept {
     static constexpr Descriptor descriptor{
         Kind::BaseGame,
-        "Super Paper Mario",
+        "Super Smash Bros. Brawl",
     };
     return descriptor;
 }

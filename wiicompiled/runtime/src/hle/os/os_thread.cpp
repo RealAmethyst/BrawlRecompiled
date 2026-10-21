@@ -203,7 +203,7 @@ void WakeThreadJoiners(CpuContext* cpu, uint32_t threadPtr)
         return;
     }
     cpu->gpr[3] = threadPtr + kThreadJoinQueueOffset;
-    OSWakeupThread_HLE_801aaaa4(cpu);
+    OSWakeupThread_HLE_80085b68(cpu);
 }
 
 void UnlockAllThreadMutexes(CpuContext* cpu, uint32_t threadPtr)
@@ -213,7 +213,7 @@ void UnlockAllThreadMutexes(CpuContext* cpu, uint32_t threadPtr)
     }
     CpuContextScope scope(cpu);
     cpu->gpr[3] = threadPtr;
-    InvokeIndirectCpu(0x802733D0u, cpu); // __OSUnlockAllMutex
+    InvokeIndirectCpu(0x801DED58u, cpu); // __OSUnlockAllMutex
 }
 
 // Shared tail of OSExitThread/OSCancelThread: clears context, delists if detached, marks
@@ -308,7 +308,7 @@ extern "C" void OSCreateThread_HLE_801a9e84(CpuContext* ctx)
             cpu->gpr[3] = threadPtr;
             cpu->gpr[4] = entryFunc;
             cpu->gpr[5] = alignedStack - 8;
-            InvokeIndirectCpu(0x8026E058u, cpu); // OSInitContext
+            InvokeIndirectCpu(0x801D8218u, cpu); // OSInitContext
         }
 
         if (IsThpVideoDecoderEntry(entryFunc)) {
@@ -322,7 +322,7 @@ extern "C" void OSCreateThread_HLE_801a9e84(CpuContext* ctx)
 
         }
 
-        ::Memory::Write32(threadPtr + 0x84u, 0x8027510Cu); // LR = OSExitThread
+        ::Memory::Write32(threadPtr + 0x84u, 0x801E0F68u); // LR = OSExitThread
         ::Memory::Write32(threadPtr + 0x0Cu, entryArg);    // r3 = argument
 
         // Stack info
@@ -338,8 +338,8 @@ extern "C" void OSCreateThread_HLE_801a9e84(CpuContext* ctx)
         // Match the original OSCreateThread: when a floating-point exception handler is installed
         // (__OSErrorTable[OS_ERROR_FPE] != NULL) the new thread gets FE0|FE1 in SRR1, the FPSAVED
         // state bit and an FPSCR built from __OSFpscrEnableBits.
-        constexpr uint32_t kSchedulerInitFlagAddr = 0x804F5270u;  // SPM OSCreateThread 0x80274F64: __OSErrorTable + 0x40.
-        constexpr uint32_t kThreadAttrSourceAddr = 0x8056D278u;   // __OSFpscrEnableBits
+        constexpr uint32_t kSchedulerInitFlagAddr = 0x804DD1D0u;  // SPM OSCreateThread 0x80274F64: __OSErrorTable + 0x40.
+        constexpr uint32_t kThreadAttrSourceAddr = 0x8059E9C0u;   // __OSFpscrEnableBits
         if (Memory::Contains(kSchedulerInitFlagAddr, 4) &&
             ::Memory::Read32(kSchedulerInitFlagAddr) != 0) {
             uint32_t srr1 = ::Memory::Read32(threadPtr + 0x19Cu);
@@ -395,7 +395,9 @@ extern "C" void OSCreateThread_HLE_801a9e84(CpuContext* ctx)
         cpu->gpr[3] = 0; // Return failure
     }
 }
-PPC_NATIVE_OVERRIDE_VOID(80274EA0, OSCreateThread_HLE_801a9e84, (CpuContext* ctx), (ctx));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(801E0CFC, OSCreateThread_HLE_801a9e84, (CpuContext* ctx), (ctx));
+#endif
 
 extern "C" void OSExitThread_HLE_801aa0f0(CpuContext* ctx)
 {
@@ -421,9 +423,11 @@ extern "C" void OSExitThread_HLE_801aa0f0(CpuContext* ctx)
 
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-PPC_NATIVE_OVERRIDE_VOID(8027510C, OSExitThread_HLE_801aa0f0, (CpuContext* ctx), (ctx));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(801E0F68, OSExitThread_HLE_801aa0f0, (CpuContext* ctx), (ctx));
+#endif
 
-extern "C" void OSCancelThread_HLE_801aa1d4(CpuContext* ctx)
+extern "C" void OSCancelThread_HLE_80085298(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t threadPtr = cpu->gpr[3];
@@ -463,9 +467,9 @@ extern "C" void OSCancelThread_HLE_801aa1d4(CpuContext* ctx)
 
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-PPC_NATIVE_OVERRIDE_VOID(802751F0, OSCancelThread_HLE_801aa1d4, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(801E104C, OSCancelThread_HLE_80085298, (CpuContext* ctx), (ctx));
 
-extern "C" void OSJoinThread_HLE_801aa3ac(CpuContext* ctx)
+extern "C" void OSJoinThread_HLE_80085470(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t threadPtr = cpu->gpr[3];
@@ -485,7 +489,7 @@ extern "C" void OSJoinThread_HLE_801aa3ac(CpuContext* ctx)
 
         if ((attributes & 1u) == 0 && state != kThreadStateMoribund && joinHead == 0) {
             cpu->gpr[3] = threadPtr + kThreadJoinQueueOffset;
-            OSSleepThread_HLE_801aa9b8(cpu);
+            OSSleepThread_HLE_80085a7c(cpu);
             state = ::Memory::Read16(threadPtr + kThreadStateOffset);
 
             bool foundInList = false;
@@ -523,10 +527,10 @@ extern "C" void OSJoinThread_HLE_801aa3ac(CpuContext* ctx)
     cpu->gpr[3] = result;
 }
 #if 0  // SPM: OSJoinThread: name not in SPM
-PPC_NATIVE_OVERRIDE_VOID(801B5670, OSJoinThread_HLE_801aa3ac, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(8035CA10, OSJoinThread_HLE_80085470, (CpuContext* ctx), (ctx));
 #endif
 
-extern "C" void OSDetachThread_HLE_801aa4ec(CpuContext* ctx)
+extern "C" void OSDetachThread_HLE_800855b0(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t threadPtr = cpu->gpr[3];
@@ -555,10 +559,10 @@ extern "C" void OSDetachThread_HLE_801aa4ec(CpuContext* ctx)
     OS__RestoreInterrupts_801a65d4(irqState);
 }
 #if 0  // SPM: OSDetachThread: name not in SPM
-PPC_NATIVE_OVERRIDE_VOID(801B57C0, OSDetachThread_HLE_801aa4ec, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(8035CB60, OSDetachThread_HLE_800855b0, (CpuContext* ctx), (ctx));
 #endif
 
-extern "C" void OSSuspendThread_HLE_801aa6a8(CpuContext* ctx)
+extern "C" void OSSuspendThread_HLE_8008576c(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t threadPtr = cpu->gpr[3];
@@ -612,11 +616,11 @@ extern "C" void OSSuspendThread_HLE_801aa6a8(CpuContext* ctx)
 
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-PPC_NATIVE_OVERRIDE_VOID(80275660, OSSuspendThread_HLE_801aa6a8, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(801E15FC, OSSuspendThread_HLE_8008576c, (CpuContext* ctx), (ctx));
 
 // OSResumeThread (0x801b5860)
 // Resumes a suspended thread, making it eligible for scheduling.
-extern "C" void OSResumeThread_HLE_801aa58c(CpuContext* ctx)
+extern "C" void OSResumeThread_HLE_80085650(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t threadPtr = cpu->gpr[3];
@@ -715,4 +719,4 @@ extern "C" void OSResumeThread_HLE_801aa58c(CpuContext* ctx)
     
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-PPC_NATIVE_OVERRIDE_VOID(802753C8, OSResumeThread_HLE_801aa58c, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(801E1364, OSResumeThread_HLE_80085650, (CpuContext* ctx), (ctx));

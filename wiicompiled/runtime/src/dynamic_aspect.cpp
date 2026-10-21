@@ -24,16 +24,16 @@ uint32_t g_lastEggWidth169 = 0;
 
 // EGG::Screen's static canvas records (PAL). See gx_dynamic_aspect.h for the
 // record layout and the anamorphic presentation model.
-constexpr uint32_t kEggScreenRecord43 = 0x802A3EE8u;
-constexpr uint32_t kEggScreenRecord169 = 0x802A3EF4u;
+constexpr uint32_t kEggScreenRecord43 = 0x802360A8u;
+constexpr uint32_t kEggScreenRecord169 = 0x802360B4u;
 constexpr uint32_t kEggActiveScreenPtr = 0x80386F14u;
 
 constexpr uint32_t kEggScreenProjScaleX = 0x80386F20u;
 constexpr uint32_t kEggScreenProjScaleY = 0x80386F24u;
 
-constexpr uint32_t kEggScreenAspectHandler = 0x802D1B50u;
+constexpr uint32_t kEggScreenAspectHandler = 0x8021DC20u;
 
-constexpr uint32_t kMkwUpdateAllScreens = 0x805653D0u;
+constexpr uint32_t kMkwUpdateAllScreens = 0x804FB66Cu;
 constexpr uint32_t kMkwGfxDrawList = 0x809C1830u;
 constexpr uint32_t kSystemManagerInstance = 0x80386000u;
 
@@ -45,7 +45,7 @@ constexpr uint32_t kMkwGfxDrawListLinkOffset = 0x0Au;
 constexpr uint32_t kMkwGfxOffscreenList = 0x809C183Cu;
 constexpr uint32_t kMkwGfxOffscreenNodeScreenSlot = 0x10u;
 constexpr uint32_t kEggScreenVTableOffset = 0x38u;
-constexpr uint32_t kEggScreenVTable = 0x802A3F0Cu;
+constexpr uint32_t kEggScreenVTable = 0x802360CCu;
 constexpr uint32_t kMkwScreenVTable = 0x808B4C20u;
 constexpr uint32_t kEggScreenFlagsOffset = 0x34u;
 constexpr uint16_t kEggScreenFlagFramebufferCanvas = 0x0008u;

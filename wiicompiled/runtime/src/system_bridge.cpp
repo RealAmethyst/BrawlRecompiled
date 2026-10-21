@@ -405,8 +405,8 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
     };
 
     std::vector<SeedEntry> entries;
-    constexpr uint32_t kMem1ArenaLoDefault = 0x80576720u;  // NSMBW __ArenaLo (stack top, see OSInit)
-    uint32_t mem1ArenaHiDefault = 0x817EF720u;  // MEM1 end - NSMBW FST (0x8B2C bytes, 32-aligned); verified via REL load addresses at boot
+    constexpr uint32_t kMem1ArenaLoDefault = 0x805B7160u;  // Brawl __ArenaLo (OSInit, above the 64 KiB boot stack)
+    uint32_t mem1ArenaHiDefault = 0x817DA5A0u;  // MEM1 end - Brawl FST (0x25A48 bytes, 32-aligned)
     constexpr uint32_t kBusClockHz =
         static_cast<uint32_t>(TimeBaseContract::kBusClockHz);
     constexpr uint32_t kCpuClockHz = kBusClockHz * 3u;
@@ -429,10 +429,10 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
     // Retro Rewind reads the region byte directly from here while building its
     // Retro-WFC payload URL, and OSGetAppGamename reads the app code mirrors
     // at 0x80003180/0x80003194 while building NAS auth fields.
-    entries.push_back({0x80000000u, 0x52385045u, "Disc game code"}); // SMNE
-    entries.push_back({0x80000004u, 0x30310000u, "Disc maker/id"});  // "01", disc 0, version 1 (boot.bin)
-    entries.push_back({0x80003180u, 0x52385045u, "OS app game code"}); // SMNE
-    entries.push_back({0x80003194u, 0x52385045u, "OS app gamename"});  // SMNE
+    entries.push_back({0x80000000u, 0x52534245u, "Disc game code"}); // SMNE
+    entries.push_back({0x80000004u, 0x30310001u, "Disc maker/id"});  // "01", disc 0, revision 1 (boot.bin)
+    entries.push_back({0x80003194u, 0x52534245u, "OS app game code"}); // SMNE
+    entries.push_back({0x80003194u, 0x52534245u, "OS app gamename"});  // SMNE
     // NSMBW's OSInit (newer SDK than Mario Kart's) compares the running IOS (0x80003140) with the
     // title's required IOS at 0x80003188 - same major, revision not older - and calls OSFatal
     // ("ERROR #002") otherwise. The boot path leaves the TMD's IOS here; Dolphin writes the IOS word.

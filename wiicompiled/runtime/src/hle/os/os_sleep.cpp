@@ -167,7 +167,7 @@ bool ProcessSleepTimers(CpuContext* cpu)
 
         ClearOutstandingPark(threadPtr);
         cpu->gpr[3] = threadPtr;
-        OSResumeThread_HLE_801aa58c(cpu);
+        OSResumeThread_HLE_80085650(cpu);
 
         // OSResumeThread only peels one suspension level, so if the sleeper's count is inflated
         // (failed park, overlapping suspend) dropping the timer here would strand it. Keep it armed
@@ -251,7 +251,7 @@ bool ProcessSleepTimers(CpuContext* cpu)
                       << std::dec << " park-shaped with no pending wake timer for 100ms; "
                       << "resuming lost sleeper" << std::endl;
             cpu->gpr[3] = threadPtr;
-            OSResumeThread_HLE_801aa58c(cpu);
+            OSResumeThread_HLE_80085650(cpu);
         }
     }
 
@@ -264,7 +264,7 @@ bool ProcessSleepTimers(CpuContext* cpu)
 // thread and resuming it from a host-side timer. A host sleep here starves
 // lower-priority guest workers because the scheduler never gets control.
 // ---------------------------------------------------------------------------
-extern "C" void OS__SleepTicks_HLE_801aaca8(CpuContext* ctx)
+extern "C" void OS__SleepTicks_HLE_80085d6c(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     if (!cpu) {
@@ -310,7 +310,7 @@ extern "C" void OS__SleepTicks_HLE_801aaca8(CpuContext* ctx)
         ScheduleSleepTimer(currentThread, ticks);
         MarkParkOutstanding(currentThread);
         cpu->gpr[3] = currentThread;
-        OSSuspendThread_HLE_801aa6a8(cpu);
+        OSSuspendThread_HLE_8008576c(cpu);
 
         // Defence in depth: SelectThread has other refusal paths (context mismatch, drained run
         // queues), and there's a fire-before-park race where the timer fires and its resume is
@@ -350,7 +350,7 @@ extern "C" void OS__SleepTicks_HLE_801aaca8(CpuContext* ctx)
 }
 #if 0  // NSMBW: OSSleepTicks is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801aaca8: no NSMBW symbol at this address
-REGISTER_NATIVE_FUNCTION(0x801AACA8, OS__SleepTicks_HLE_801aaca8);
+REGISTER_NATIVE_FUNCTION(0x80085D6C, OS__SleepTicks_HLE_80085d6c);
 #endif
 #endif
 
@@ -414,7 +414,7 @@ void ReportUnparkableSleep(uint32_t queuePtr, uint32_t thread)
 
 // OSSleepThread (0x801b5c90)
 // Puts the current thread to sleep on a specified wait queue.
-extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* ctx)
+extern "C" void OSSleepThread_HLE_80085a7c(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t queuePtr = cpu->gpr[3];
@@ -511,4 +511,4 @@ extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* ctx)
     
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-PPC_NATIVE_OVERRIDE_VOID(802757F4, OSSleepThread_HLE_801aa9b8, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(801E1790, OSSleepThread_HLE_80085a7c, (CpuContext* ctx), (ctx));

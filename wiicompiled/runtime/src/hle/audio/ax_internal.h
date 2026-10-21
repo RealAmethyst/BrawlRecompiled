@@ -31,21 +31,21 @@ constexpr uint32_t kMailReset = kTaskMailToDsp | 0x0002u;
 constexpr size_t kResamplingCoefficientCount = 0x800;
 constexpr uint32_t kMailContinue = kTaskMailToDsp | 0x0003u;
 constexpr uint32_t kAxSamplesPerFrame = 96u;
-constexpr uint32_t kAxDspTaskAddr = 0x8050FD00u;    // AX DSPTaskInfo passed to DSPAddTask by __AXOutInitDSP (NSMBW)
-constexpr uint32_t kDspInitializedAddr = 0x8056DF48u;    // __DSP_init_flag (NSMBW)
-constexpr uint32_t kDspAssertPendingAddr = 0x8056DF50u;  // __DSP_rude_task_pending (NSMBW)
-constexpr uint32_t kDspAssertTaskAddr = 0x8056DF54u;     // __DSP_rude_task (NSMBW)
-constexpr uint32_t kDspCurrentTaskAddr = 0x8056DF5Cu;    // __DSP_last_task (offset-matched to MKW) (NSMBW)
-constexpr uint32_t kDspFirstTaskAddr = 0x8056DF60u;      // __DSP_first_task (NSMBW)
-constexpr uint32_t kDspRunningTaskAddr = 0x8056DF64u;    // __DSP_curr_task (offset-matched to MKW) (NSMBW)
-constexpr uint32_t kAxIramMmemAddr = 0x804B7780u;   // axDspSlave microcode (NSMBW)
-constexpr uint32_t kAxDramMmemAddr = 0x8050FD60u;   // __AXDramImage (NSMBW)
+constexpr uint32_t kAxDspTaskAddr = 0x804E8940u;    // AX DSPTaskInfo passed to DSPAddTask by __AXOutInitDSP (NSMBW)
+constexpr uint32_t kDspInitializedAddr = 0x805A0B78u;    // __DSP_init_flag (NSMBW)
+constexpr uint32_t kDspAssertPendingAddr = 0x805A0B80u;  // __DSP_rude_task_pending (NSMBW)
+constexpr uint32_t kDspAssertTaskAddr = 0x805A0B84u;     // __DSP_rude_task (NSMBW)
+constexpr uint32_t kDspCurrentTaskAddr = 0x805A0B8Cu;    // __DSP_last_task (offset-matched to MKW) (NSMBW)
+constexpr uint32_t kDspFirstTaskAddr = 0x805A0B90u;      // __DSP_first_task (NSMBW)
+constexpr uint32_t kDspRunningTaskAddr = 0x805A0B94u;    // __DSP_curr_task (offset-matched to MKW) (NSMBW)
+constexpr uint32_t kAxIramMmemAddr = 0x80479140u;   // axDspSlave microcode (NSMBW)
+constexpr uint32_t kAxDramMmemAddr = 0x804E89A0u;   // __AXDramImage (NSMBW)
 constexpr uint32_t kAxDramLength = 64u;
 constexpr uint32_t kAxDramDspAddr = 3282u;
-constexpr uint32_t kAxInitCallback = 0x80286698u;
-constexpr uint32_t kAxResumeCallback = 0x802866A4u;
-constexpr uint32_t kAxDoneCallback = 0x802866F8u;    // __AXDSPDoneCallback (task+0x30 in NSMBW __AXOutInitDSP)
-constexpr uint32_t kAxRequestCallback = 0x80286708u; // __AXDSPRequestCallback (task+0x34)
+constexpr uint32_t kAxInitCallback = 0x80200D1Cu;
+constexpr uint32_t kAxResumeCallback = 0x80200D28u;
+constexpr uint32_t kAxDoneCallback = 0x80200D7Cu;    // __AXDSPDoneCallback (task+0x30 in NSMBW __AXOutInitDSP)
+constexpr uint32_t kAxRequestCallback = 0x80200D8Cu; // __AXDSPRequestCallback (task+0x34)
 
 extern uint32_t g_axTaskPtr;
 

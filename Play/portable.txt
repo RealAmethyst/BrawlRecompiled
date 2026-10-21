@@ -1,1 +1,1 @@
-Super Paper Mario recomp: settings, saves and logs stay in the UserData folder next to this file.
+Super Smash Bros. Brawl recomp: settings, saves and logs stay in the UserData folder next to this file.

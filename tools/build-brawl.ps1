@@ -1,5 +1,5 @@
-# One-shot Super Paper Mario build: portable tools -> pinned dependencies -> translate -> configure -> compile.
-# Run from anywhere:  powershell -ExecutionPolicy Bypass -File <project>\tools\build-spm.ps1
+# One-shot Super Smash Bros. Brawl build: portable tools -> pinned dependencies -> translate -> configure -> compile.
+# Run from anywhere:  powershell -ExecutionPolicy Bypass -File <project>\tools\build-brawl.ps1
 # Everything it downloads is the pinned set WiiCompiled's own Launcher scripts fetch (llvm-mingw, CMake,
 # Ninja, SDL3, Dawn and the other Dependencies/ trees); nothing else is installed. Logs: <project>\build-logs\.
 [CmdletBinding()]
@@ -7,8 +7,7 @@ param(
     [int]$Jobs = 0,
     [switch]$SkipTools,
     [switch]$SkipTranslate,
-    [switch]$ConfigureOnly,
-    [switch]$Pal     # the PAL region module (R8PP01): projects\spm\pal, built in wiicompiled\pal, output Play\engine_pal.dll
+    [switch]$ConfigureOnly
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3.0
@@ -17,22 +16,11 @@ $root = Split-Path -Parent $PSScriptRoot            # <project>\tools -> <projec
 $wc = Join-Path $root 'wiicompiled'
 $toolchain = Join-Path $root 'toolchain'
 $logs = Join-Path $root 'build-logs'
-$project = 'projects/spm/recomp.yml'
+$project = 'projects/brawl/recomp.yml'
 $workspace = $wc        # the translator's cwd: runtime\, generated\ and native-build\ live under it
-# One Play\SuperPaperMario.exe (the loader, runtime\src\product\engine_loader.cpp) plus one engine module per disc
-# region: engine_usa.dll from this build, engine_pal.dll from -Pal. The loader picks by the extracted disc's id.
+# Play\SuperSmashBrosBrawl.exe (the loader, runtime\src\product\engine_loader.cpp) plus the engine module engine_usa.dll.
 $module = 'engine_usa'
 $game = 'game'
-if ($Pal) {
-    # Mini workspace wiicompiled\pal: runtime\ = the USA runtime with PAL addresses (make_pal_runtime.py), an
-    # aurora-main junction, own generated\ and native-build\. projects\spm\pal\recomp.yml sets workspace_root to it.
-    $workspace = Join-Path $wc 'pal'
-    $project = Join-Path $wc 'projects\spm\pal\recomp.yml'
-    $module = 'engine_pal'
-    $game = 'game_pal'
-    [IO.Directory]::CreateDirectory($workspace) | Out-Null
-    if (-not (Test-Path -LiteralPath (Join-Path $workspace 'aurora-main'))) { cmd /c mklink /J (Join-Path $workspace 'aurora-main') (Join-Path $wc 'aurora-main') | Out-Null }
-}
 if ($Jobs -le 0) { $Jobs = [Environment]::ProcessorCount }
 [IO.Directory]::CreateDirectory($logs) | Out-Null
 . (Join-Path $wc 'Launcher\NativeBuildFlags.ps1')
@@ -64,7 +52,7 @@ function Invoke-Step([string]$Name, [string]$Exe, [string[]]$Arguments, [string]
 Remove-Item -LiteralPath (Join-Path $logs 'status.txt') -ErrorAction SilentlyContinue
 Set-Status "build started, project $root, $Jobs jobs"
 
-foreach ($required in @((Join-Path $root "$game\main.dol"), $(if ($Pal) { $project } else { Join-Path $wc $project }))) {
+foreach ($required in @((Join-Path $root "$game\main.dol"), (Join-Path $wc $project))) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Missing $required" }
 }
 
@@ -91,24 +79,16 @@ if (-not $SkipTools) {
 
 # 2. Translate (.NET 8 runtime; the translator is already built)
 if (-not $SkipTranslate) {
-    if ($Pal) {
-        Set-Status 'pal: making wiicompiled\pal\runtime from runtime\ (make_pal_runtime.py)'
-        $py = Get-Command python -ErrorAction Stop
-        & $py.Source -I (Join-Path $wc 'projects\spm\pal\tools\make_pal_runtime.py') $root *>&1 | ForEach-Object { "$_" } | Out-File -LiteralPath (Join-Path $logs 'pal-remap.log') -Encoding utf8
-        if ($LASTEXITCODE -ne 0) { throw 'make_pal_runtime.py failed (see build-logs\pal-remap.log)' }
-    }
     $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
     if (-not $dotnet) { throw 'dotnet was not found on PATH (the .NET 8 runtime is enough).' }
     $env:DOTNET_ROLL_FORWARD = 'Major'
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
     $translator = Join-Path $wc 'translator\src\Translator.Cli\bin\Release\net8.0\Translator.Cli.dll'
-    Invoke-Step 'translate' $dotnet.Source @($translator, 'translate-recursive', '0x80006124', '--project', $project,
+    Invoke-Step 'translate' $dotnet.Source @($translator, 'translate-recursive', '0x8000403C', '--project', $project,
         '--outdir', 'generated/functions', '--output-metadata', 'generated/base_translation_output.json',
         '--production-source-bundle', 'generated/base_translation_sources.bin',
         '--no-function-files', '--prune-stale', '--threads', "$Jobs") $workspace
-    Invoke-Step 'manifest' $dotnet.Source @($translator, 'emit-base-manifest', '--project', $project, '--out', 'build/base',
-        '--functions-dir', 'generated/functions', '--translation-output-metadata',
-        'generated/base_translation_output.json', '--region', $(if ($Pal) { 'P' } else { 'E' })) $workspace
+    # emit-base-manifest (WiiCompiled's own mod manifest) needs the project's single REL; Brawl's modules come later.
     Invoke-Step 'data-init' $dotnet.Source @($translator, 'generate-data-init', '--project', $project) $workspace
     Invoke-Step 'shards' $dotnet.Source @($translator, 'emit-build-shards', '--project', $project,
         '--base-metadata', 'generated/base_translation_output.json', '--base-functions-dir', 'generated/functions',
@@ -133,18 +113,15 @@ if ($ConfigureOnly) { Set-Status 'configure only: done'; exit 0 }
 Invoke-Step 'compile' $cmake @('--build', $build, '--target', 'WiiCompiled', 'WiiCompiledLoader', '--parallel', "$Jobs") $workspace
 Set-Status "DONE: $build\$module.dll"
 # Only the copy running from Play\ locks the files we overwrite; sweeps run their own copy under autotest\ and must survive.
-$playExe = [IO.Path]::GetFullPath((Join-Path $root 'Play\SuperPaperMario.exe'))
-Get-Process SuperPaperMario -ErrorAction SilentlyContinue | Where-Object { $_.Path -and [IO.Path]::GetFullPath($_.Path) -ieq $playExe } | Stop-Process -Force; Start-Sleep -Seconds 1
+$playExe = [IO.Path]::GetFullPath((Join-Path $root 'Play\SuperSmashBrosBrawl.exe'))
+Get-Process SuperSmashBrosBrawl -ErrorAction SilentlyContinue | Where-Object { $_.Path -and [IO.Path]::GetFullPath($_.Path) -ieq $playExe } | Stop-Process -Force; Start-Sleep -Seconds 1
 Copy-Item -LiteralPath (Join-Path $build "$module.dll") -Destination (Join-Path $root "Play\$module.dll") -Force
 Copy-Item -LiteralPath (Join-Path $build 'WiiCompiled.exe') -Destination $playExe -Force
-Set-Status "copied to Play\$module.dll and Play\SuperPaperMario.exe"
-if (Test-Path (Join-Path $root 'autotest\hq.txt')) {
-    Start-Process powershell -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'hq-shots.ps1'))
-}
+Set-Status "copied to Play\$module.dll and Play\SuperSmashBrosBrawl.exe"
 # Unattended test run: autotest\autorun.txt present -> start the game (its own autoexit.txt ends it) with logs.
 if (Test-Path (Join-Path $root 'autotest\autorun.txt')) {
     $auto = Join-Path $root 'autotest'
-    $p = Start-Process -FilePath (Join-Path $root 'Play\SuperPaperMario.exe') -WorkingDirectory (Join-Path $root 'Play') -PassThru `
+    $p = Start-Process -FilePath (Join-Path $root 'Play\SuperSmashBrosBrawl.exe') -WorkingDirectory (Join-Path $root 'Play') -PassThru `
         -RedirectStandardOutput (Join-Path $auto 'run.log') -RedirectStandardError (Join-Path $auto 'run.err.log')
     $p.WaitForExit(600000) | Out-Null
     if (-not $p.HasExited) { $p.Kill() }

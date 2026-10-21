@@ -100,7 +100,9 @@ extern "C" uint32_t PAD__Init_HLE()
 }
 #if 0  // NSMBW: PADInit is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801af2f0: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801AF2F0, PAD__Init_HLE, uint32_t, (), ());
+#endif
 #endif
 #endif
 
@@ -136,7 +138,9 @@ extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
 }
 #if 0  // NSMBW: PADRead is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801af44c: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801AF44C, PAD__Read_HLE, uint32_t, (uint32_t statusPtr), (statusPtr));
+#endif
 #endif
 #endif
 
@@ -146,7 +150,9 @@ extern "C" uint32_t PAD__Reset_HLE(uint32_t mask)
 }
 #if 0  // NSMBW: PADReset is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801af0dc: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801AF0DC, PAD__Reset_HLE, uint32_t, (uint32_t mask), (mask));
+#endif
 #endif
 #endif
 
@@ -156,7 +162,9 @@ extern "C" uint32_t PAD__Recalibrate_HLE(uint32_t mask)
 }
 #if 0  // NSMBW: PADRecalibrate is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801af1e4: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801AF1E4, PAD__Recalibrate_HLE, uint32_t, (uint32_t mask), (mask));
+#endif
 #endif
 #endif
 
@@ -169,6 +177,8 @@ extern "C" void PAD__ControlMotor_HLE(int32_t chan, uint32_t command)
 }
 #if 0  // NSMBW: PADControlMotor is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801af908: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801AF908, PAD__ControlMotor_HLE, (int32_t chan, uint32_t command), (chan, command));
+#endif
 #endif
 #endif

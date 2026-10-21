@@ -110,7 +110,9 @@ extern "C" void IOS_IoctlAsync_80194158(CpuContext* ctx)
     const int32_t result = NAND_IOS_Ioctl_HLE(fd, cmd, inBuf, inLen, outBuf, outLen);
     CompleteAsync(ctx, callback, result, callbackArg); // Success
 }
-PPC_NATIVE_OVERRIDE_VOID(802960c4, IOS_IoctlAsync_80194158, (CpuContext* ctx), (ctx));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(80212c08, IOS_IoctlAsync_80194158, (CpuContext* ctx), (ctx));
+#endif
 
 // 0x80224B50 -> IOS_OpenAsync
 extern "C" void IOS_OpenAsync_HLE(CpuContext* ctx) {
@@ -128,7 +130,7 @@ extern "C" void IOS_OpenAsync_HLE(CpuContext* ctx) {
     const int32_t result = NAND_IOS_Open_HLE(pathPtr, mode);
     CompleteAsync(ctx, callback, result, callbackArg); // Queued successfully
 }
-PPC_NATIVE_OVERRIDE_VOID(80295834, IOS_OpenAsync_HLE, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(80212290, IOS_OpenAsync_HLE, (CpuContext* ctx), (ctx));
 
 // 0x80224DA0 -> IOS_CloseAsync
 extern "C" void IOS_CloseAsync_HLE(CpuContext* ctx) {
@@ -143,19 +145,19 @@ extern "C" void IOS_CloseAsync_HLE(CpuContext* ctx) {
     const int32_t result = NAND_IOS_Close_HLE(fd);
     CompleteAsync(ctx, callback, result, callbackArg);
 }
-PPC_NATIVE_OVERRIDE_VOID(80295A6C, IOS_CloseAsync_HLE, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(802124C8, IOS_CloseAsync_HLE, (CpuContext* ctx), (ctx));
 
 // 0x80224F10 -> IOS_ReadAsync
 extern "C" void IOS_ReadAsync_HLE(CpuContext* ctx) {
     IosBufferAsync(ctx, NAND_IOS_Read_HLE);
 }
-PPC_NATIVE_OVERRIDE_VOID(80295BD4, IOS_ReadAsync_HLE, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(80212630, IOS_ReadAsync_HLE, (CpuContext* ctx), (ctx));
 
 // 0x80225120 -> IOS_WriteAsync
 extern "C" void IOS_WriteAsync_HLE(CpuContext* ctx) {
     IosBufferAsync(ctx, NAND_IOS_Write_HLE);
 }
-PPC_NATIVE_OVERRIDE_VOID(80295ddc, IOS_WriteAsync_HLE, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(80212838, IOS_WriteAsync_HLE, (CpuContext* ctx), (ctx));
 
 // 0x80225330 -> IOS_SeekAsync
 extern "C" void IOS_SeekAsync_HLE(CpuContext* ctx) {
@@ -167,7 +169,7 @@ extern "C" void IOS_SeekAsync_HLE(CpuContext* ctx) {
     const int32_t result = NAND_IOS_Seek_HLE(fd, offset, whence);
     CompleteAsync(ctx, callback, result, callbackArg);
 }
-PPC_NATIVE_OVERRIDE_VOID(80295fe4, IOS_SeekAsync_HLE, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(80212a40, IOS_SeekAsync_HLE, (CpuContext* ctx), (ctx));
 
 // 0x802258B0 -> IOS_IoctlvAsync
 extern "C" void IOS_IoctlvAsync_HLE(CpuContext* ctx)
@@ -192,4 +194,4 @@ extern "C" void IOS_IoctlvAsync_HLE(CpuContext* ctx)
     const int32_t result = NAND_IOS_Ioctlv_HLE(fd, cmd, numIn, numOut, vectorPtr);
     CompleteAsync(ctx, callback, result, callbackArg);
 }
-PPC_NATIVE_OVERRIDE_VOID(80296468, IOS_IoctlvAsync_HLE, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(80212FAC, IOS_IoctlvAsync_HLE, (CpuContext* ctx), (ctx));

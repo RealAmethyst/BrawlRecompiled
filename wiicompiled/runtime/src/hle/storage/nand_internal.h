@@ -44,7 +44,7 @@
 // NSMBW (SMNE01) title ID: 00010000-52385045 (tmd.bin). Mario Kart used 00010004-524D4350.
 namespace {
 constexpr uint32_t kNandTitleIdHi = 0x00010000;
-constexpr uint32_t kNandTitleIdLo = 0x52385045; // "SMNE" fallback
+constexpr uint32_t kNandTitleIdLo = 0x52534245; // "SMNE" fallback
 } // anonymous namespace
 
 // ============================================================================

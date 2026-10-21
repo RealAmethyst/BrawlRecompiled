@@ -7,7 +7,7 @@
 #include "discord_presence.h"
 #include "runtime_log.h"
 
-extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* ctx);
+extern "C" void OSSleepThread_HLE_80085a7c(CpuContext* ctx);
 
 // ============================================================================
 // SHA device handles
@@ -426,7 +426,7 @@ extern "C" int32_t NAND_IOS_Open_HLE(uint32_t pathPtr, uint32_t mode) {
     int32_t fd = AllocateFd(hostPath, file, mode);
     return fd;
 }
-PPC_NATIVE_OVERRIDE(8029594C, NAND_IOS_Open_HLE, int32_t, (uint32_t pathPtr, uint32_t mode), (pathPtr, mode));
+PPC_NATIVE_OVERRIDE(802123A8, NAND_IOS_Open_HLE, int32_t, (uint32_t pathPtr, uint32_t mode), (pathPtr, mode));
 
 extern "C" void NAND_IOS_OpenBody_HLE_801938FC(CpuContext* ctx) {
     const int32_t result = NAND_IOS_Open_HLE(ctx->gpr[3], ctx->gpr[4]);
@@ -435,7 +435,9 @@ extern "C" void NAND_IOS_OpenBody_HLE_801938FC(CpuContext* ctx) {
 }
 #if 0  // NSMBW: NAND_IOS_OpenBody is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801938fc: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 REGISTER_NATIVE_FUNCTION_AS(0x801938FC, NAND_IOS_OpenBody_HLE_801938FC, "NAND_IOS_OpenBody_HLE_801938FC");
+#endif
 #endif
 #endif
 
@@ -466,7 +468,7 @@ extern "C" int32_t NAND_IOS_Close_HLE(uint32_t fd) {
     CloseFd(fd);
     return ISFS_OK;
 }
-PPC_NATIVE_OVERRIDE(80295B2C, NAND_IOS_Close_HLE, int32_t, (uint32_t fd), (fd));
+PPC_NATIVE_OVERRIDE(80212588, NAND_IOS_Close_HLE, int32_t, (uint32_t fd), (fd));
 
 extern "C" int32_t NAND_IOS_Read_HLE(uint32_t fd, uint32_t bufferPtr, uint32_t length) {
     auto* handle = GetHandle(fd);
@@ -490,7 +492,7 @@ extern "C" int32_t NAND_IOS_Read_HLE(uint32_t fd, uint32_t bufferPtr, uint32_t l
     
     return static_cast<int32_t>(bytesRead);
 }
-PPC_NATIVE_OVERRIDE(80295cd4, NAND_IOS_Read_HLE, int32_t, (uint32_t fd, uint32_t bufferPtr, uint32_t length), (fd, bufferPtr, length));
+PPC_NATIVE_OVERRIDE(80212730, NAND_IOS_Read_HLE, int32_t, (uint32_t fd, uint32_t bufferPtr, uint32_t length), (fd, bufferPtr, length));
 
 extern "C" int32_t NAND_IOS_Write_HLE(uint32_t fd, uint32_t bufferPtr, uint32_t length) {
     auto* handle = GetHandle(fd);
@@ -515,7 +517,7 @@ extern "C" int32_t NAND_IOS_Write_HLE(uint32_t fd, uint32_t bufferPtr, uint32_t 
     
     return static_cast<int32_t>(bytesWritten);
 }
-PPC_NATIVE_OVERRIDE(80295edc, NAND_IOS_Write_HLE, int32_t, (uint32_t fd, uint32_t bufferPtr, uint32_t length), (fd, bufferPtr, length));
+PPC_NATIVE_OVERRIDE(80212938, NAND_IOS_Write_HLE, int32_t, (uint32_t fd, uint32_t bufferPtr, uint32_t length), (fd, bufferPtr, length));
 
 extern "C" int32_t NAND_IOS_Seek_HLE(uint32_t fd, int32_t offset, int32_t whence) {
     auto* handle = GetHandle(fd);
@@ -533,7 +535,9 @@ extern "C" int32_t NAND_IOS_Seek_HLE(uint32_t fd, int32_t offset, int32_t whence
     return static_cast<int32_t>(handle->position);
 }
 #if 0  // SPM: IOS_Seek: name not in SPM
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(80225410, NAND_IOS_Seek_HLE, int32_t, (uint32_t fd, int32_t offset, int32_t whence), (fd, offset, whence));
+#endif
 #endif
 
 // ============================================================================
@@ -792,7 +796,7 @@ static bool TryDeferredNetworkIosSync(CpuContext* ctx, StartSync&& startSync) {
     if (deferred.disposition == NetworkDeferredContract::StartDisposition::Started) {
         ctx->gpr[1] = frame.newStack;
         ctx->gpr[3] = frame.waitQueue;
-        OSSleepThread_HLE_801aa9b8(ctx);
+        OSSleepThread_HLE_80085a7c(ctx);
         FinishDeferredIosWait(ctx, frame.oldStack, deferred.token);
         return true;
     }
@@ -823,7 +827,7 @@ extern "C" void NAND_IOS_Ioctl_Entry_HLE(CpuContext* ctx) {
     ctx->gpr[3] = static_cast<uint32_t>(
         NAND_IOS_Ioctl_HLE(fd, cmd, inBufPtr, inLen, outBufPtr, outLen));
 }
-PPC_NATIVE_OVERRIDE_VOID(802961fc, NAND_IOS_Ioctl_Entry_HLE, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(80212d40, NAND_IOS_Ioctl_Entry_HLE, (CpuContext* ctx), (ctx));
 
 // ============================================================================
 // ISFS_OpenLib - Initialize ISFS
@@ -837,17 +841,17 @@ static bool g_isfsInitialized = false;
 // load-bearing and must not be "tidied". Names come from the RVL IPC/ISFS
 // sources; only the naming changed here, never a value.
 namespace {
-// SPM (R8PE01) ISFS/IPC globals as negative r13 offsets, read from SPM's own ISFS_OpenLib
+// SPM (RSBE01) ISFS/IPC globals as negative r13 offsets, read from SPM's own ISFS_OpenLib
 // (0x80293C70) and IPCGetBufferLo/Hi (0x802950E8/E0). The NSMBW offsets used before landed
 // in SPM's .sdata2 and overwrote a map-blend constant with "/dev/fs" (black backgrounds).
-constexpr uint32_t kIsfsFdSda1Offset = 0x7B60u;          // __fsFd
-constexpr uint32_t kIpcBufferLoSda1Offset = 0x6F24u;     // IPCBufferLo
-constexpr uint32_t kIpcBufferHiSda1Offset = 0x6F20u;     // IPCBufferHi
-constexpr uint32_t kIpcArenaLoSda1Offset = 0x6F38u;      // ISFS_OpenLib()::lo
-constexpr uint32_t kIpcArenaHiSda1Offset = 0x6F34u;      // ISFS_OpenLib()::hi
-constexpr uint32_t kIsfsHeapHandleSda1Offset = 0x6F30u;  // hId
-constexpr uint32_t kIsfsHeapBaseSda1Offset = 0x6F40u;    // ISFS heap base
-constexpr uint32_t kIsfsFirstCallSda1Offset = 0x7B5Cu;   // first-call flag: non-zero until the IPC arena is claimed
+constexpr uint32_t kIsfsFdSda1Offset = 0x5750u;          // __fsFd
+constexpr uint32_t kIpcBufferLoSda1Offset = 0x3844u;     // IPCBufferLo
+constexpr uint32_t kIpcBufferHiSda1Offset = 0x3840u;     // IPCBufferHi
+constexpr uint32_t kIpcArenaLoSda1Offset = 0x380Cu;      // ISFS_OpenLib()::lo
+constexpr uint32_t kIpcArenaHiSda1Offset = 0x3808u;      // ISFS_OpenLib()::hi
+constexpr uint32_t kIsfsHeapHandleSda1Offset = 0x3804u;  // hId
+constexpr uint32_t kIsfsHeapBaseSda1Offset = 0x3814u;    // ISFS heap base
+constexpr uint32_t kIsfsFirstCallSda1Offset = 0x3818u;   // first-call flag: non-zero until the IPC arena is claimed
 } // namespace
 
 [[maybe_unused]] static void WriteGuestString(uint32_t address, const char* value) {
@@ -909,14 +913,14 @@ int32_t ISFS_OpenLib_Initialize(CpuContext* ctx) {
     const uint32_t savedLr = ctx->lr;
     if (firstCall) {
         ctx->gpr[3] = heapBase + heapSize;
-        ctx->lr = 0x80293C70u;
-        InvokeDirectCpu<0x802950F0u>(ctx);  // IPCSetBufferLo
+        ctx->lr = 0x80213B58u;
+        InvokeDirectCpu<0x80211AF0u>(ctx);  // IPCSetBufferLo
         Memory::Write32(firstCallGlobal, 0u);
     }
     ctx->gpr[3] = heapBase;
     ctx->gpr[4] = heapSize;
-    ctx->lr = 0x80293C70u;
-    InvokeDirectCpu<0x80296710u>(ctx);  // iosCreateHeap
+    ctx->lr = 0x80213B58u;
+    InvokeDirectCpu<0x80213468u>(ctx);  // iosCreateHeap
     Memory::Write32(isfsHeapGlobal, ctx->gpr[3]);
     ctx->gpr[3] = savedR3;
     ctx->gpr[4] = savedR4;
@@ -930,7 +934,9 @@ extern "C" void ISFS_OpenLib_HLE_80169BCC(CpuContext* ctx) {
     ctx->gpr[3] = static_cast<uint32_t>(ISFS_OpenLib_Initialize(ctx));
 }
 
-REGISTER_NATIVE_FUNCTION_AS(0x80293c70, ISFS_OpenLib_HLE_80169BCC, "ISFS_OpenLib_HLE_80169BCC");
+#if 0  // BRAWL: no matching function in the Brawl dol
+REGISTER_NATIVE_FUNCTION_AS(0x80213b58, ISFS_OpenLib_HLE_80169BCC, "ISFS_OpenLib_HLE_80169BCC");
+#endif
 
 // ============================================================================
 // IOS_Ioctlv HLE - Vector Ioctl for complex ISFS operations
@@ -1129,4 +1135,4 @@ extern "C" void NAND_IOS_Ioctlv_Entry_HLE(CpuContext* ctx) {
     ctx->gpr[3] = static_cast<uint32_t>(
         NAND_IOS_Ioctlv_HLE(fd, cmd, numIn, numOut, vectorPtr));
 }
-PPC_NATIVE_OVERRIDE_VOID(8029654C, NAND_IOS_Ioctlv_Entry_HLE, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(80213090, NAND_IOS_Ioctlv_Entry_HLE, (CpuContext* ctx), (ctx));

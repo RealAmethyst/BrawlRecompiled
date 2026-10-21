@@ -61,13 +61,17 @@ extern "C" int32_t WPADGetStatus_HLE()
     // Reading r3 here would leak a caller's stale register value into the result.
     return g_state.contract.GetLibraryStatus();
 }
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(802CCBB4, WPADGetStatus_HLE, int32_t, (), ());
+#endif
 
 extern "C" uint32_t WPADGetDpdSensitivity_HLE()
 {
     return static_cast<uint32_t>(g_state.dpdSensitivity);
 }
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(802D0874, WPADGetDpdSensitivity_HLE, uint32_t, (), ());
+#endif
 
 // The emulated remotes always have their pointer camera on (KPAD pos comes from the right stick or mouse). The real
 // library function read WPAD's own channel state, which this HLE never sets, so SPM's arcade minigames (Mansion
@@ -76,7 +80,9 @@ extern "C" uint32_t WPADIsDpdEnabled_HLE()
 {
     return 1;
 }
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(802D087C, WPADIsDpdEnabled_HLE, uint32_t, (), ());
+#endif
 
 extern "C" int32_t WPADInitSub_HLE()
 {
@@ -88,7 +94,9 @@ extern "C" int32_t WPADInitSub_HLE()
 }
 #if 0  // NSMBW: WPADInitSub is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801bf3b4: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801BF3B4, WPADInitSub_HLE, int32_t, (), ());
+#endif
 #endif
 #endif
 
@@ -96,13 +104,13 @@ extern "C" int32_t WPADInit_HLE()
 {
     return InitializeWpadLibrary();
 }
-PPC_NATIVE_OVERRIDE(802CC950, WPADInit_HLE, int32_t, (), ());
+PPC_NATIVE_OVERRIDE(80218AF0, WPADInit_HLE, int32_t, (), ());
 
 extern "C" int32_t WUDGetStatus_HLE()
 {
     return WpadContract::kStatusReady;
 }
-PPC_NATIVE_OVERRIDE(802D97B0, WUDGetStatus_HLE, int32_t, (), ());
+PPC_NATIVE_OVERRIDE(8022BB2C, WUDGetStatus_HLE, int32_t, (), ());
 
 // WPADGetDataFormat reads the per-channel format set by WPADSetDataFormat. Can't reuse the
 // translated SDK implementation: it dereferences Bluetooth control blocks that HLE'd WPADInit
@@ -111,14 +119,16 @@ extern "C" int32_t WPADGetDataFormat_HLE(uint32_t chan)
 {
     return g_state.contract.GetDataFormat(chan);
 }
-PPC_NATIVE_OVERRIDE(802CE3CC, WPADGetDataFormat_HLE, int32_t, (uint32_t chan), (chan));
+PPC_NATIVE_OVERRIDE(8021A1E8, WPADGetDataFormat_HLE, int32_t, (uint32_t chan), (chan));
 
 // WPADSetDataFormat: records the per-channel data format the game asked for.
 extern "C" int32_t WPADSetDataFormat_HLE(uint32_t chan, int32_t format)
 {
     return g_state.contract.SetDataFormat(chan, format);
 }
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(802CE414, WPADSetDataFormat_HLE, int32_t, (uint32_t chan, int32_t format), (chan, format));
+#endif
 
 // WPADProbe: reports the extension type of a Bluetooth remote on `chan`, or no controller.
 extern "C" int32_t WPADProbe_HLE(uint32_t chan, uint32_t typePtr)
@@ -165,14 +175,14 @@ extern "C" int32_t WPADProbe_HLE(uint32_t chan, uint32_t typePtr)
     }
     return WpadContract::kErrorNoController;
 }
-PPC_NATIVE_OVERRIDE(802CE208, WPADProbe_HLE, int32_t, (uint32_t chan, uint32_t typePtr), (chan, typePtr));
+PPC_NATIVE_OVERRIDE(8021A024, WPADProbe_HLE, int32_t, (uint32_t chan, uint32_t typePtr), (chan, typePtr));
 
 extern "C" void WPADControlMotor_HLE(uint32_t chan, uint32_t command)
 {
     (void)chan;
     (void)command;
 }
-PPC_NATIVE_OVERRIDE(802CE684, WPADControlMotor_HLE, void, (uint32_t chan, uint32_t command), (chan, command));
+PPC_NATIVE_OVERRIDE(8021A558, WPADControlMotor_HLE, void, (uint32_t chan, uint32_t command), (chan, command));
 
 extern "C" int32_t WPADGetInfoAsync_HLE(uint32_t chan, uint32_t infoPtr, uint32_t callback)
 {
@@ -183,7 +193,7 @@ extern "C" int32_t WPADGetInfoAsync_HLE(uint32_t chan, uint32_t infoPtr, uint32_
     (void)infoPtr;
     return CompleteWpadRequest(chan, callback, WpadContract::kErrorNoController);
 }
-PPC_NATIVE_OVERRIDE(802CE4C4, WPADGetInfoAsync_HLE, int32_t,
+PPC_NATIVE_OVERRIDE(8021A338, WPADGetInfoAsync_HLE, int32_t,
          (uint32_t chan, uint32_t infoPtr, uint32_t callback), (chan, infoPtr, callback));
 
 extern "C" int32_t WPADControlLed_HLE(uint32_t chan, uint32_t ledMask, uint32_t callback)
@@ -195,8 +205,10 @@ extern "C" int32_t WPADControlLed_HLE(uint32_t chan, uint32_t ledMask, uint32_t 
     return CompleteWpadRequest(chan, callback, WpadContract::kErrorNoController);
 }
 #if 0  // SPM: WPADControlLed: name not in SPM
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801E1630, WPADControlLed_HLE, int32_t,
          (uint32_t chan, uint32_t ledMask, uint32_t callback), (chan, ledMask, callback));
+#endif
 #endif
 
 extern "C" int32_t WPADStartSimpleSync_HLE()
@@ -209,12 +221,16 @@ extern "C" int32_t WPADStartSimpleSync_HLE()
 }
 #if 0  // NSMBW: WPADStartSimpleSync is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801bf634: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801BF634, WPADStartSimpleSync_HLE, int32_t, (), ()); // WUDStartSyncSimple
+#endif
 #endif
 #endif
 #if 0  // NSMBW: WPADStartSimpleSync is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801bf638: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801BF638, WPADStartSimpleSync_HLE, int32_t, (), ()); // WPADStartSimpleSync (HBM)
+#endif
 #endif
 #endif
 
@@ -231,7 +247,7 @@ extern "C" int32_t WPADStopSimpleSync_HLE()
     }
     return 1;
 }
-PPC_NATIVE_OVERRIDE(802CCBA8, WPADStopSimpleSync_HLE, int32_t, (), ());
+PPC_NATIVE_OVERRIDE(80218D58, WPADStopSimpleSync_HLE, int32_t, (), ());
 
 extern "C" uint32_t WPADSetSyncDeviceCallback_HLE(uint32_t callback)
 {
@@ -241,6 +257,8 @@ extern "C" uint32_t WPADSetSyncDeviceCallback_HLE(uint32_t callback)
 }
 #if 0  // NSMBW: WPADSetSyncDeviceCallback is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801bf640: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801BF640, WPADSetSyncDeviceCallback_HLE, uint32_t, (uint32_t callback), (callback));
+#endif
 #endif
 #endif

@@ -15,8 +15,8 @@
 #include "generated/RuntimeConfig.h"
 #include "os_internal.h"
 
-extern "C" void func_80275A58(CpuContext* ctx);
-extern "C" void func_8026C8E8(CpuContext* ctx);
+extern "C" void func_801E1BB8(CpuContext* ctx);
+extern "C" void func_801D66A8(CpuContext* ctx);
 
 // ============================================================================
 // Alarm queue helpers
@@ -210,7 +210,7 @@ bool ProcessAlarmQueue(CpuContext* cpu, int maxToProcess)
                     cpu->gpr[5] = 0;
                     cpu->gpr[6] = 0;
                     cpu->gpr[7] = handler;
-                    func_8026C8E8(cpu);
+                    func_801D66A8(cpu);
                 }
 
                 if (handler != 0) {
@@ -371,7 +371,9 @@ extern "C" void OSSetAlarm_HLE_801a0870(CpuContext* ctx)
 
     OS__RestoreInterrupts_801a65d4(level);
 }
-PPC_NATIVE_OVERRIDE_VOID(8026CB38, OSSetAlarm_HLE_801a0870, (CpuContext* ctx), (ctx));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(801D68F8, OSSetAlarm_HLE_801a0870, (CpuContext* ctx), (ctx));
+#endif
 
 extern "C" void OS_HLE_ProcessAlarms(int maxToProcess)
 {
@@ -450,7 +452,7 @@ extern "C" void OS__SetPeriodicAlarm_801a08e0(CpuContext* ctx)
 
     cpu->gpr[3] = startHi;
     cpu->gpr[4] = startLo;
-    func_80275A58(cpu);
+    func_801E1BB8(cpu);
     Memory::Write32(alarm + 0x20u, cpu->gpr[3]);
     Memory::Write32(alarm + 0x24u, cpu->gpr[4]);
 
@@ -458,13 +460,15 @@ extern "C" void OS__SetPeriodicAlarm_801a08e0(CpuContext* ctx)
     cpu->gpr[5] = 0;
     cpu->gpr[6] = 0;
     cpu->gpr[7] = handler;
-    func_8026C8E8(cpu);
+    func_801D66A8(cpu);
 
     cpu->gpr[3] = static_cast<uint32_t>(OS__RestoreInterrupts_801a65d4(level));
 }
 
 // Register the function
-PPC_NATIVE_OVERRIDE_VOID(8026CBA8, OS__SetPeriodicAlarm_801a08e0, (CpuContext* ctx), (ctx));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(801D6968, OS__SetPeriodicAlarm_801a08e0, (CpuContext* ctx), (ctx));
+#endif
 
 // RFLiIsWorking (RFL, the Mii library) lives here because its whole job is to
 // pump this file's alarm queue: RFLInitRes spins on it waiting for async RFL
@@ -472,7 +476,7 @@ PPC_NATIVE_OVERRIDE_VOID(8026CBA8, OS__SetPeriodicAlarm_801a08e0, (CpuContext* c
 // Original at 0x800BD860 reads the "working" flag at RFL manager + 0x1B34,
 // returning 0 when the manager pointer (0x80386298) is null.
 #if 0  // NSMBW: RFL (Mii library) is not linked into NSMBW; this read an MKW RFL manager pointer
-extern "C" uint32_t RFLiIsWorking_HLE_800bd860()
+extern "C" uint32_t RFLiIsWorking_HLE_800bad30()
 {
     // Alarm callbacks interrupt the caller; keep their register writes private.
     GuestInterruptCallbackContext interrupt;
@@ -505,6 +509,6 @@ extern "C" uint32_t RFLiIsWorking_HLE_800bd860()
 #endif
 #if 0  // NSMBW: RFLiIsWorking is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x800bd860: no NSMBW symbol at this address
-PPC_NATIVE_OVERRIDE(800BD860, RFLiIsWorking_HLE_800bd860, uint32_t, (), ());
+PPC_NATIVE_OVERRIDE(800BAD30, RFLiIsWorking_HLE_800bad30, uint32_t, (), ());
 #endif
 #endif

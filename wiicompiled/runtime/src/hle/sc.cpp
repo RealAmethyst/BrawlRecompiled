@@ -47,7 +47,7 @@ extern "C" uint32_t SCCheckStatus_HLE()
     return 0;
 }
 
-PPC_NATIVE_OVERRIDE(8029A014, SCCheckStatus_HLE, uint32_t, (), ());
+PPC_NATIVE_OVERRIDE(8020E18C, SCCheckStatus_HLE, uint32_t, (), ());
 
 // 0x801DD1D0 -> SCGetAspectRatio()
 // Returns: 0 = 4:3, 1 = 16:9. The display settings' aspect at boot: 16:9 and Fill both run the
@@ -57,7 +57,7 @@ extern "C" uint32_t SCGetAspectRatio_HLE()
     return DisplaySettings::GameWidescreen() ? 1u : 0u;
 }
 
-PPC_NATIVE_OVERRIDE(8029B8D8, SCGetAspectRatio_HLE, uint32_t, (), ());
+PPC_NATIVE_OVERRIDE(8020FB50, SCGetAspectRatio_HLE, uint32_t, (), ());
 
 // 0x8029B9AC -> SCGetLanguage(): the console's language setting, from Config.toml [game] language (runtime_config.h).
 extern "C" uint32_t SCGetLanguage_HLE()
@@ -65,7 +65,7 @@ extern "C" uint32_t SCGetLanguage_HLE()
     return RuntimeConfigFile::Language();
 }
 
-PPC_NATIVE_OVERRIDE(8029B9AC, SCGetLanguage_HLE, uint32_t, (), ());
+PPC_NATIVE_OVERRIDE(8020FC24, SCGetLanguage_HLE, uint32_t, (), ());
 
 // 0x801DD2B0 -> SCGetEuRgb60Mode()
 // Returns: 0 = PAL50, 1 = PAL60/RGB60
@@ -78,18 +78,20 @@ extern "C" uint32_t SCGetEuRgb60Mode_HLE()
 }
 
 #if 0  // SPM: SCGetEuRgb60Mode: name not in SPM
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801DD2B0, SCGetEuRgb60Mode_HLE, uint32_t, (), ());
+#endif
 #endif
 
 // Expose the selected emulated NAND identity through the SDK SC APIs.
 
 extern "C" uint32_t SCGetProductArea_HLE()
 {
-    return LookupProductRegion(0x804BA998u, 5, 13,  // SC area table {code, "JPN"...} (NSMBW)
+    return LookupProductRegion(0x8047C4E0u, 5, 13,  // SC area table {code, "JPN"...} (NSMBW)
                                RuntimeConsoleIdentity::Current().area);
 }
 
-PPC_NATIVE_OVERRIDE(8029BE5C, SCGetProductArea_HLE, uint32_t, (), ());
+PPC_NATIVE_OVERRIDE(80210284, SCGetProductArea_HLE, uint32_t, (), ());
 
 #if 0  // NSMBW: SCGetProductCode is not linked into NSMBW; this wrote MKW's SC CODE buffer
 extern "C" uint32_t SCGetProductCode_HLE()
@@ -109,7 +111,9 @@ extern "C" uint32_t SCGetProductCode_HLE()
 
 #if 0  // NSMBW: SCGetProductCode is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801b2424: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801B2424, SCGetProductCode_HLE, uint32_t, (), ());
+#endif
 #endif
 #endif
 
@@ -123,18 +127,20 @@ extern "C" uint32_t SCGetProductSN_HLE(uint32_t serialAddress)
 
 #if 0  // NSMBW: SCGetProductSN is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801b2460: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801B2460, SCGetProductSN_HLE, uint32_t, (uint32_t serialAddress), (serialAddress));
+#endif
 #endif
 #endif
 
 extern "C" uint32_t SCGetProductGameRegion_HLE()
 {
-    return LookupProductRegion(0x804BA9E0u, 4, 4,  // SC game-region table {code, "JP"...} (NSMBW)
+    return LookupProductRegion(0x8047FAB0u, 4, 4,  // SC game-region table {code, "JP"...} (NSMBW)
                                RuntimeConsoleIdentity::Current().gameRegion);
 }
 
 #if 0  // SPM: SCGetProductGameRegion: name not in SPM
-PPC_NATIVE_OVERRIDE(801DD940, SCGetProductGameRegion_HLE, uint32_t, (), ());
+PPC_NATIVE_OVERRIDE(80034A10, SCGetProductGameRegion_HLE, uint32_t, (), ());
 #endif
 
 // These stubs make the game think all titles are installed; otherwise it checks title ID
@@ -151,7 +157,9 @@ extern "C" uint32_t OS__IsTitleInstalled(uint32_t titleIdHi, uint32_t titleIdLo)
 
 #if 0  // NSMBW: OSIsTitleInstalled is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801ae4a0: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801AE4A0, OS__IsTitleInstalled, uint32_t, (uint32_t titleIdHi, uint32_t titleIdLo), (titleIdHi, titleIdLo));
+#endif
 #endif
 #endif
 
@@ -170,6 +178,8 @@ extern "C" uint32_t OS__CheckInstall(uint32_t requiredBlocks, uint32_t titleIdHi
 
 #if 0  // NSMBW: OSCheckInstall is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801ad1d4: no NSMBW symbol at this address
+#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801AD1D4, OS__CheckInstall, uint32_t, (uint32_t requiredBlocks, uint32_t titleIdHi, uint32_t titleIdLo, uint32_t outFlagsPtr), (requiredBlocks, titleIdHi, titleIdLo, outFlagsPtr));
+#endif
 #endif
 #endif
