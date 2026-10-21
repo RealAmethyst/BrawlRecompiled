@@ -67,7 +67,7 @@ void ShowRuntimeFatalPopup(std::string_view category, std::string_view details) 
 // Super Smash Bros. Brawl translated entry point (__start). The products always boot here, so
 // this is applied as the default while parsing the command line; there is no
 // flag to override it.
-inline constexpr uint32_t kDefaultEntryAddress = 0x80004374u;
+inline constexpr uint32_t kDefaultEntryAddress = 0x8000403Cu;
 
 class SystemBridge {
 public:

@@ -33,7 +33,7 @@ constexpr uint32_t kEggScreenProjScaleY = 0x80386F24u;
 
 constexpr uint32_t kEggScreenAspectHandler = 0x8021DC20u;
 
-constexpr uint32_t kMkwUpdateAllScreens = 0x805653D0u;
+constexpr uint32_t kMkwUpdateAllScreens = 0x804FB66Cu;
 constexpr uint32_t kMkwGfxDrawList = 0x809C1830u;
 constexpr uint32_t kSystemManagerInstance = 0x80386000u;
 

@@ -82,7 +82,7 @@ uint32_t RunMovieManagerPrepareAsync(uint32_t manager, CpuContext* cpu)
     {
         CpuContextScope scope(cpu);
         cpu->gpr[3] = manager + 0x10u;
-        InvokeIndirectCpu(0x80531D38u, cpu); // THP__PlayerGetVideoInfo
+        InvokeIndirectCpu(0x80551D38u, cpu); // THP__PlayerGetVideoInfo
         InvokeIndirectCpu(0x80550F9Cu, cpu); // THP__PlayerCalcNeedMemory
     }
     const uint32_t needMemory = cpu->gpr[3];
@@ -93,7 +93,7 @@ uint32_t RunMovieManagerPrepareAsync(uint32_t manager, CpuContext* cpu)
     {
         CpuContextScope scope(cpu);
         cpu->gpr[3] = setBufferArg;
-        InvokeIndirectCpu(0x80531054u, cpu); // THP__PlayerSetBuffer
+        InvokeIndirectCpu(0x80551054u, cpu); // THP__PlayerSetBuffer
     }
 
     const uint32_t mode = Memory::Read32(manager + 0xA8u);
@@ -104,7 +104,7 @@ uint32_t RunMovieManagerPrepareAsync(uint32_t manager, CpuContext* cpu)
         cpu->gpr[3] = Memory::Read32(manager + 0x24u);
         cpu->gpr[4] = audioSystem;
         cpu->gpr[5] = 0;
-        InvokeIndirectCpu(0x80531378u, cpu); // THP__PlayerPrepare
+        InvokeIndirectCpu(0x80551378u, cpu); // THP__PlayerPrepare
         prepareResult = cpu->gpr[3];
     }
     if (prepareResult != 0) {

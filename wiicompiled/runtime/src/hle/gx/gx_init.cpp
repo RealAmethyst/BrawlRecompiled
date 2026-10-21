@@ -253,7 +253,7 @@ extern "C" void GX__BeginDisplayList_80172e00(uint32_t la, uint32_t s) {
         } else {
             BeginDisplayListRecording(la, s);
         }
-        GX__GetCPUFifo_8016cf10(0x805224F0);
+        GX__GetCPUFifo_8016cf10(0x804DF6B0);
         GX__SetCPUFifo_8016c94c(0x804DF030);
     } catch (...) {}
 }
@@ -300,7 +300,7 @@ extern "C" uint32_t GX__EndDisplayList_80172eb4() {
         GXFlush();
         GX__GetCPUFifo_8016cf10(0x804DF030);
         const uint8_t wrapped = Memory::Read8(kDlFifoAddr + kDlWrapFlagOffset);
-        GX__SetCPUFifo_8016c94c(0x805224F0);
+        GX__SetCPUFifo_8016c94c(0x804DF6B0);
 
         const uint32_t gd = Memory::Read32(kGXDataPtrAddr);
         if (gd) {

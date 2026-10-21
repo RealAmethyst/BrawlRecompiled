@@ -106,28 +106,52 @@ def skeleton(w):
 def refs(dol, a, size, r13, r2):
     """[(instruction index, absolute address)] for lis+lo pairs and r13/r2-relative accesses."""
     w = dol.words(a, size)
-    hi = {}
+    val = {}  # GPR -> known absolute address (lis, then addi/ori/addi chains)
+    if r13:
+        val[13] = r13
+    if r2:
+        val[2] = r2
     out = []
     for i, x in enumerate(w):
         op, rd, ra, imm = x >> 26, (x >> 21) & 31, (x >> 16) & 31, x & 0xFFFF
-        if op == 15 and ra == 0:
-            hi[rd] = imm << 16
+        if op == 15 and ra == 0:  # lis
+            val[rd] = imm << 16
             continue
-        if op in (14, 24) or 32 <= op <= 55 or op in (56, 57, 60, 61):
-            lo = imm if op == 24 else sext(imm if op not in (56, 57, 60, 61) else (imm & 0xFFF) | (0xF000 if imm & 0x800 else 0))
-            if ra in hi:
-                out.append((i, (hi[ra] + lo) & 0xFFFFFFFF))
-            elif ra == 13 and r13:
-                out.append((i, (r13 + sext(imm)) & 0xFFFFFFFF))
-            elif ra == 2 and r2:
-                out.append((i, (r2 + sext(imm)) & 0xFFFFFFFF))
-        if op in (14, 15, 24, 25, 31) and rd in hi and op != 15:
-            if not (op in (14, 24) and ra == rd):
-                hi.pop(rd, None)
-        if op == 18 and x & 1:  # bl clobbers volatiles
-            for r in list(hi):
-                if r <= 12:
-                    hi.pop(r)
+        if op == 15 or op == 14:  # addis/addi rD, rA, si
+            if ra != 0 and ra in val:
+                t = (val[ra] + (sext(imm) << (16 if op == 15 else 0))) & 0xFFFFFFFF
+                if op == 14:
+                    out.append((i, t))
+                val[rd] = t
+            else:
+                val.pop(rd, None)
+            continue
+        if op == 24:  # ori rA, rS, ui
+            if rd in val:
+                val[ra] = val[rd] | imm
+                out.append((i, val[ra]))
+            else:
+                val.pop(ra, None)
+            continue
+        if 32 <= op <= 55 or op in (56, 57, 60, 61):  # D-form loads/stores (psq: 12-bit offset)
+            d = sext(imm) if op < 56 else ((imm & 0xFFF) - 0x1000 if imm & 0x800 else imm & 0xFFF)
+            if ra in val and ra != 0:
+                out.append((i, (val[ra] + d) & 0xFFFFFFFF))
+            if op in (32, 33, 34, 35, 40, 41, 42, 43, 46):  # GPR loads overwrite rD
+                val.pop(rd, None)
+            if op in (33, 35, 37, 39, 41, 43, 45, 49, 51, 53, 55, 57, 61):  # update forms move rA
+                val.pop(ra, None)
+            continue
+        if op in (7, 8, 12, 13, 31):  # rD-writing arithmetic and X-forms (approximate)
+            val.pop(rd, None)
+            if op == 31:
+                val.pop(ra, None)
+        elif op in (20, 21, 23, 25, 26, 27, 28, 29):  # rotates and logical immediates write rA
+            val.pop(ra, None)
+        elif op == 18 and x & 1:  # bl clobbers volatiles
+            for r in list(val):
+                if r <= 12 and r != 2:
+                    val.pop(r)
     return out
 
 

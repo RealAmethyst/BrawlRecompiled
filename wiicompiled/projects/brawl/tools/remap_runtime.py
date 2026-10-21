@@ -18,6 +18,18 @@ LIT = re.compile(r"(?<![0-9A-Za-z_])(0x)([0-9A-Fa-f]{8})(?![0-9A-Fa-f])|(\(\s*)(
 SDA = re.compile(r"(r13 - 0x|Sda1Offset = 0x|OffsetFromR13 = 0x)([0-9A-Fa-f]{4})(u?)")
 HOOK = re.compile(r"PPC_NATIVE_OVERRIDE|PPC_NATIVE_|REGISTER_NATIVE|NATIVE_CPU_CALL")
 SKIP_FILES = ("spm_map_sweep.cpp", "spm_rel_pin.cpp")  # SPM-only tooling: removed from the build by hand
+# After the address pass: Brawl's identity and boot values (text, so the address pass never sees them).
+TEXT = [("0x52385045", "0x52534245"),  # game code R8PE -> RSBE
+        ("R8PE01 revision 0", "RSBE01 revision 1"), ("R8PE01, revision 0", "RSBE01, revision 1"), ("R8PE01", "RSBE01"),
+        ("Super Paper Mario", "Super Smash Bros. Brawl"),
+        ("constexpr int kRevision = 0;", "constexpr int kRevision = 1;"),
+        ('{0x80000004u, 0x30310000u, "Disc maker/id"});  // "01", disc 0, version 1',
+         '{0x80000004u, 0x30310001u, "Disc maker/id"});  // "01", disc 0, revision 1'),
+        ("kDefaultEntryAddress = 0x80006124u", "kDefaultEntryAddress = 0x8000403Cu"),  # __start
+        ("constexpr uint32_t kMem1ArenaLoDefault = 0x80576720u;  // NSMBW __ArenaLo (stack top, see OSInit)",
+         "constexpr uint32_t kMem1ArenaLoDefault = 0x805B7160u;  // Brawl __ArenaLo (OSInit, above the 64 KiB boot stack)"),
+        ("uint32_t mem1ArenaHiDefault = 0x817EF720u;  // MEM1 end - NSMBW FST (0x8B2C bytes, 32-aligned); verified via REL load addresses at boot",
+         "uint32_t mem1ArenaHiDefault = 0x817DA5A0u;  // MEM1 end - Brawl FST (0x25A48 bytes, 32-aligned)")]
 log, stats = [], Counter()
 
 
@@ -70,6 +82,10 @@ for path in sorted((wc / "runtime").rglob("*")):
 
         code, sep, comment = line.partition("//")  # comments keep the addresses of the game they were written for
         new = SDA.sub(sda, LIT.sub(lit, code)) + sep + comment
+        for old, rep in TEXT:
+            if old in new:
+                new = new.replace(old, rep)
+                stats["text"] += 1
         if drop[0] and not line.lstrip().startswith(("//", "#")):
             new = "#if 0  // BRAWL: no matching function in the Brawl dol\n" + new + "\n#endif"
         if new != line:
