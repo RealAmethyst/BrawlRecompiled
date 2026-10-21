@@ -27,15 +27,40 @@ class Rel:
         # The bss section is the one with a size but no file offset.
         self.bss_index = next((i for i, (o, e, s) in enumerate(self.secs) if o == 0 and s and i), 0)
 
-    def place(self, image, bss):
+    def place(self, image, bss, veneers=None):
         self.image, self.bss = image, bss
+        self.veneer_base = veneers  # long-branch veneers for calls out of rel24 range (see far_call_targets)
+        self.veneers = {}
+
+    def far_call_targets(self):
+        """Distinct main.dol addresses this module reaches with rel24 branches. Placed outside +/-32 MiB of the dol,
+        each call goes through a veneer (lis/addi r12, mtctr r12, bctr) placed after the module's bss."""
+        out = set()
+        for k in range(self.imp_size // 8):
+            imp_mod, ro = struct.unpack(">II", self.raw[self.imp_off + 8 * k:self.imp_off + 8 * k + 8])
+            c = ro
+            while imp_mod == 0:
+                _d, typ, _s, add = struct.unpack(">HBBI", self.raw[c:c + 8])
+                c += 8
+                if typ == 203:
+                    break
+                if typ == 10:
+                    out.add(add)
+        return sorted(out)
+
+    def veneer(self, target):
+        if target not in self.veneers:
+            assert self.veneer_base is not None, f"{self.name}: no veneer area for 0x{target:08X}"
+            self.veneers[target] = self.veneer_base + 16 * len(self.veneers)
+        return self.veneers[target]
 
     def sec_addr(self, i):
         o, _e, _s = self.secs[i]
         return self.bss if i == self.bss_index else self.image + o
 
     def end(self):
-        return max(self.image + len(self.raw), self.bss + self.bss_size)
+        veneers = (self.veneer_base or 0) + 16 * len(self.far_call_targets()) if self.veneer_base else 0
+        return max(self.image + len(self.raw), self.bss + self.bss_size, veneers)
 
 
 def link(mods_by_id, dol_end):
@@ -75,10 +100,20 @@ def link(mods_by_id, dol_end):
                 elif typ == 5: wr16(d, tgt >> 16)
                 elif typ == 6: wr16(d, (tgt >> 16) + (1 if tgt & 0x8000 else 0))
                 elif typ in (7, 8, 9): wr32(d, (rd32(d) & ~0xFFFC) | (tgt & 0xFFFC))
-                elif typ == 10: wr32(d, (rd32(d) & ~0x03FFFFFC) | ((tgt - d) & 0x03FFFFFC))
-                elif typ in (11, 12, 13): wr32(d, (rd32(d) & ~0xFFFC) | ((tgt - d) & 0xFFFC))
+                elif typ == 10:
+                    if not -0x2000000 <= tgt - d < 0x2000000:
+                        tgt = m.veneer(tgt)
+                    wr32(d, (rd32(d) & ~0x03FFFFFC) | ((tgt - d) & 0x03FFFFFC))
+                elif typ in (11, 12, 13):
+                    assert -0x8000 <= tgt - d < 0x8000, f"{m.name}: rel14 at 0x{d:08X} cannot reach 0x{tgt:08X}"
+                    wr32(d, (rd32(d) & ~0xFFFC) | ((tgt - d) & 0xFFFC))
                 else:
                     sys.exit(f"{m.name}: unhandled relocation type {typ}")
+        for tgt, at in m.veneers.items():
+            lo = tgt & 0xFFFF
+            ha = ((tgt >> 16) + (1 if lo & 0x8000 else 0)) & 0xFFFF
+            for i, w in enumerate((0x3D800000 | ha, 0x398C0000 | lo, 0x7D8903A6, 0x4E800420)):  # lis/addi r12, mtctr, bctr
+                wr32(at + 4 * i, w)
         out[m.name] = (base, bytes(mem), sorted(unresolved))
     return out
 

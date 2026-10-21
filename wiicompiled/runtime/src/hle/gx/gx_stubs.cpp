@@ -48,7 +48,7 @@ PPC_NATIVE_OVERRIDE_VOID(8016e9fc, GX__SetDrawSync_8016e9fc, (uint32_t token), (
 #endif
 #endif
 
-extern "C" void OSWakeupThread_HLE_80085b68(CpuContext* ctx);
+extern "C" void OSWakeupThread_HLE_801aaaa4(CpuContext* ctx);
 
 // Brawl (RSBE01) GXFinishInterruptHandler globals: DrawDoneCB r13-0x3B5C, FinishQueue r13-0x3B68.
 constexpr uint32_t kGxDrawDoneCallbackAddr = 0x805A08C4u;
@@ -69,7 +69,7 @@ extern "C" void GX__FinishInterruptHandler_8016ed94() {
         }
         CpuContext wake = *cpu;
         wake.gpr[3] = kGxFinishQueueAddr;
-        OSWakeupThread_HLE_80085b68(&wake);
+        OSWakeupThread_HLE_801aaaa4(&wake);
     }
 }
 PPC_NATIVE_OVERRIDE_VOID(801f0d2c, GX__FinishInterruptHandler_8016ed94, (), ());

@@ -948,12 +948,19 @@ extern "C" void DVDInit_8015EA1C()
 
     // 3. Set Low Memory Globals (The "Magic" Identification)
     // This tells the game "Yes, I am Mario Kart Wii"
-    uint32_t diskHeader = 0x80000000;
-    Memory::Write32(diskHeader + 0x00, CurrentDiscGameCode());
-    Memory::Write16(diskHeader + 0x04, 0x3031);     // '01' (Maker)
-    Memory::Write8(diskHeader + 0x06, 0x01);        // Disk #1
     // 4. Scan Files
     const fs::path& rootPath = GetDvdRoot();
+    // The disc ID (game code, maker, disc number, revision, ...) from the extracted boot.bin: games compare it with
+    // their own copy (Brawl's gfErrorCheck shows "Please insert the ... Game Disc." on any difference).
+    uint32_t diskHeader = 0x80000000;
+    if (FILE* boot = _wfopen((rootPath / "sys" / "boot.bin").wstring().c_str(), L"rb")) {
+        uint8_t id[0x20] = {};
+        if (std::fread(id, 1, sizeof(id), boot) == sizeof(id)) {
+            for (uint32_t i = 0; i < sizeof(id); ++i) Memory::Write8(diskHeader + i, id[i]);
+        }
+        std::fclose(boot);
+    }
+    Memory::Write32(diskHeader + 0x00, CurrentDiscGameCode());
     
     // Map "<dvd_root>/files" -> "/"
     ScanDirectory(rootPath / "files", "/");
@@ -1184,9 +1191,12 @@ PPC_NATIVE_OVERRIDE(801FDB20, DVDLowInquiry_80165A30, int32_t, (uint32_t b, uint
 // 0x801D14A0 -> DVDLowReadDiskID
 extern "C" int32_t DVDLowReadDiskID_80164AAC(uint32_t diskIdPtr, uint32_t callback) {
     if (diskIdPtr) {
+        // The disc ID as the boot path left it at 0x80000000 (game code, maker, disc number, revision, ...):
+        // games compare it with DVDGetCurrentDiskID (Brawl's gfErrorCheck shows "insert the disc" on a mismatch).
+        for (uint32_t i = 0; i < 0x20u; i += 4) {
+            Memory::Write32(diskIdPtr + i, Memory::Read32(0x80000000u + i));
+        }
         Memory::Write32(diskIdPtr + 0x00, CurrentDiscGameCode());
-        Memory::Write16(diskIdPtr + 0x04, 0x3031);
-        Memory::Write8 (diskIdPtr + 0x06, 0x01);
     }
     CompleteDvdCancelState();
     return 1; // Success
@@ -1273,4 +1283,29 @@ PPC_NATIVE_OVERRIDE(801D0980, DVDCheckDevice_801643FC, int32_t, (), ());
 
 extern "C" int32_t DVDLowClearCoverInterrupt_80166964(uint32_t cb) { return 1; }
 PPC_NATIVE_OVERRIDE(801FEA54, DVDLowClearCoverInterrupt_80166964, int32_t, (uint32_t cb), (cb));
+
+// Brawl's error checker (gfErrorCheck) polls DVDGetDriveStatus every frame and shows "Please insert the ... Game
+// Disc." unless the drive reports DVD_STATE_END (0). Reads complete synchronously here, so the drive is always idle
+// with the disc in.
+extern "C" int32_t DVDGetDriveStatus_HLE() { return 0; }
+PPC_NATIVE_OVERRIDE(801FAC98, DVDGetDriveStatus_HLE, int32_t, (), ());
+
+// DVDCompareDiskID as the SDK: game name, company, disk number and version must match (0 / 0xFF / zero
+// in the expected ID are wildcards). Logs the first mismatch: Brawl shows "insert the disc" while they differ.
+extern "C" int32_t DVDCompareDiskID_HLE(uint32_t id1, uint32_t id2) {
+    const uint32_t name1 = Memory::Read32(id1), name2 = Memory::Read32(id2);
+    const uint16_t maker1 = Memory::Read16(id1 + 4), maker2 = Memory::Read16(id2 + 4);
+    const uint8_t disk1 = Memory::Read8(id1 + 6), disk2 = Memory::Read8(id2 + 6);
+    const uint8_t ver1 = Memory::Read8(id1 + 7), ver2 = Memory::Read8(id2 + 7);
+    const bool same = (name2 == 0 || name1 == name2) && (maker2 == 0 || maker1 == maker2) &&
+                      (disk2 == 0xFF || disk1 == disk2) && (ver2 == 0xFF || ver1 == ver2);
+    static bool s_logged = false;
+    if (!same && !s_logged) {
+        s_logged = true;
+        RT_LOGF(RT_TAG_DVD, "DVDCompareDiskID mismatch: 0x%08X %08X %04X %02X %02X vs 0x%08X %08X %04X %02X %02X\n",
+                id1, name1, maker1, disk1, ver1, id2, name2, maker2, disk2, ver2);
+    }
+    return same ? 1 : 0;
+}
+PPC_NATIVE_OVERRIDE(801FC228, DVDCompareDiskID_HLE, int32_t, (uint32_t a, uint32_t b), (a, b));
 

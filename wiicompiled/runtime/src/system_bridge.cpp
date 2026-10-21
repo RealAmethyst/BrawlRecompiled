@@ -474,18 +474,21 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
     }
 
     if (mem2Size != 0) {
-        const uint32_t physicalMem2End = Memory::kMem2CachedBase + mem2Size;
+        // Brawl: the game sees a retail console's 64 MiB of MEM2 (128 MiB reads as a development kit). The mapping
+        // above it holds the translated .rel modules' homes (0x94004000 up, hle/brawl_modules.cpp) and the FST.
+        const uint32_t reportedMem2Size = std::min<uint32_t>(mem2Size, 0x04000000u);
+        const uint32_t physicalMem2End = Memory::kMem2CachedBase + reportedMem2Size;
         const uint32_t iosReservedLo = physicalMem2End - kIosReservedSize;
         const uint32_t mem2End = iosReservedLo;
         const uint32_t ipcBufHi = mem2End;
         const uint32_t ipcBufLo = ipcBufHi - kIPCArenaSize;
-        // Reserve FST memory before guest code can use this part of the arena.
+        // The FST goes at the top of the mapping, out of the game's arena.
         g_dvdFstReservedSize = kDvdFstReserveSize;
-        g_dvdFstReservedBase = ipcBufLo - kDvdFstReserveSize;
-        const uint32_t mem2ArenaHi = g_dvdFstReservedBase;
+        g_dvdFstReservedBase = Memory::kMem2CachedBase + mem2Size - kIosReservedSize - kIPCArenaSize - kDvdFstReserveSize;
+        const uint32_t mem2ArenaHi = ipcBufLo;
 
-        entries.push_back({0x80003118u, mem2Size, "Physical MEM2 size", true});
-        entries.push_back({0x8000311Cu, mem2Size, "Simulated MEM2 size", true});
+        entries.push_back({0x80003118u, reportedMem2Size, "Physical MEM2 size", true});
+        entries.push_back({0x8000311Cu, reportedMem2Size, "Simulated MEM2 size", true});
         entries.push_back({0x80003120u, mem2End, "MEM2 end", true});
         entries.push_back({0x80003124u, kMem2LoFloor, "MEM2 arena lo", true});
         entries.push_back({0x80003128u, mem2ArenaHi, "MEM2 arena hi", true});
