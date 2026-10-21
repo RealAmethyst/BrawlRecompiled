@@ -1050,17 +1050,13 @@ extern "C" void VIInit_HLE_801b94a4(CpuContext* ctx)
 {
     SeedViStateForInit(ctx, "VIInit_801b94a4");
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E83E4, VIInit_HLE_801b94a4, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void __VIInit_HLE_801b9294(CpuContext* ctx)
 {
     SeedViStateForInit(ctx, "__VIInit_801b9294");
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E81D4, __VIInit_HLE_801b9294, (CpuContext* ctx), (ctx));
-#endif
 
 // -----------------------------------------------------------------------------
 // Helper stubs referenced by VIInit switch cases (case D variants).
@@ -1121,9 +1117,7 @@ extern "C" void VISetPreRetraceCallback_HLE_801b90f4(CpuContext* ctx)
     }
     ViSetR3(ctx, prev);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E8034, VISetPreRetraceCallback_HLE_801b90f4, (CpuContext* ctx), (ctx));
-#endif
 
 // -----------------------------------------------------------------------------
 // VISetPostRetraceCallback (0x801BC430)
@@ -1141,9 +1135,7 @@ extern "C" void VISetPostRetraceCallback_HLE_801b9138(CpuContext* ctx)
     }
     ViSetR3(ctx, prev);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E8078, VISetPostRetraceCallback_HLE_801b9138, (CpuContext* ctx), (ctx));
-#endif
 
 // -----------------------------------------------------------------------------
 // VIGetDTVStatus (0x801BE070)
@@ -1153,9 +1145,7 @@ extern "C" void VIGetDTVStatus_HLE_801bad38(CpuContext* ctx)
 {
     ViSetR3(ctx, 0); // return 0 -> not ready / disabled
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E9C9C, VIGetDTVStatus_HLE_801bad38, (CpuContext* ctx), (ctx));
-#endif
 
 // -----------------------------------------------------------------------------
 // VIConfigure & related helpers: translate GXRenderModeObj into guest globals.
@@ -1197,9 +1187,7 @@ extern "C" void VIConfigure_HLE_801b9f6c(CpuContext* ctx)
 
     ViSetR3(ctx, 0);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E8DC8, VIConfigure_HLE_801b9f6c, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void VIFlush_HLE_801ba9a4(CpuContext* ctx)
 {
@@ -1236,9 +1224,7 @@ extern "C" void VIFlush_HLE_801ba9a4(CpuContext* ctx)
 
     ViSetR3(ctx, 0);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E98B0, VIFlush_HLE_801ba9a4, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void VISetNextFrameBuffer_HLE_801baab8(CpuContext* ctx)
 {
@@ -1253,9 +1239,7 @@ extern "C" void VISetNextFrameBuffer_HLE_801baab8(CpuContext* ctx)
     }
     ViSetR3(ctx, 0);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E99C4, VISetNextFrameBuffer_HLE_801baab8, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void VIGetNextFrameBuffer_HLE_801bab24(CpuContext* ctx)
 {
@@ -1288,9 +1272,7 @@ extern "C" void VISetBlack_HLE_801bab2c(CpuContext* ctx)
     }
     ViSetR3(ctx, 0);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E9A30, VISetBlack_HLE_801bab2c, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void VIGetRetraceCount_HLE_801baba4(CpuContext* ctx)
 {
@@ -1303,9 +1285,7 @@ extern "C" void VIGetRetraceCount_HLE_801baba4(CpuContext* ctx)
     ViSetR3(ctx, count);
     VI_HLE_PollRetrace(ctx);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E9AA8, VIGetRetraceCount_HLE_801baba4, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void VIGetNextField_HLE_801babac(CpuContext* ctx)
 {
@@ -1318,9 +1298,7 @@ extern "C" void VIGetNextField_HLE_801babac(CpuContext* ctx)
     ViSetR3(ctx, fieldOdd ? 1 : 0);
     VI_HLE_PollRetrace(ctx);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E9AB0, VIGetNextField_HLE_801babac, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void VIGetCurrentLine_HLE_801bac48(CpuContext* ctx)
 {
@@ -1353,9 +1331,7 @@ extern "C" void VIGetCurrentLine_HLE_801bac48(CpuContext* ctx)
     }
     ViSetR3(ctx, line);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E9B4C, VIGetCurrentLine_HLE_801bac48, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void VIWaitForRetrace_HLE_801b99ec(CpuContext* ctx)
 {
@@ -1402,9 +1378,7 @@ extern "C" void VIWaitForRetrace_HLE_801b99ec(CpuContext* ctx)
     }
     ViSetR3(cpu, 0);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E892C, VIWaitForRetrace_HLE_801b99ec, (CpuContext* ctx), (ctx));
-#endif
 
 // VIGetScanMode (SPM 0x8028211C): reads the VI clock/DTV registers on hardware. The host has no
 // cable, so report interlaced (VI_INTERLACE = 0), the mode every NTSC console supports.

@@ -52,9 +52,7 @@ extern "C" void PPCHalt_8012E5A4()
     std::exit(EXIT_FAILURE);
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801D50A8, PPCHalt_8012E5A4, (), ());
-#endif
 
 // 0x801AD4E0 -> OS::Panic
 extern "C" void OS__Panic_800364A4_Cpu(CpuContext* ctx)
@@ -158,6 +156,4 @@ extern "C" uint32_t Exit_801AE58C(int status)
     return static_cast<uint32_t>(status);
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801E41A8, Exit_801AE58C, uint32_t, (int status), (status));
-#endif

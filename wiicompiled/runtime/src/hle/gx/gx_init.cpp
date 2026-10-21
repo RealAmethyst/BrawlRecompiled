@@ -88,9 +88,7 @@ extern "C" uint32_t GX__Init_8016b850(uint32_t fifoBase, uint32_t fifoSize)
 
     return kFifoObjAddr;
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801ed908, GX__Init_8016b850, uint32_t, (uint32_t fifoBase, uint32_t fifoSize), (fifoBase, fifoSize));
-#endif
 
 // ============================================================================
 // FIFO Management
@@ -99,22 +97,16 @@ PPC_NATIVE_OVERRIDE(801ed908, GX__Init_8016b850, uint32_t, (uint32_t fifoBase, u
 extern "C" void GX__InitFifoBase_8016c7c8(uint32_t fa, uint32_t ba, uint32_t s) { GXInitFifoBase((GXFifoObj*)GuestToHostPtr(fa, sizeof(GXFifoObj)), GuestToHostPtr(ba, s), s); }
 
 extern "C" void GX__SetCPUFifo_8016c94c(uint32_t fa) { GXSetCPUFifo((GXFifoObj*)GuestToHostPtr(fa, sizeof(GXFifoObj))); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801eea04, GX__SetCPUFifo_8016c94c, (uint32_t fa), (fa));
-#endif
 
 extern "C" void GX__SetGPFifo_8016cb2c(uint32_t fa) { GXSetGPFifo((GXFifoObj*)GuestToHostPtr(fa, sizeof(GXFifoObj))); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801eebe4, GX__SetGPFifo_8016cb2c, (uint32_t fa), (fa));
-#endif
 
 extern "C" void __GX__SaveFifo_801ed12c(uint32_t fa) { GXSaveCPUFifo((GXFifoObj*)GuestToHostPtr(fa, sizeof(GXFifoObj))); }
 PPC_NATIVE_OVERRIDE_VOID(801eee74, __GX__SaveFifo_801ed12c, (uint32_t fa), (fa));
 
 extern "C" void GX__GetCPUFifo_8016cf10(uint32_t fa) { auto* d=(GXFifoObj*)GuestToHostPtr(fa, sizeof(GXFifoObj)); auto* s=GXGetCPUFifo(); if(d&&s) std::memcpy(d,s,sizeof(GXFifoObj)); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801eef7c, GX__GetCPUFifo_8016cf10, (uint32_t fa), (fa));
-#endif
 
 extern "C" void __GX__FifoInit_8016d180()
 {
@@ -172,9 +164,7 @@ extern "C" void __GX__PEInit_8016ee14()
         }
     } catch (const ::Memory::AccessViolation&) {}
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f0dac, __GX__PEInit_8016ee14, (), ());
-#endif
 
 // ============================================================================
 // Display List Recording
@@ -257,9 +247,7 @@ extern "C" void GX__BeginDisplayList_80172e00(uint32_t la, uint32_t s) {
         GX__SetCPUFifo_8016c94c(0x804DF030);
     } catch (...) {}
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f4d50, GX__BeginDisplayList_80172e00, (uint32_t la, uint32_t s), (la, s));
-#endif
 
 extern "C" uint32_t GX__EndDisplayList_80172eb4() {
     try {
@@ -334,15 +322,11 @@ extern "C" uint32_t GX__EndDisplayList_80172eb4() {
         return 0;
     }
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801F4E00, GX__EndDisplayList_80172eb4, uint32_t, (), ());
-#endif
 
 // ============================================================================
 // Flush
 // ============================================================================
 
 extern "C" void GX__Flush_8016e654() { GXFlush(); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f0530, GX__Flush_8016e654, (), ());
-#endif

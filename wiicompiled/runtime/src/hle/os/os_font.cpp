@@ -73,9 +73,7 @@ extern "C" uint32_t OSLoadFont_HLE_801b0480(uint32_t fontData, uint32_t temp)
     (void)temp;
     return 0;
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801DC698, OSLoadFont_HLE_801b0480, uint32_t, (uint32_t fontData, uint32_t temp), (fontData, temp));
-#endif
 
 // OSGetFontTexel (SPM 0x80271428): draws one character of the ROM font into a texture and returns the
 // next character. SPM's older SDK inlines the encoding check here as a VI DTV register read. OSLoadFont

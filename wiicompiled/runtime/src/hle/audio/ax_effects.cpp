@@ -372,8 +372,6 @@ extern "C" void AXFXReverbStdExpCallback_8012b830(CpuContext* ctx) {
 }
 
 #if 0  // SPM: AXFXReverbStdExpCallback: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
 REGISTER_NATIVE_FUNCTION_AS(0x8000FF60, AXFXReverbStdExpCallback_8012b830,
                             "AXFXReverbStdExpCallback_8012b830");
-#endif
 #endif

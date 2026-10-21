@@ -1,8 +1,9 @@
 """Retarget the runtime's hard-coded Super Paper Mario guest addresses to Brawl (RSBE01 rev 1).
-Starts from the git tag runtime-spm-base (the SPM-address runtime plus the Brawl edits that carry no addresses), so it
-can be re-run at will. Mapped literals are rewritten; native hooks on unmapped functions (and on Brawl addresses two
+With --from-base it first restores wiicompiled/runtime from the git tag runtime-spm-base (the SPM-address runtime plus
+the Brawl edits that carry no addresses). That discards every runtime edit made after the remap: the remap was run
+once (commit "Remap the runtime to Brawl"), and later Brawl work edits the runtime directly. Mapped literals are rewritten; native hooks on unmapped functions (and on Brawl addresses two
 different SPM functions both map to) are wrapped in #if 0; everything is logged.
-Usage: remap_runtime.py <repo root> [--dry]   -> wiicompiled/projects/brawl/remap_log.csv"""
+Usage: remap_runtime.py <repo root> [--dry | --from-base]   -> wiicompiled/projects/brawl/remap_log.csv"""
 import csv, re, subprocess, sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -13,7 +14,7 @@ root = Path(sys.argv[1]).resolve()
 dry = "--dry" in sys.argv
 wc = root / "wiicompiled"
 spm = root.parent / "SuperPaperMarioRecomp"
-if not dry:
+if "--from-base" in sys.argv:
     subprocess.run(["git", "checkout", "runtime-spm-base", "--", "wiicompiled/runtime"], cwd=root, check=True)
 M = Mapper(spm / "game/main.dol.orig", root / "game/main.dol", wc / "projects/spm/MAP.txt",
            root / "extras/brawl-decomp/config/RSBE01_02/symbols.txt", wc / "projects/spm/pal/spm.us0.lst")
@@ -85,7 +86,7 @@ for path in sources():
                 f = M.spm_func(a)
                 log.append((rel, i + 1, f"{a:08X}", f"{b:08X}" if b is not None else "", how, f[2] if f else ""))
             if b is None:
-                if HOOK.search(line) and M.S.is_text(a):
+                if HOOK.search(line) and M.S.is_text(a) and not m.group(6):  # name suffixes are only names
                     drop[0] = True
                 return m.group(0)
             new = f"{b:08x}" if hexpart.islower() and any(c.isalpha() for c in hexpart) else f"{b:08X}"

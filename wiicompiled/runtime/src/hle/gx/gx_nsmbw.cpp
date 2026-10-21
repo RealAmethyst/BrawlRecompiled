@@ -33,9 +33,7 @@ extern "C" void GX__AbortFrame_801c4ce0() {
     static bool logged = false;
     LogOnce(logged, "GXAbortFrame: no partial GPU frame to abandon (no-op)");
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f0724, GX__AbortFrame_801c4ce0, (), ());
-#endif
 
 // GXPoke*: modes for CPU writes straight into the embedded frame buffer (GXPokeARGB/GXPokeZ). On
 // hardware they program pixel-engine registers; the runtime does not emulate CPU-to-EFB access, so

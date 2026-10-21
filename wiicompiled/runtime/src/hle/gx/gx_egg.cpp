@@ -141,8 +141,6 @@ extern "C" void EGG__AsyncDisplay__endRender_HLE_8020ff9c(CpuContext* ctx) {
 }
 #if 0  // NSMBW: MKW EGG::AsyncDisplay::endRender copied EFB->XFB; NSMBW's endRender (0x802BB820, 0x20 bytes) only toggles status bits, so the translated one runs
 #if 0  // SPM: endRender__Q23EGG12AsyncDisplayFv: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(8024D9E0, EGG__AsyncDisplay__endRender_HLE_8020ff9c, (CpuContext* ctx), (ctx));
-#endif
 #endif
 #endif

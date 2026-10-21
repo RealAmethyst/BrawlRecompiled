@@ -110,9 +110,7 @@ extern "C" void IOS_IoctlAsync_80194158(CpuContext* ctx)
     const int32_t result = NAND_IOS_Ioctl_HLE(fd, cmd, inBuf, inLen, outBuf, outLen);
     CompleteAsync(ctx, callback, result, callbackArg); // Success
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(80212c08, IOS_IoctlAsync_80194158, (CpuContext* ctx), (ctx));
-#endif
 
 // 0x80224B50 -> IOS_OpenAsync
 extern "C" void IOS_OpenAsync_HLE(CpuContext* ctx) {

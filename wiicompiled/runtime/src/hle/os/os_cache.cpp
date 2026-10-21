@@ -94,18 +94,10 @@ extern "C" void DCStoreRangeNoSync_801a16b8(uint32_t addr, uint32_t length)
     DcRangeOp("DCStoreRangeNoSync_801a16b8", addr, length);
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801D76BC, DCInvalidateRange_801a1600, (uint32_t addr, uint32_t length), (addr, length));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801D76E8, DCFlushRange_801a162c, (uint32_t addr, uint32_t length), (addr, length));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801D7718, DCStoreRange_801a165c, (uint32_t addr, uint32_t length), (addr, length));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801D7748, DCFlushRangeNoSync_801a168c, (uint32_t addr, uint32_t length), (addr, length));
-#endif
 #if 0  // SPM: DCStoreRangeNoSync: name not in SPM
 #if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801AC500, DCStoreRangeNoSync_801a16b8, (uint32_t addr, uint32_t length), (addr, length));
@@ -234,9 +226,7 @@ extern "C" void LCQueueWait_HLE_801a1988(CpuContext*)
 }
 
 PPC_NATIVE_OVERRIDE_VOID(801d76a8, Cache_Maintenance_Stub, (), ()); // DCEnable
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801d77a0, DCZeroRange_HLE_801a16e4, (CpuContext* ctx), (ctx)); // DCZeroRange
-#endif
 PPC_NATIVE_OVERRIDE_VOID(801d77cc, Cache_Maintenance_Stub, (), ()); // ICInvalidateRange
 PPC_NATIVE_OVERRIDE_VOID(801d7800, Cache_Maintenance_Stub, (), ()); // ICFlashInvalidate
 PPC_NATIVE_OVERRIDE_VOID(801d7810, Cache_Maintenance_Stub, (), ()); // ICEnable

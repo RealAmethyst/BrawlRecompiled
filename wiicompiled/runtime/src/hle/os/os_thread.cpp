@@ -395,9 +395,7 @@ extern "C" void OSCreateThread_HLE_801a9e84(CpuContext* ctx)
         cpu->gpr[3] = 0; // Return failure
     }
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E0CFC, OSCreateThread_HLE_801a9e84, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void OSExitThread_HLE_801aa0f0(CpuContext* ctx)
 {
@@ -423,9 +421,7 @@ extern "C" void OSExitThread_HLE_801aa0f0(CpuContext* ctx)
 
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E0F68, OSExitThread_HLE_801aa0f0, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void OSCancelThread_HLE_80085298(CpuContext* ctx)
 {

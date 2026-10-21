@@ -55,34 +55,26 @@ extern "C" void GX__FinishInterruptHandler_8016ed94() {
         Memory::Write8(kGxDrawDoneFlagAddr, 1);
     } catch (...) {}
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f0d2c, GX__FinishInterruptHandler_8016ed94, (), ());
-#endif
 
 extern "C" void GX__DrawDone_8016eab0() {
     try { Memory::Write8(kGxDrawDoneFlagAddr, 0); } catch (...) {}
     GXDrawDone(); GX__FinishInterruptHandler_8016ed94();
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f0a30, GX__DrawDone_8016eab0, (), ());
-#endif
 
 extern "C" void GX__PixModeSync_8016eb70() {
     try { uint32_t gd = Memory::Read32(kGXDataPtrAddr); if (gd) Memory::Write16(gd + 2, 0); } catch (...) {}
     GXPixModeSync();
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f0af0, GX__PixModeSync_8016eb70, (), ());
-#endif
 
 // ============================================================================
 // Hardware Revision / Thread Query - No-ops
 // ============================================================================
 
 extern "C" void __GX__InitRevisionBits_8016b720() {}
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801ed7d8, __GX__InitRevisionBits_8016b720, (), ());
-#endif
 
 // ============================================================================
 // Texture State Management - Aurora handles internally
@@ -92,25 +84,19 @@ extern "C" void __GX__SetSUTexRegs_801712f0() {
     __GXSetSUTexRegs();
     try { uint32_t gd = Memory::Read32(kGXDataPtrAddr); if (gd) Memory::Write16(gd + 2, 0); } catch (...) {}
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f3294, __GX__SetSUTexRegs_801712f0, (), ());
-#endif
 
 extern "C" void __GX__SetTmemConfig_80171458(uint32_t mode) {
     // TMEM layout configuration - Aurora manages internally
     (void)mode;
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F33FC, __GX__SetTmemConfig_80171458, (uint32_t mode), (mode));
-#endif
 
 extern "C" void __GX__FlushTextureState_80171c28() {
     // BP texture state flush - Aurora handles via API
     try { uint32_t gd = Memory::Read32(kGXDataPtrAddr); if (gd) Memory::Write16(gd + 2, 0); } catch (...) {}
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f3b78, __GX__FlushTextureState_80171c28, (), ());
-#endif
 
 // ============================================================================
 // Copy Configuration - No-ops for features Aurora doesn't use
@@ -126,9 +112,7 @@ extern "C" void GX__SetDispCopyFrame2Field_8016f5f8(uint32_t f) {
         }
     } catch (...) {}
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f16e4, GX__SetDispCopyFrame2Field_8016f5f8, (uint32_t f), (f));
-#endif
 
 extern "C" void GX__SetCopyClamp_8016f618(uint32_t c) {
     GXSetCopyClamp(static_cast<GXFBClamp>(c));
@@ -141,9 +125,7 @@ extern "C" void GX__SetCopyClamp_8016f618(uint32_t c) {
         }
     } catch (...) {}
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f1704, GX__SetCopyClamp_8016f618, (uint32_t c), (c));
-#endif
 
 extern "C" void GX__ClearBoundingBox_8016fecc() {
     SpmBBoxClear();
@@ -153,9 +135,7 @@ extern "C" void GX__ClearBoundingBox_8016fecc() {
         if (gd) Memory::Write16(gd + 2, 0);
     } catch (...) {}
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f1fb8, GX__ClearBoundingBox_8016fecc, (), ());
-#endif
 
 // GXReadBoundingBox (SPM 0x8028E26C, this SDK's order: left, top, right, bottom).
 extern "C" void GX__ReadBoundingBox_SPM(uint32_t leftPtr, uint32_t topPtr, uint32_t rightPtr, uint32_t bottomPtr) {
@@ -191,13 +171,9 @@ PPC_NATIVE_OVERRIDE_VOID(8028E26C, GX__ReadBoundingBox_SPM,
 extern "C" void GX__SetDirtyState_8016ee78() {
     try { uint32_t gd = Memory::Read32(kGXDataPtrAddr); if (gd) Memory::Write32(gd + 0x5FCu, 0); } catch (...) {}
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f0e10, GX__SetDirtyState_8016ee78, (), ());
-#endif
 
 extern "C" void GX__ResetWriteGatherPipe_8016e6b0() {
     // WPAR reset - not needed on host
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f058c, GX__ResetWriteGatherPipe_8016e6b0, (), ());
-#endif

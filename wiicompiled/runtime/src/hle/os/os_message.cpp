@@ -39,9 +39,7 @@ extern "C" void OS__InitMessageQueue_HLE_801a72fc(CpuContext* ctx)
         LogMemoryError(RT_TAG_OS, "OS__InitMessageQueue", e);
     }
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 REGISTER_NATIVE_FUNCTION(0x801DE094, OS__InitMessageQueue_HLE_801a72fc);
-#endif
 
 static bool MsgQueueIsFull(uint32_t queuePtr)
 {
@@ -167,9 +165,7 @@ extern "C" int32_t OS__SendMessage_HLE_801a735c(CpuContext* ctx)
         [msg](uint32_t queue) { MsgQueueEnqueue(queue, msg); },
         kMsgQueueRecvOffset, kMsgQueueSendOffset);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 REGISTER_NATIVE_FUNCTION(0x801DE0F4, OS__SendMessage_HLE_801a735c);
-#endif
 
 extern "C" int32_t OS__ReceiveMessage_HLE_801a7424(CpuContext* ctx)
 {
@@ -197,9 +193,7 @@ extern "C" int32_t OS__ReceiveMessage_HLE_801a7424(CpuContext* ctx)
         },
         kMsgQueueSendOffset, kMsgQueueRecvOffset);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 REGISTER_NATIVE_FUNCTION(0x801DE1BC, OS__ReceiveMessage_HLE_801a7424);
-#endif
 
 extern "C" int32_t OS__JamMessage_HLE_801a7500(CpuContext* ctx)
 {

@@ -101,14 +101,10 @@ void InvalidateEfbCopyDestinationsForRange(uint32_t addr, uint32_t size) {
 extern "C" void GX__SetDispCopySrc_8016f438(uint32_t l, uint32_t t, uint32_t w, uint32_t h) {
     GXSetDispCopySrc((u16)l, (u16)t, (u16)w, (u16)h);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f1524, GX__SetDispCopySrc_8016f438, (uint32_t l, uint32_t t, uint32_t w, uint32_t h), (l, t, w, h));
-#endif
 
 extern "C" void GX__SetDispCopyDst_8016f4b8(uint32_t w, uint32_t h) { GXSetDispCopyDst((u16)w, (u16)h); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f15a4, GX__SetDispCopyDst_8016f4b8, (uint32_t w, uint32_t h), (w, h));
-#endif
 
 // ============================================================================
 // Texture Copy Source/Destination
@@ -119,18 +115,14 @@ extern "C" void GX__SetTexCopySrc_8016f478(uint32_t l, uint32_t t, uint32_t w, u
     g_texCopyState.srcLeft=(u16)l; g_texCopyState.srcTop=(u16)t;
     g_texCopyState.srcWidth=(u16)w; g_texCopyState.srcHeight=(u16)h;
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f1564, GX__SetTexCopySrc_8016f478, (uint32_t l, uint32_t t, uint32_t w, uint32_t h), (l, t, w, h));
-#endif
 
 extern "C" void GX__SetTexCopyDst_8016f4dc(uint32_t w, uint32_t h, uint32_t f, uint32_t m) {
     GXSetTexCopyDst((u16)w, (u16)h, (GXTexFmt)f, (GXBool)m);
     g_texCopyState.dstWidth=(u16)w; g_texCopyState.dstHeight=(u16)h;
     g_texCopyState.dstFormat=f; g_texCopyState.dstMipmap=m;
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f15c8, GX__SetTexCopyDst_8016f4dc, (uint32_t w, uint32_t h, uint32_t f, uint32_t m), (w, h, f, m));
-#endif
 
 extern "C" void GX__SetCopyFilter_8016fa40(uint32_t aa, uint32_t spa, uint32_t vf, uint32_t vfa) {
     uint8_t sp[12][2]={}, vfb[7]={};
@@ -138,14 +130,10 @@ extern "C" void GX__SetCopyFilter_8016fa40(uint32_t aa, uint32_t spa, uint32_t v
     if(vfa) std::memcpy(vfb, GuestToHostPtr(vfa, 7), 7);
     GXSetCopyFilter((GXBool)aa, sp, (GXBool)vf, vfb);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f1b2c, GX__SetCopyFilter_8016fa40, (uint32_t aa, uint32_t spa, uint32_t vf, uint32_t vfa), (aa, spa, vf, vfa));
-#endif
 
 extern "C" void GX__SetDispCopyGamma_8016fc24(uint32_t g) { GXSetDispCopyGamma((GXGamma)g); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f1d10, GX__SetDispCopyGamma_8016fc24, (uint32_t g), (g));
-#endif
 
 // ============================================================================
 // Copy Execution
@@ -171,9 +159,7 @@ extern "C" void GX__CopyDisp_8016fc38(uint32_t da, uint32_t c) {
     VI_HLE_PresentFrame(/*presentedXfb=*/true, /*paceToRetrace=*/true);
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f1d24, GX__CopyDisp_8016fc38, (uint32_t da, uint32_t c), (da, c));
-#endif
 
 
 extern "C" void GX__CopyTex_8016fd74(uint32_t da, uint32_t c) {
@@ -250,9 +236,7 @@ extern "C" void GX__CopyTex_8016fd74(uint32_t da, uint32_t c) {
                                g_texCopyState.dstFormat, GX_FALSE, 0));
     GXSetTexCopySrc(rawSrcLeft, rawSrcTop, rawSrcWidth, rawSrcHeight);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f1e60, GX__CopyTex_8016fd74, (uint32_t da, uint32_t c), (da, c));
-#endif
 
 // GXSetDispCopyYScale (SPM 0x8028DC64) / GXGetYScaleFactor (0x8028DA34): SPM calls these directly
 // (NSMBW's EGG inlined them). Translated, they read the SDK's own copy state, which the native copy

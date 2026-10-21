@@ -12,23 +12,17 @@ extern "C" void GX__SetBlendMode_8017277c(uint32_t t, uint32_t s, uint32_t d, ui
     GXSetBlendMode(static_cast<GXBlendMode>(t), static_cast<GXBlendFactor>(s),
                    static_cast<GXBlendFactor>(d), static_cast<GXLogicOp>(op));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F46CC, GX__SetBlendMode_8017277c, (uint32_t t, uint32_t s, uint32_t d, uint32_t op), (t, s, d, op));
-#endif
 
 extern "C" void GX__SetColorUpdate_801727cc(uint32_t en) {
     GXSetColorUpdate(static_cast<GXBool>(en));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F471C, GX__SetColorUpdate_801727cc, (uint32_t en), (en));
-#endif
 
 extern "C" void GX__SetAlphaUpdate_801727f8(uint32_t en) {
     GXSetAlphaUpdate(static_cast<GXBool>(en));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f4748, GX__SetAlphaUpdate_801727f8, (uint32_t en), (en));
-#endif
 
 // ============================================================================
 // Z Buffer
@@ -38,16 +32,12 @@ extern "C" void GX__SetZMode_80172824(uint32_t ce, uint32_t f, uint32_t ue) {
     if (SpmDumpFrame()) RT_LOGF(RT_TAG_GX, "[drawdump] zmode %u %u %u\n", ce, f, ue);
     GXSetZMode(static_cast<GXBool>(ce), static_cast<GXCompare>(f), static_cast<GXBool>(ue));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F4774, GX__SetZMode_80172824, (uint32_t ce, uint32_t f, uint32_t ue), (ce, f, ue));
-#endif
 
 extern "C" void GX__SetZCompLoc_80172858(uint32_t bt) {
     GXSetZCompLoc(static_cast<GXBool>(bt));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F47A8, GX__SetZCompLoc_80172858, (uint32_t bt), (bt));
-#endif
 
 // ============================================================================
 // Pixel Format and Dither
@@ -56,23 +46,17 @@ PPC_NATIVE_OVERRIDE_VOID(801F47A8, GX__SetZCompLoc_80172858, (uint32_t bt), (bt)
 extern "C" void GX__SetPixelFmt_80172888(uint32_t pf, uint32_t zf) {
     GXSetPixelFmt(static_cast<GXPixelFmt>(pf), static_cast<GXZFmt16>(zf));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F47D8, GX__SetPixelFmt_80172888, (uint32_t pf, uint32_t zf), (pf, zf));
-#endif
 
 extern "C" void GX__SetDither_80172930(uint32_t d) {
     GXSetDither(static_cast<GXBool>(d));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F4880, GX__SetDither_80172930, (uint32_t d), (d));
-#endif
 
 extern "C" void GX__SetDstAlpha_8017295c(uint32_t en, uint32_t a) {
     GXSetDstAlpha(static_cast<GXBool>(en), static_cast<u8>(a));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f48ac, GX__SetDstAlpha_8017295c, (uint32_t en, uint32_t a), (en, a));
-#endif
 
 // ============================================================================
 // Fog and Alpha Compare
@@ -81,9 +65,7 @@ PPC_NATIVE_OVERRIDE_VOID(801f48ac, GX__SetDstAlpha_8017295c, (uint32_t en, uint3
 extern "C" void GX__SetFog_801722cc(uint32_t t, float sz, float ez, float nz, float fz, uint32_t cp) {
     GXSetFog((GXFogType)t, sz, ez, nz, fz, DecodeGxColor(Memory::Read32(cp)));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f421c, GX__SetFog_801722cc, (uint32_t t, float sz, float ez, float nz, float fz, uint32_t cp), (t, sz, ez, nz, fz, cp));
-#endif
 
 extern "C" void GX__SetAlphaCompare_80172088(uint32_t c0, uint32_t r0, uint32_t op, uint32_t c1, uint32_t r1) {
     if (SpmDumpFrame()) RT_LOGF(RT_TAG_GX, "[drawdump] alphacmp %u %u %u %u %u\n", c0, r0, op, c1, r1);
@@ -92,14 +74,10 @@ extern "C" void GX__SetAlphaCompare_80172088(uint32_t c0, uint32_t r0, uint32_t 
     if (s_alphaExperiment && c0 == 6 && r0 == 128) { c0 = 7; op = 1; c1 = 7; }
     GXSetAlphaCompare((GXCompare)c0, (u8)r0, (GXAlphaOp)op, (GXCompare)c1, (u8)r1);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F3FD8, GX__SetAlphaCompare_80172088, (uint32_t c0, uint32_t r0, uint32_t op, uint32_t c1, uint32_t r1), (c0, r0, op, c1, r1));
-#endif
 
 extern "C" void GX__SetZTexture_801720c0(uint32_t op, uint32_t f, uint32_t b) { GXSetZTexture((GXZTexOp)op, (GXTexFmt)f, b); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f4010, GX__SetZTexture_801720c0, (uint32_t op, uint32_t f, uint32_t b), (op, f, b));
-#endif
 
 // ============================================================================
 // Culling and Clipping
@@ -114,16 +92,10 @@ extern "C" void GX__SetCullMode_8016f3b8(uint32_t m) {
     { static int k = 0; if (SpmAuroraDlRecording() && k++ < 6000) RT_LOGF(RT_TAG_GX, "[spmrec] cull %u\n", m); }
     GXSetCullMode(static_cast<GXCullMode>(m));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f136c, GX__SetCullMode_8016f3b8, (uint32_t m), (m));
-#endif
 
 extern "C" void GX__SetCoPlanar_8016f3e0(uint32_t en) { GXSetCoPlanar((GXBool)en); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f1394, GX__SetCoPlanar_8016f3e0, (uint32_t en), (en));
-#endif
 
 extern "C" void GX__SetClipMode_8017351c(uint32_t m) { GXSetClipMode((GXClipMode)m); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f55ec, GX__SetClipMode_8017351c, (uint32_t m), (m));
-#endif

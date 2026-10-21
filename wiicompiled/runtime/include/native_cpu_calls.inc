@@ -93,9 +93,7 @@ template <> struct KnownNativeCpuCall<addr> { \
 }
 
 #if 0  // SPM: DrawQuad__Q34nw4r3lyt6detailFRCQ34nw4r4math4VEC2RCQ34nw4r3lyt4SizeUcPA4_CQ34nw4r4math4VEC2PCQ34nw4r2ut5Color: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
 MKW_KNOWN_NATIVE_CPU_CALL(0x80248E40u, nw4r__lyt__detail__DrawQuad_800847c0);
-#endif
 #endif
 #if 0  // SPM: DrawQuad__Q34nw4r3lyt6detailFRCQ34nw4r4math4VEC2RCQ34nw4r3lyt4SizeUcPA4_CQ34nw4r4math4VEC2PCQ34nw4r2ut5ColorUc: name not in SPM
 MKW_KNOWN_NATIVE_CPU_CALL(0x802493A0u, nw4r__lyt__detail__DrawQuad_801ee138);

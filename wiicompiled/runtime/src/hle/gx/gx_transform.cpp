@@ -49,17 +49,13 @@ extern "C" void GX__SetViewportJitter_80173378(float l, float t, float w, float 
     g_viewportState[0]=l; g_viewportState[1]=t; g_viewportState[2]=w; g_viewportState[3]=h; g_viewportState[4]=nz; g_viewportState[5]=fz;
     GXSetViewportJitter(l, t, w, h, nz, fz, f);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F5448, GX__SetViewportJitter_80173378, (float l, float t, float w, float h, float nz, float fz, uint32_t f), (l, t, w, h, nz, fz, f));
-#endif
 
 extern "C" void GX__SetViewport_801733b4(float l, float t, float w, float h, float nz, float fz) {
     g_viewportState[0]=l; g_viewportState[1]=t; g_viewportState[2]=w; g_viewportState[3]=h; g_viewportState[4]=nz; g_viewportState[5]=fz;
     GXSetViewport(l, t, w, h, nz, fz);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f5484, GX__SetViewport_801733b4, (float l, float t, float w, float h, float nz, float fz), (l, t, w, h, nz, fz));
-#endif
 
 extern "C" void GX__GetViewportv_801733e0(uint32_t oa) {
     // EGG::StateGX::GXSetViewport (0x802418D0) reads the current viewport unconditionally, and
@@ -74,9 +70,7 @@ extern "C" void GX__GetViewportv_801733e0(uint32_t oa) {
     }
     if (!oa) return; for(int i=0; i<6; ++i) WriteGuestFloat(oa + i*4, g_viewportState[i]);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f54b0, GX__GetViewportv_801733e0, (uint32_t oa), (oa));
-#endif
 
 extern "C" void GX__SetZScaleOffset_80173400(float s, float o) {
     GXSetZScaleOffset(s, o);
@@ -105,9 +99,7 @@ extern "C" void GX__SetScissorBoxOffset_801734e0(int32_t xo, int32_t yo) {
         if (gd) Memory::Write16(gd + 2, 0);
     } catch (...) {}
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f55b0, GX__SetScissorBoxOffset_801734e0, (int32_t xo, int32_t yo), (xo, yo));
-#endif
 
 // ============================================================================
 // Scissor
@@ -127,9 +119,7 @@ extern "C" void GX__SetScissor_80173430(uint32_t l, uint32_t t, uint32_t w, uint
     // so re-issuing the current viewport would be duplicate work.
     GXSetScissor(l, t, w, h);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F5500, GX__SetScissor_80173430, (uint32_t l, uint32_t t, uint32_t w, uint32_t h), (l, t, w, h));
-#endif
 
 // ============================================================================
 // Projection
@@ -183,9 +173,7 @@ extern "C" void GX__SetProjection_8017301c(uint32_t ma, uint32_t pt) {
     GXSetProjection(m, (GXProjectionType)pt);
     UpdateProjectionVectorFromMatrix(m, (GXProjectionType)pt);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F50EC, GX__SetProjection_8017301c, (uint32_t ma, uint32_t pt), (ma, pt));
-#endif
 
 extern "C" void GX__SetProjectionv_80173080(uint32_t pa) {
     const uint32_t* raw=(const uint32_t*)GuestToHostPtr(pa, 28); float v[7];
@@ -237,9 +225,7 @@ extern "C" void GX__SetProjectionv_80173080(uint32_t pa) {
     GXSetProjection(m, pt);
     UpdateProjectionVectorFromProjV(v);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F5150, GX__SetProjectionv_80173080, (uint32_t pa), (pa));
-#endif
 
 extern "C" void GX__GetProjectionv_801730cc(uint32_t pa) {
     uint8_t* out = static_cast<uint8_t*>(GuestToHostPtr(pa, 28));
@@ -247,9 +233,7 @@ extern "C" void GX__GetProjectionv_801730cc(uint32_t pa) {
         BigEndian::WriteFloat32(out + i * sizeof(float), g_projectionVector[i]);
     }
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F519C, GX__GetProjectionv_801730cc, (uint32_t pa), (pa));
-#endif
 
 // ============================================================================
 // Matrix Loading
@@ -316,9 +300,7 @@ extern "C" void GX__LoadPosMtxImm_8017310c(uint32_t ma, uint32_t id) {
     if (id / 3u < 10u) std::memcpy(g_pnMtx[id / 3u], m, sizeof(m));
     GXLoadPosMtxImm((float(*)[4])m, id);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F51DC, GX__LoadPosMtxImm_8017310c, (uint32_t ma, uint32_t id), (ma, id));
-#endif
 
 extern "C" void GX__LoadPosMtxIndx_8017315c(uint32_t mi, uint32_t id) {
     const auto& arr=g_hleGxState.vtxArray[GX_POS_MTX_ARRAY];
@@ -336,9 +318,7 @@ extern "C" void GX__LoadNrmMtxImm_80173188(uint32_t ma, uint32_t id) {
     const uint32_t* raw=(const uint32_t*)GuestToHostPtr(ma, 48); float m[12];
     SwapBeF32ArrayToHost(raw, m, 12); GXLoadNrmMtxImm((float(*)[4])m, id);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F5258, GX__LoadNrmMtxImm_80173188, (uint32_t ma, uint32_t id), (ma, id));
-#endif
 
 extern "C" void GX__LoadNrmMtxIndx3x3_801731e0(uint32_t mi, uint32_t id) {
     const auto& arr=g_hleGxState.vtxArray[GX_NRM_MTX_ARRAY];
@@ -367,11 +347,7 @@ extern "C" void GX__LoadTexMtxImm_80173234(uint32_t ma, uint32_t id, uint32_t t)
     const uint32_t* raw=(const uint32_t*)GuestToHostPtr(ma,c*4); float l[12]={};
     SwapBeF32ArrayToHost(raw,l,c); GXLoadTexMtxImm(l, id, (GXTexMtxType)t);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F5304, GX__LoadTexMtxImm_80173234, (uint32_t ma, uint32_t id, uint32_t t), (ma, id, t));
-#endif
 
 extern "C" void GX__SetCurrentMtx_80173214(uint32_t id) { g_currentPnMtx = id / 3u; GXSetCurrentMtx(id); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F52E4, GX__SetCurrentMtx_80173214, (uint32_t id), (id));
-#endif

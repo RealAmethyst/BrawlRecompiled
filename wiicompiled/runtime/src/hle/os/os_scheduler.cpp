@@ -412,9 +412,7 @@ extern "C" void SelectThread_801a9c08(CpuContext* ctx)
     OS__LoadContext_801a1f58(cpu);
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801E0A80, SelectThread_801a9c08, (CpuContext* ctx), (ctx));
-#endif
 
 // ============================================================================
 // OSWakeupThread HLE - drain a thread queue and mark threads runnable
@@ -553,9 +551,7 @@ extern "C" void OSLockMutex_HLE_801a7ee4(CpuContext* ctx)
 
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801DEBB4, OSLockMutex_HLE_801a7ee4, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void OSUnlockMutex_HLE_801a7fc0(CpuContext* ctx)
 {
@@ -601,7 +597,5 @@ extern "C" void OSUnlockMutex_HLE_801a7fc0(CpuContext* ctx)
 
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801DEC90, OSUnlockMutex_HLE_801a7fc0, (CpuContext* ctx), (ctx));
-#endif
 

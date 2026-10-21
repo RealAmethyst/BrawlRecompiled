@@ -371,9 +371,7 @@ extern "C" void OSSetAlarm_HLE_801a0870(CpuContext* ctx)
 
     OS__RestoreInterrupts_801a65d4(level);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801D68F8, OSSetAlarm_HLE_801a0870, (CpuContext* ctx), (ctx));
-#endif
 
 extern "C" void OS_HLE_ProcessAlarms(int maxToProcess)
 {
@@ -466,9 +464,7 @@ extern "C" void OS__SetPeriodicAlarm_801a08e0(CpuContext* ctx)
 }
 
 // Register the function
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801D6968, OS__SetPeriodicAlarm_801a08e0, (CpuContext* ctx), (ctx));
-#endif
 
 // RFLiIsWorking (RFL, the Mii library) lives here because its whole job is to
 // pump this file's alarm queue: RFLInitRes spins on it waiting for async RFL

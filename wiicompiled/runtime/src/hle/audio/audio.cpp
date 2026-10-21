@@ -152,9 +152,7 @@ extern "C" void AIClockInit_801A1138(uint32_t clock_mode)
     }
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801D71F4, AIClockInit_801A1138, (uint32_t clock_mode), (clock_mode));
-#endif
 
 extern "C" void OSInitAudioSystem_801A1358()
 {
@@ -166,9 +164,7 @@ extern "C" void OSInitAudioSystem_801A1358()
     }
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801D7414, OSInitAudioSystem_801A1358, (), ());
-#endif
 
 extern "C" void OSStopAudioSystem_801A1520()
 {
@@ -183,9 +179,7 @@ extern "C" void OSStopAudioSystem_801A1520()
     AxDspHle::Stop();
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801D75DC, OSStopAudioSystem_801A1520, (), ());
-#endif
 
 
 
@@ -220,9 +214,7 @@ extern "C" void AIInit_801240b0(uint32_t callback_stack_switch)
     }
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801fece8, AIInit_801240b0, (uint32_t callback_stack_switch), (callback_stack_switch));
-#endif
 
 extern "C" uint32_t AICheckInit_80124094()
 {
@@ -244,25 +236,19 @@ extern "C" void DSPInit_8015d444()
     RT_LOG(RT_TAG_AUDIO) << "DSPInit_8015d444 called: DSP hardware boundary initialized (HLE)" << std::endl;
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(80209864, DSPInit_8015d444, (), ());
-#endif
 
 extern "C" uint32_t DSPCheckInit_8015d504()
 {
     return AxDspHle::CheckInit();
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 REGISTER_NATIVE_FUNCTION(0x80209924, DSPCheckInit_8015d504);
-#endif
 
 extern "C" uint32_t DSPAddTask_8015d50c(uint32_t task_ptr)
 {
     return AxDspHle::AddTask(task_ptr);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 REGISTER_NATIVE_FUNCTION(0x8020992C, DSPAddTask_8015d50c);
-#endif
 
 extern "C" void __DSP_boot_task_8015dc60(uint32_t task_ptr)
 {
@@ -271,9 +257,7 @@ extern "C" void __DSP_boot_task_8015dc60(uint32_t task_ptr)
               << std::hex << task_ptr << std::dec << std::endl;
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(8020A0C0, __DSP_boot_task_8015dc60, (uint32_t task_ptr), (task_ptr));
-#endif
 
 
 extern "C" void __AXOutInitDSP_801269bc(CpuContext* ctx)
@@ -282,9 +266,7 @@ extern "C" void __AXOutInitDSP_801269bc(CpuContext* ctx)
     RT_LOG(RT_TAG_AUDIO) << "__AXOutInitDSP called: native AX/DSP HLE initialized." << std::endl;
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(80200d90, __AXOutInitDSP_801269bc, (CpuContext* ctx), (ctx));
-#endif
 
 
 
@@ -297,9 +279,7 @@ extern "C" void AIInitDMA_80123fcc(uint32_t start_addr, uint32_t length)
     g_ai.bytesLeft = g_ai.length;
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801fec04, AIInitDMA_80123fcc, (uint32_t start_addr, uint32_t length), (start_addr, length));
-#endif
 
 
 
@@ -317,9 +297,7 @@ extern "C" uint32_t AIRegisterDMACallback_80123f88(uint32_t callback)
     }
     return old_callback;
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801febc0, AIRegisterDMACallback_80123f88, uint32_t, (uint32_t callback), (callback));
-#endif
 
 // AIStartDMA toggles the AI DMA control register on hardware. Keep the guest-visible
 // DMA state here and let the VI tick advance the hardware boundary.
@@ -338,18 +316,14 @@ extern "C" void AIStartDMA_80124048()
     }
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801FEC80, AIStartDMA_80124048, (), ());
-#endif
 
 extern "C" uint32_t AIGetDMABytesLeft_8012405c()
 {
     std::lock_guard<std::mutex> lock(g_ai.mutex);
     return g_ai.bytesLeft;
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801FECA8, AIGetDMABytesLeft_8012405c, uint32_t, (), ());
-#endif
 
 extern "C" uint32_t AIGetDMAStartAddr_8012406c()
 {
@@ -391,9 +365,7 @@ extern "C" void DSPSendMailToDSP_8015d430(uint32_t mail)
 {
     AxDspHle::SendMailToDSP(mail);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(80209850, DSPSendMailToDSP_8015d430, (uint32_t mail), (mail));
-#endif
 
 extern "C" void SoundPlayerSetVolume_800349c4(uint32_t soundPlayer, float volume)
 {
@@ -411,33 +383,25 @@ extern "C" uint32_t DSPCheckMailToDSP_8015d3fc()
 {
     return AxDspHle::CheckMailToDSP();
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(8020981C, DSPCheckMailToDSP_8015d3fc, uint32_t, (), ());
-#endif
 
 extern "C" uint32_t DSPCheckMailFromDSP_8015d40c()
 {
     return AxDspHle::CheckMailFromDSP();
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 REGISTER_NATIVE_FUNCTION(0x8020982C, DSPCheckMailFromDSP_8015d40c);
-#endif
 
 extern "C" uint32_t DSPReadMailFromDSP_8015d41c()
 {
     return AxDspHle::ReadMailFromDSP();
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 REGISTER_NATIVE_FUNCTION(0x8020983C, DSPReadMailFromDSP_8015d41c);
-#endif
 
 extern "C" uint32_t DSPAssertTask_8015d57c(uint32_t taskPtr)
 {
     return AxDspHle::AssertTask(taskPtr);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(802099DC, DSPAssertTask_8015d57c, uint32_t, (uint32_t taskPtr), (taskPtr));
-#endif
 
 // Each delivered block runs the AI DMA callback and deferred AX task callbacks before the
 // next block, preserving the SoundThread/DSP interleave order real hardware provides.

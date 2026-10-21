@@ -72,9 +72,7 @@ extern "C" void GX__LoadLightObjImm_80170320(uint32_t la, uint32_t lid) {
     InitializeHostLightFromGuest(host, la);
     GXLoadLightObjImm(&host, static_cast<GXLightID>(lid));
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F2418, GX__LoadLightObjImm_80170320, (uint32_t la, uint32_t lid), (la, lid));
-#endif
 
 // ============================================================================
 // Channel Control
@@ -86,9 +84,7 @@ extern "C" void GX__SetChanAmbColor_8017039c(uint32_t c, uint32_t cp) {
     { static int n = 0; if (n++ < 60) RT_LOGF(RT_TAG_GX, "[spmchan] amb ch %u %08X\n", c, Memory::Read32(cp)); }
     GXSetChanAmbColor((GXChannelID)c, color);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f2494, GX__SetChanAmbColor_8017039c, (uint32_t c, uint32_t cp), (c, cp));
-#endif
 
 extern "C" void GX__SetChanMatColor_80170474(uint32_t c, uint32_t cp) {
     EnsureAuroraFrameActive();
@@ -96,14 +92,10 @@ extern "C" void GX__SetChanMatColor_80170474(uint32_t c, uint32_t cp) {
     { static int n = 0; if (n++ < 60) RT_LOGF(RT_TAG_GX, "[spmchan] mat ch %u %08X\n", c, Memory::Read32(cp)); }
     GXSetChanMatColor((GXChannelID)c, color);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F256C, GX__SetChanMatColor_80170474, (uint32_t c, uint32_t cp), (c, cp));
-#endif
 
 extern "C" void GX__SetNumChans_8017054c(uint32_t n) { GXSetNumChans((u8)n); }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801f2644, GX__SetNumChans_8017054c, (uint32_t n), (n));
-#endif
 
 extern "C" void GX__SetChanCtrl_80170570(uint32_t ch, uint32_t en, uint32_t as, uint32_t ms, uint32_t lm, uint32_t df, uint32_t af) {
     static const bool noLight = std::getenv("SPM_NOLIGHT") != nullptr;  // diagnostic: draw unlit to test lighting as the cause of black map geometry
@@ -135,6 +127,4 @@ extern "C" void GX__SetChanCtrl_80170570(uint32_t ch, uint32_t en, uint32_t as, 
       } }
     GXSetChanCtrl((GXChannelID)ch, en!=0, (GXColorSrc)as, (GXColorSrc)ms, lm, (GXDiffuseFn)df, (GXAttnFn)af);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801F2668, GX__SetChanCtrl_80170570, (uint32_t ch, uint32_t en, uint32_t as, uint32_t ms, uint32_t lm, uint32_t df, uint32_t af), (ch, en, as, ms, lm, df, af));
-#endif
