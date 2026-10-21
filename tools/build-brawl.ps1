@@ -92,7 +92,7 @@ if (-not $SkipTranslate) {
     Invoke-Step 'data-init' $dotnet.Source @($translator, 'generate-data-init', '--project', $project) $workspace
     Invoke-Step 'shards' $dotnet.Source @($translator, 'emit-build-shards', '--project', $project,
         '--base-metadata', 'generated/base_translation_output.json', '--base-functions-dir', 'generated/functions',
-        '--native-source-dir', 'runtime/src', '--out', 'generated/build_shards') $workspace
+        '--native-source-dir', 'runtime/src', '--out', 'generated/build_shards', '--base-shards', '600') $workspace
 }
 
 # 3. Configure and compile with the portable toolchain on a scrubbed PATH

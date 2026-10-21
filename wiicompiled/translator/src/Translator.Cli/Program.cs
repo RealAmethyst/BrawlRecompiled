@@ -238,6 +238,8 @@ int RunEmitBuildShards(string[] argsTail)
             nativeSourcePath,
             string.IsNullOrWhiteSpace(resolvedProfile) ? null : Path.GetFullPath(resolvedProfile),
             string.IsNullOrWhiteSpace(retroCpp) ? null : Path.GetFullPath(retroCpp),
+            // Brawl translates main.dol with all 126 .rel modules (~100k functions): far more shards than 72.
+            BaseShardCount: int.Parse(OptionValue(argsTail, "--base-shards") ?? "72", CultureInfo.InvariantCulture),
             NativeIndex: nativeIndex));
         Console.WriteLine("[translator] emitted stable translated build graph");
         Console.WriteLine($"  base functions: {result.BaseFunctionCount:N0}");

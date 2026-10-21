@@ -70,6 +70,7 @@ public sealed class ProgramImageBuilder
 
             rel.Data.CopyTo(ram, relOffset);
             relRange = rel.Range;
+            Disassembly.PpcDecoder.RegisterVeneers(rel.Data, rel.BaseAddress);
         }
 
         var usedRange = rel is null ? dol.MemoryRange : AddressRange.Union(dol.MemoryRange, rel.Range);

@@ -7,6 +7,36 @@ namespace Translator.Core.Disassembly;
 /// </summary>
 public static partial class PpcDecoder
 {
+    /// <summary>
+    /// Long-branch veneers (lis r12,hi; addi r12,r12,lo; mtctr r12; bctr) by address, with the address each one
+    /// jumps to. Pre-linked modules placed beyond rel24 reach of main.dol call it through them; a b/bl to a veneer
+    /// decodes as a branch to its destination, so the call is direct (r12 and ctr, volatile at a call, are not set).
+    /// Filled once by <see cref="RegisterVeneers"/> before any decoding.
+    /// </summary>
+    public static IReadOnlyDictionary<uint, uint> VeneerTargets { get; private set; } = new Dictionary<uint, uint>();
+
+    public static void RegisterVeneers(ReadOnlySpan<byte> image, uint imageBase)
+    {
+        var found = new Dictionary<uint, uint>();
+        for (var offset = 0; offset + 16 <= image.Length; offset += 4)
+        {
+            var lis = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(image.Slice(offset));
+            if ((lis & 0xFFFF0000u) != 0x3D800000u)
+            {
+                continue;
+            }
+            var addi = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(image.Slice(offset + 4));
+            if ((addi & 0xFFFF0000u) != 0x398C0000u ||
+                System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(image.Slice(offset + 8)) != 0x7D8903A6u ||
+                System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(image.Slice(offset + 12)) != 0x4E800420u)
+            {
+                continue;
+            }
+            found[imageBase + (uint)offset] = ((lis & 0xFFFFu) << 16) + (uint)(short)(addi & 0xFFFFu);
+        }
+        VeneerTargets = found;
+    }
+
     public static PpcInstruction Decode(uint address, uint word)
     {
         var primary = (int)((word >> 26) & 0x3F);
@@ -180,6 +210,10 @@ public static partial class PpcDecoder
                 aa = ((word >> 1) & 1) != 0;
                 lk = (word & 1) != 0;
                 target = aa ? (uint)li : address + (uint)li;
+                if (VeneerTargets.TryGetValue(target, out var veneerTarget))
+                {
+                    target = veneerTarget;
+                }
                 mnemonic = lk ? "bl" : "b";
                 operands.Add(new PpcBranchTargetOperand(target));
                 branches.Add(target);
