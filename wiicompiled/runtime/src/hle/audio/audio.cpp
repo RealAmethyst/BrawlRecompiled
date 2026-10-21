@@ -367,15 +367,17 @@ extern "C" void DSPSendMailToDSP_8015d430(uint32_t mail)
 }
 PPC_NATIVE_OVERRIDE_VOID(80209850, DSPSendMailToDSP_8015d430, (uint32_t mail), (mail));
 
-extern "C" void SoundPlayerSetVolume_800349c4(uint32_t soundPlayer, float volume)
+extern "C" void SoundPlayerSetVolume_800a35e0(uint32_t soundPlayer, float volume)
 {
     MusicAttenuation::SetSoundPlayerVolume(soundPlayer, volume);
 }
 
 #if 0  // NSMBW: music ducking hooks MKW nw4r::snd::SoundPlayer::SetVolume via an MKW sound-manager pointer; not ported to NSMBW yet
 #if 0  // SPM: 0x800a35e0: no NSMBW symbol at this address
-PPC_NATIVE_OVERRIDE_VOID(800349C4, SoundPlayerSetVolume_800349c4,
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(800A35E0, SoundPlayerSetVolume_800a35e0,
               (uint32_t soundPlayer, float volume), (soundPlayer, volume));
+#endif
 #endif
 #endif
 

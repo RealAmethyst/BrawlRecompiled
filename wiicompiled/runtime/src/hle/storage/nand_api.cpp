@@ -390,7 +390,9 @@ extern "C" int32_t NANDCreate_HLE(uint32_t pathPtr, uint32_t perm, uint32_t attr
     return NAND_RESULT_OK;
 }
 #if 0  // SPM: NANDCreate: name not in SPM
-PPC_NATIVE_OVERRIDE(80034B94, NANDCreate_HLE, int32_t, (uint32_t pathPtr, uint32_t perm, uint32_t attr), (pathPtr, perm, attr));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE(801D84E0, NANDCreate_HLE, int32_t, (uint32_t pathPtr, uint32_t perm, uint32_t attr), (pathPtr, perm, attr));
+#endif
 #endif
 
 extern "C" int32_t NANDDelete_HLE(uint32_t pathPtr) {

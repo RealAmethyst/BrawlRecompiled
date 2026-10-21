@@ -774,7 +774,9 @@ extern "C" void GX__GetTexObjLODAll_80170cbc(uint32_t oa, uint32_t mifp, uint32_
     if (mifp) Memory::Write32(mifp, meta.minFilter); if (mafp) Memory::Write32(mafp, meta.magFilter); if (milp) Memory::WriteFloat32(milp, meta.minLod); if (malp) Memory::WriteFloat32(malp, meta.maxLod); if (lbp) Memory::WriteFloat32(lbp, meta.lodBias); if (bcp) Memory::Write8(bcp, meta.biasClamp ? 1 : 0); if (elp) Memory::Write8(elp, meta.edgeLod ? 1 : 0); if (map) Memory::Write32(map, meta.maxAniso);
 }
 #if 0  // SPM: GXGetTexObjLODAll: name not in SPM
-PPC_NATIVE_OVERRIDE_VOID(802a0b88, GX__GetTexObjLODAll_80170cbc, (uint32_t oa, uint32_t mifp, uint32_t mafp, uint32_t milp, uint32_t malp, uint32_t lbp, uint32_t bcp, uint32_t elp, uint32_t map), (oa, mifp, mafp, milp, malp, lbp, bcp, elp, map));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(801c7260, GX__GetTexObjLODAll_80170cbc, (uint32_t oa, uint32_t mifp, uint32_t mafp, uint32_t milp, uint32_t malp, uint32_t lbp, uint32_t bcp, uint32_t elp, uint32_t map), (oa, mifp, mafp, milp, malp, lbp, bcp, elp, map));
+#endif
 #endif
 
 // ============================================================================

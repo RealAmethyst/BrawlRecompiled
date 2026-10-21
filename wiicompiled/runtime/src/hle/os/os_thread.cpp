@@ -203,7 +203,7 @@ void WakeThreadJoiners(CpuContext* cpu, uint32_t threadPtr)
         return;
     }
     cpu->gpr[3] = threadPtr + kThreadJoinQueueOffset;
-    OSWakeupThread_HLE_80085b68(cpu);
+    OSWakeupThread_HLE_801aaaa4(cpu);
 }
 
 void UnlockAllThreadMutexes(CpuContext* cpu, uint32_t threadPtr)
@@ -423,7 +423,7 @@ extern "C" void OSExitThread_HLE_801aa0f0(CpuContext* ctx)
 }
 PPC_NATIVE_OVERRIDE_VOID(801E0F68, OSExitThread_HLE_801aa0f0, (CpuContext* ctx), (ctx));
 
-extern "C" void OSCancelThread_HLE_80085298(CpuContext* ctx)
+extern "C" void OSCancelThread_HLE_801aa1d4(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t threadPtr = cpu->gpr[3];
@@ -463,9 +463,9 @@ extern "C" void OSCancelThread_HLE_80085298(CpuContext* ctx)
 
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-PPC_NATIVE_OVERRIDE_VOID(801E104C, OSCancelThread_HLE_80085298, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(801E104C, OSCancelThread_HLE_801aa1d4, (CpuContext* ctx), (ctx));
 
-extern "C" void OSJoinThread_HLE_80085470(CpuContext* ctx)
+extern "C" void OSJoinThread_HLE_801aa3ac(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t threadPtr = cpu->gpr[3];
@@ -485,7 +485,7 @@ extern "C" void OSJoinThread_HLE_80085470(CpuContext* ctx)
 
         if ((attributes & 1u) == 0 && state != kThreadStateMoribund && joinHead == 0) {
             cpu->gpr[3] = threadPtr + kThreadJoinQueueOffset;
-            OSSleepThread_HLE_80085a7c(cpu);
+            OSSleepThread_HLE_801aa9b8(cpu);
             state = ::Memory::Read16(threadPtr + kThreadStateOffset);
 
             bool foundInList = false;
@@ -523,10 +523,12 @@ extern "C" void OSJoinThread_HLE_80085470(CpuContext* ctx)
     cpu->gpr[3] = result;
 }
 #if 0  // SPM: OSJoinThread: name not in SPM
-PPC_NATIVE_OVERRIDE_VOID(8035CA10, OSJoinThread_HLE_80085470, (CpuContext* ctx), (ctx));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(801B5670, OSJoinThread_HLE_801aa3ac, (CpuContext* ctx), (ctx));
+#endif
 #endif
 
-extern "C" void OSDetachThread_HLE_800855b0(CpuContext* ctx)
+extern "C" void OSDetachThread_HLE_801aa4ec(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t threadPtr = cpu->gpr[3];
@@ -555,10 +557,12 @@ extern "C" void OSDetachThread_HLE_800855b0(CpuContext* ctx)
     OS__RestoreInterrupts_801a65d4(irqState);
 }
 #if 0  // SPM: OSDetachThread: name not in SPM
-PPC_NATIVE_OVERRIDE_VOID(8035CB60, OSDetachThread_HLE_800855b0, (CpuContext* ctx), (ctx));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(801B57C0, OSDetachThread_HLE_801aa4ec, (CpuContext* ctx), (ctx));
+#endif
 #endif
 
-extern "C" void OSSuspendThread_HLE_8008576c(CpuContext* ctx)
+extern "C" void OSSuspendThread_HLE_801aa6a8(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t threadPtr = cpu->gpr[3];
@@ -612,11 +616,11 @@ extern "C" void OSSuspendThread_HLE_8008576c(CpuContext* ctx)
 
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-PPC_NATIVE_OVERRIDE_VOID(801E15FC, OSSuspendThread_HLE_8008576c, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(801E15FC, OSSuspendThread_HLE_801aa6a8, (CpuContext* ctx), (ctx));
 
 // OSResumeThread (0x801b5860)
 // Resumes a suspended thread, making it eligible for scheduling.
-extern "C" void OSResumeThread_HLE_80085650(CpuContext* ctx)
+extern "C" void OSResumeThread_HLE_801aa58c(CpuContext* ctx)
 {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t threadPtr = cpu->gpr[3];
@@ -715,4 +719,4 @@ extern "C" void OSResumeThread_HLE_80085650(CpuContext* ctx)
     
     OS__RestoreInterrupts_801a65d4(irqState);
 }
-PPC_NATIVE_OVERRIDE_VOID(801E1364, OSResumeThread_HLE_80085650, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(801E1364, OSResumeThread_HLE_801aa58c, (CpuContext* ctx), (ctx));

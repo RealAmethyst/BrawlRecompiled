@@ -120,7 +120,7 @@ int32_t MsgQueueOp(CpuContext* cpu, const char* who, uint32_t queuePtr, bool blo
             if (ready(queuePtr)) {
                 apply(queuePtr);
                 cpu->gpr[3] = queuePtr + wakeOffset;
-                OSWakeupThread_HLE_80085b68(cpu);
+                OSWakeupThread_HLE_801aaaa4(cpu);
                 cpu->gpr[3] = 1;
                 OS__RestoreInterrupts_801a65d4(irqState);
                 return 1;
@@ -139,7 +139,7 @@ int32_t MsgQueueOp(CpuContext* cpu, const char* who, uint32_t queuePtr, bool blo
         }
 
         cpu->gpr[3] = queuePtr + blockOffset;
-        OSSleepThread_HLE_80085a7c(cpu);
+        OSSleepThread_HLE_801aa9b8(cpu);
     }
 }
 } // namespace

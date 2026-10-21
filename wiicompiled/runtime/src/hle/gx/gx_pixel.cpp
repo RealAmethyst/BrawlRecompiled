@@ -88,7 +88,7 @@ extern "C" void GX__SetCullMode_8016f3b8(uint32_t m) {
     if (SpmDumpFrame()) RT_LOGF(RT_TAG_GX, "[drawdump] cull %u\n", m);
     { static int n = 0; const CpuContext* x = TryGetCpuContext();
       const uint32_t lr = x ? x->lr : 0;  // mapdrv/mobjdrv live around 0x80080000-0x8008C000
-      if (lr >= 0x80034CA0u && lr < 0x8008C000u && n++ < 4000) RT_LOGF(RT_TAG_GX, "[spmcull] mode %u lr %08X\n", m, lr); }
+      if (lr >= 0x80080000u && lr < 0x8008C000u && n++ < 4000) RT_LOGF(RT_TAG_GX, "[spmcull] mode %u lr %08X\n", m, lr); }
     { static int k = 0; if (SpmAuroraDlRecording() && k++ < 6000) RT_LOGF(RT_TAG_GX, "[spmrec] cull %u\n", m); }
     GXSetCullMode(static_cast<GXCullMode>(m));
 }

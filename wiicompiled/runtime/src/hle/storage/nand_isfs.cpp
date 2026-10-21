@@ -7,7 +7,7 @@
 #include "discord_presence.h"
 #include "runtime_log.h"
 
-extern "C" void OSSleepThread_HLE_80085a7c(CpuContext* ctx);
+extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* ctx);
 
 // ============================================================================
 // SHA device handles
@@ -796,7 +796,7 @@ static bool TryDeferredNetworkIosSync(CpuContext* ctx, StartSync&& startSync) {
     if (deferred.disposition == NetworkDeferredContract::StartDisposition::Started) {
         ctx->gpr[1] = frame.newStack;
         ctx->gpr[3] = frame.waitQueue;
-        OSSleepThread_HLE_80085a7c(ctx);
+        OSSleepThread_HLE_801aa9b8(ctx);
         FinishDeferredIosWait(ctx, frame.oldStack, deferred.token);
         return true;
     }

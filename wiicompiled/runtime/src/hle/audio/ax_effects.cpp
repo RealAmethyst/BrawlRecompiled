@@ -10,7 +10,7 @@
 #include <cstring>
 
 
-static void func_8000FF60(CpuContext*) {}  // SPM has no AXFX standard reverb
+static void func_801A6D30(CpuContext*) {}  // SPM has no AXFX standard reverb
 
 #if defined(__clang__)
 // PowerPC uses discrete fmuls/fadds; a fused multiply-add would change sample rounding.
@@ -346,7 +346,7 @@ extern "C" void AXFXReverbStdExpCallback_8012b830(CpuContext* ctx) {
     try {
         flags = Memory::Read32(stateAddr + ReverbStd::kFieldFlags);
     } catch (const Memory::AccessViolation&) {
-        func_8000FF60(ctx);
+        func_801A6D30(ctx);
         return;
     }
     if (flags != 0) {
@@ -364,7 +364,7 @@ extern "C" void AXFXReverbStdExpCallback_8012b830(CpuContext* ctx) {
         built = false;
     }
     if (!built) {
-        func_8000FF60(ctx);
+        func_801A6D30(ctx);
         return;
     }
 
@@ -372,6 +372,8 @@ extern "C" void AXFXReverbStdExpCallback_8012b830(CpuContext* ctx) {
 }
 
 #if 0  // SPM: AXFXReverbStdExpCallback: name not in SPM
-REGISTER_NATIVE_FUNCTION_AS(0x8000FF60, AXFXReverbStdExpCallback_8012b830,
+#if 0  // BRAWL: no matching function in the Brawl dol
+REGISTER_NATIVE_FUNCTION_AS(0x801A6D30, AXFXReverbStdExpCallback_8012b830,
                             "AXFXReverbStdExpCallback_8012b830");
+#endif
 #endif

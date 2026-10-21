@@ -93,8 +93,8 @@ void PromoteThreadPriority(uint32_t threadPtr, int32_t priority)
 }
 } // namespace
 
-extern "C" void OSWakeupThread_HLE_80085b68(CpuContext* ctx);
-extern "C" void OSSleepThread_HLE_80085a7c(CpuContext* ctx);
+extern "C" void OSWakeupThread_HLE_801aaaa4(CpuContext* ctx);
+extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* ctx);
 
 // Deterministic idle (det_clock.h): deliver everything due at the current virtual instant, in a
 // fixed order, and if that made no thread runnable, wait for real time to reach the next event and
@@ -485,7 +485,7 @@ static void WakeupThreadQueue(CpuContext* ctx, bool allowImmediateReschedule)
     OS__RestoreInterrupts_801a65d4(irqState);
 }
 
-extern "C" void OSWakeupThread_HLE_80085b68(CpuContext* ctx)
+extern "C" void OSWakeupThread_HLE_801aaaa4(CpuContext* ctx)
 {
     WakeupThreadQueue(ctx, true);
 }
@@ -499,9 +499,9 @@ void OS_HLE_WakeupThreadNoReschedule(CpuContext* ctx, uint32_t waitQueue)
     cpu->gpr[3] = savedR3;
 }
 
-PPC_NATIVE_OVERRIDE_VOID(801E187C, OSWakeupThread_HLE_80085b68, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(801E187C, OSWakeupThread_HLE_801aaaa4, (CpuContext* ctx), (ctx));
 
-extern "C" void OSSleepThread_HLE_80085a7c(CpuContext* ctx);
+extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* ctx);
 
 extern "C" void OSLockMutex_HLE_801a7ee4(CpuContext* ctx)
 {
@@ -542,7 +542,7 @@ extern "C" void OSLockMutex_HLE_801a7ee4(CpuContext* ctx)
             PromoteThreadPriority(ownerThread, priority);
 
             cpu->gpr[3] = mutexPtr;
-            OSSleepThread_HLE_80085a7c(cpu);
+            OSSleepThread_HLE_801aa9b8(cpu);
             ::Memory::Write32(currentThread + kThreadMutexOffset, 0);
         }
     } catch (const ::Memory::AccessViolation& e) {
@@ -588,7 +588,7 @@ extern "C" void OSUnlockMutex_HLE_801a7fc0(CpuContext* ctx)
                 }
 
                 cpu->gpr[3] = mutexPtr;
-                OSWakeupThread_HLE_80085b68(cpu);
+                OSWakeupThread_HLE_801aaaa4(cpu);
             }
         }
     } catch (const ::Memory::AccessViolation& e) {

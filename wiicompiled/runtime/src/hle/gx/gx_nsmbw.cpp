@@ -16,7 +16,7 @@ void LogOnce(bool& logged, const char* what)
 
 // GXGetCullMode(GXCullMode* mode): Aurora holds the mode GXSetCullMode (gx_pixel.cpp) forwards to it.
 // NSMBW reads it while building its warning and message layouts.
-extern "C" void GX__GetCullMode_80033e70(uint32_t modePtr) {
+extern "C" void GX__GetCullMode_801c5890(uint32_t modePtr) {
     GXCullMode mode = GX_CULL_NONE;
     GXGetCullMode(&mode);
     if (modePtr != 0) {
@@ -24,7 +24,7 @@ extern "C" void GX__GetCullMode_80033e70(uint32_t modePtr) {
     }
 }
 #if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(8028d6a4, GX__GetCullMode_80033e70, (uint32_t modePtr), (modePtr));
+PPC_NATIVE_OVERRIDE_VOID(8028d6a4, GX__GetCullMode_801c5890, (uint32_t modePtr), (modePtr));
 #endif
 
 // GXAbortFrame asks the GPU to drop the frame in flight. Aurora submits whole frames and has nothing

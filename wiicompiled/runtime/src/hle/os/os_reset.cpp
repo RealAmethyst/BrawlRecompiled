@@ -55,7 +55,7 @@ extern "C" void PPCHalt_8012E5A4()
 PPC_NATIVE_OVERRIDE_VOID(801D50A8, PPCHalt_8012E5A4, (), ());
 
 // 0x801AD4E0 -> OS::Panic
-extern "C" void OS__Panic_800364A4_Cpu(CpuContext* ctx)
+extern "C" void OS__Panic_801A2660_Cpu(CpuContext* ctx)
 {
     const uint32_t file_ptr = ctx ? ctx->gpr[3] : 0;
     const int line = ctx ? static_cast<int>(ctx->gpr[4]) : 0;
@@ -121,7 +121,9 @@ extern "C" void OS__Panic_800364A4_Cpu(CpuContext* ctx)
     std::exit(EXIT_FAILURE);
 }
 
-PPC_NATIVE_OVERRIDE_VOID(801D8690, OS__Panic_800364A4_Cpu, (CpuContext* ctx), (ctx));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(8019D5B0, OS__Panic_801A2660_Cpu, (CpuContext* ctx), (ctx));
+#endif
 
 // 0x801B3CC0 -> OSResetSystem
 extern "C" uint32_t OSResetSystem()

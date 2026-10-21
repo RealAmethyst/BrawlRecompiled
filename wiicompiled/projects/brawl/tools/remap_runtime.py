@@ -36,10 +36,18 @@ TEXT = [("0x52385045", "0x52534245"),  # game code R8PE -> RSBE
          "uint32_t mem1ArenaHiDefault = 0x817DA5A0u;  // MEM1 end - Brawl FST (0x25A48 bytes, 32-aligned)")]
 
 
+SPM_SDK_START = 0x80260000  # SPM's game code ends here; below it the runtime's addresses are often stale NSMBW ones
+
+
 def map_addr(a):
     if a >= SPM_DOL_END:
         return None, "heap/rel"  # SPM REL or heap objects: game-specific, reviewed by hand
-    return M.map(a)
+    b, how = M.map(a)
+    # Below the SDK only an identical function body is evidence: the call-graph and order methods happily match
+    # a stale NSMBW address (an arbitrary SPM game function) to an arbitrary Brawl one.
+    if b is not None and M.S.is_text(a) and a < SPM_SDK_START and not how.startswith("body"):
+        return None, "weak:" + how
+    return b, how
 
 
 def sources():

@@ -140,7 +140,9 @@ extern "C" uint32_t SCGetProductGameRegion_HLE()
 }
 
 #if 0  // SPM: SCGetProductGameRegion: name not in SPM
-PPC_NATIVE_OVERRIDE(80034A10, SCGetProductGameRegion_HLE, uint32_t, (), ());
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE(801DD940, SCGetProductGameRegion_HLE, uint32_t, (), ());
+#endif
 #endif
 
 // These stubs make the game think all titles are installed; otherwise it checks title ID

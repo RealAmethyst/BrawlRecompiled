@@ -119,15 +119,15 @@ PPC_NATIVE_OVERRIDE(8023a5a4, BTM_IsDeviceUp_HLE_8013a300, uint32_t, (CpuContext
 // Serial Interface (SI) - GameCube controller ports; stubbed since we don't emulate the MMIO.
 
 // SIInit (0x801baef0): skips MMIO setup at 0xCD006434 and controller detection.
-extern "C" void SIInit_80034f10()
+extern "C" void SIInit_801b2de0()
 {
-    RT_LOG(RT_TAG_OS) << "SIInit_80034f10 called: skipping MMIO register setup and controller detection" << std::endl;
+    RT_LOG(RT_TAG_OS) << "SIInit_801b2de0 called: skipping MMIO register setup and controller detection" << std::endl;
 }
 
 // SISetSamplingRate (0x801bb840): ignored, we don't emulate SI polling timing.
-extern "C" void HLE_SISetSamplingRate_80034f98(uint32_t msec)
+extern "C" void HLE_SISetSamplingRate_801b3acc(uint32_t msec)
 {
-    RT_LOG(RT_TAG_OS) << "HLE_SISetSamplingRate_80034f98 called: msec=" << msec << ": Stubbed success." << std::endl;
+    RT_LOG(RT_TAG_OS) << "HLE_SISetSamplingRate_801b3acc called: msec=" << msec << ": Stubbed success." << std::endl;
 }
 
 // Video Interface (VI) - TV output.
@@ -141,8 +141,8 @@ extern "C" uint32_t HLE_VIGetTvFormat_801bacd8()
     return 1;
 }
 
-REGISTER_NATIVE_FUNCTION(0x801E67DC, SIInit_80034f10);
-PPC_NATIVE_OVERRIDE_VOID(801E74C8, HLE_SISetSamplingRate_80034f98, (uint32_t msec), (msec));
+REGISTER_NATIVE_FUNCTION(0x801E67DC, SIInit_801b2de0);
+PPC_NATIVE_OVERRIDE_VOID(801E74C8, HLE_SISetSamplingRate_801b3acc, (uint32_t msec), (msec));
 
 // OS____InitMemoryProtection (0x801B2D50): real version touches MMU/MMIO we don't emulate;
 // no-op and return success so boot doesn't stall.

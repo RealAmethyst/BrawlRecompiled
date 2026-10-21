@@ -83,14 +83,14 @@ runtime/src/hle/audio/audio.cpp,332,8019F1B0,,unmatched,fileAsync
 runtime/src/hle/audio/audio.cpp,341,8019F1D0,,unmatched,fileAsync
 runtime/src/hle/audio/audio.cpp,352,8012409C,,unmatched,marioMain
 runtime/src/hle/audio/audio.cpp,360,80288E14,80209850,body,DSPSendMailToDSP
-runtime/src/hle/audio/audio.cpp,369,800A35E0,800349C4,callees(4/5),func_800a33b8
+runtime/src/hle/audio/audio.cpp,369,800A35E0,,weak:callees(4/5),func_800a33b8
 runtime/src/hle/audio/audio.cpp,378,80288DE0,8020981C,caller(38/38),DSPCheckMailToDSP
 runtime/src/hle/audio/audio.cpp,384,80288DF0,8020982C,caller(2/2),DSPCheckMailFromDSP
 runtime/src/hle/audio/audio.cpp,390,80288E00,8020983C,body,DSPReadMailFromDSP
 runtime/src/hle/audio/audio.cpp,396,80288F60,802099DC,body,DSPAssertTask
 runtime/src/hle/audio/ax_effects.cpp,27,80576060,805A3920,data(3/3),func_8031bed8
 runtime/src/hle/audio/ax_effects.cpp,28,80576064,805A3924,data(2/2),func_8031bed8
-runtime/src/hle/audio/ax_effects.cpp,375,801A6D30,8000FF60,callees(20/28),romFontPrintGX
+runtime/src/hle/audio/ax_effects.cpp,375,801A6D30,,weak:callees(20/28),romFontPrintGX
 runtime/src/hle/audio/ax_internal.h,34,8050FD00,804E8940,data(3/3),func_8031bed8
 runtime/src/hle/audio/ax_internal.h,35,8056DF48,805A0B78,data(2.5/2.5),func_8031bed8
 runtime/src/hle/audio/ax_internal.h,36,8056DF50,805A0B80,data(8/8),func_8031bed8
@@ -225,7 +225,7 @@ runtime/src/hle/gx/gx_pixel.cpp,59,80290A08,801F48AC,body,GXSetDstAlpha
 runtime/src/hle/gx/gx_pixel.cpp,68,802904D8,801F421C,body,GXSetFog
 runtime/src/hle/gx/gx_pixel.cpp,77,80290294,801F3FD8,body,GXSetAlphaCompare
 runtime/src/hle/gx/gx_pixel.cpp,80,802902CC,801F4010,body,GXSetZTexture
-runtime/src/hle/gx/gx_pixel.cpp,91,80080000,80034CA0,callees(5/8),_mapEnt
+runtime/src/hle/gx/gx_pixel.cpp,91,80080000,,weak:callees(5/8),_mapEnt
 runtime/src/hle/gx/gx_pixel.cpp,91,8008C000,,unmatched,mapSearchDmdJointSub
 runtime/src/hle/gx/gx_pixel.cpp,95,8028D67C,801F136C,body,GXSetCullMode
 runtime/src/hle/gx/gx_pixel.cpp,98,8028D6C0,801F1394,body,GXSetCoPlanar
@@ -283,7 +283,7 @@ runtime/src/hle/gx/gx_texture.cpp,457,801C7160,,unmatched,npcHandleHitXp
 runtime/src/hle/gx/gx_texture.cpp,716,8028EF78,801F2FB0,body,GXLoadTexObj
 runtime/src/hle/gx/gx_texture.cpp,721,8028EE14,801F2E4C,body,GXLoadTexObjPreLoaded
 runtime/src/hle/gx/gx_texture.cpp,740,801C7180,,unmatched,npcHandleHitXp
-runtime/src/hle/gx/gx_texture.cpp,757,801C7260,802A0B88,callees(2/2),fn_801C7260
+runtime/src/hle/gx/gx_texture.cpp,757,801C7260,,weak:callees(2/2),fn_801C7260
 runtime/src/hle/gx/gx_texture.cpp,773,8028EFCC,801F3004,body,GXInitTlutObj
 runtime/src/hle/gx/gx_texture.cpp,782,8028EFF4,801F302C,body,GXLoadTlut
 runtime/src/hle/gx/gx_texture.cpp,794,8028F198,801F3194,body,GXInvalidateTexAll
@@ -327,7 +327,7 @@ runtime/src/hle/gx/gx_vertex.cpp,336,802A7C90,80239E50,body,BTM_SecDeleteDevice
 runtime/src/hle/gx/gx_vertex.cpp,442,80290ADC,801F4980,body,GXDrawSphere
 runtime/src/hle/input/kpad.cpp,320,802DE7B4,80227728,callees(12/12),fn_802DE7B4
 runtime/src/hle/input/kpad.cpp,340,801ED3B0,,unmatched,func_801ee9d0
-runtime/src/hle/input/kpad.cpp,369,8019812C,80034AB4,callees(4/5),dispTab
+runtime/src/hle/input/kpad.cpp,369,8019812C,,weak:callees(4/5),dispTab
 runtime/src/hle/input/pad.cpp,103,801AF2F0,,unmatched,func_801b0154
 runtime/src/hle/input/pad.cpp,139,801AF44C,,unmatched,func_801b0264
 runtime/src/hle/input/pad.cpp,149,801AF0DC,,unmatched,func_801afefc
@@ -361,7 +361,7 @@ runtime/src/hle/net/network_deferred.cpp,630,80505D18,804DD558,data(2/2),func_80
 runtime/src/hle/os/os_alarm.cpp,374,8026CB38,801D68F8,body,OSSetAlarm
 runtime/src/hle/os/os_alarm.cpp,467,8026CBA8,801D6968,body,OSSetPeriodicAlarm
 runtime/src/hle/os/os_alarm.cpp,491,80386298,,noref,func_8031bed8
-runtime/src/hle/os/os_alarm.cpp,508,800BD860,800BAD30,callees(2/3),func_800bd5d8
+runtime/src/hle/os/os_alarm.cpp,508,800BD860,,weak:callees(2/3),func_800bd5d8
 runtime/src/hle/os/os_cache.cpp,97,8026D7D4,801D76BC,body,DCInvalidateRange
 runtime/src/hle/os/os_cache.cpp,98,8026D800,801D76E8,body,DCFlushRange
 runtime/src/hle/os/os_cache.cpp,99,8026D830,801D7718,body,DCStoreRange
@@ -464,7 +464,7 @@ runtime/src/hle/os/os_message.cpp,196,80272904,801DE1BC,body,OSReceiveMessage
 runtime/src/hle/os/os_message.cpp,220,801A7500,,offset-out,spmarioInit
 runtime/src/hle/os/os_report.cpp,205,8026E440,801D8600,body,OSReport
 runtime/src/hle/os/os_reset.cpp,55,8026B334,801D50A8,body,PPCHalt
-runtime/src/hle/os/os_reset.cpp,124,8019D5B0,801D8690,caller(13/13),OSPanic
+runtime/src/hle/os/os_reset.cpp,124,8019D5B0,,weak:caller(13/13),OSPanic
 runtime/src/hle/os/os_reset.cpp,140,80273B38,801DF82C,body,OSResetSystem
 runtime/src/hle/os/os_reset.cpp,145,80277888,801E41A8,body,exit
 runtime/src/hle/os/os_reset.cpp,159,80277888,801E41A8,body,exit
@@ -472,7 +472,7 @@ runtime/src/hle/os/os_scheduler.cpp,415,80274C24,801E0A80,body,SelectThread
 runtime/src/hle/os/os_scheduler.cpp,502,802758E0,801E187C,body,OSWakeupThread
 runtime/src/hle/os/os_scheduler.cpp,554,8027322C,801DEBB4,body,OSLockMutex
 runtime/src/hle/os/os_scheduler.cpp,600,80273308,801DEC90,body,OSUnlockMutex
-runtime/src/hle/os/os_sleep.cpp,353,801AACA8,80085D6C,callees(5/8),fn_801AA104
+runtime/src/hle/os/os_sleep.cpp,353,801AACA8,,weak:callees(5/8),fn_801AA104
 runtime/src/hle/os/os_sleep.cpp,514,802757F4,801E1790,body,OSSleepThread
 runtime/src/hle/os/os_thread.cpp,216,802733D0,801DED58,body,__OSUnlockAllMutex
 runtime/src/hle/os/os_thread.cpp,311,8026E058,801D8218,body,OSInitContext
@@ -482,8 +482,8 @@ runtime/src/hle/os/os_thread.cpp,342,8056D278,8059E9C0,data(3/3),func_8031bed8
 runtime/src/hle/os/os_thread.cpp,398,80274EA0,801E0CFC,body,OSCreateThread
 runtime/src/hle/os/os_thread.cpp,424,8027510C,801E0F68,body,OSExitThread
 runtime/src/hle/os/os_thread.cpp,466,802751F0,801E104C,body,OSCancelThread
-runtime/src/hle/os/os_thread.cpp,526,801B5670,8035CA10,callees(4/4),npcEntry
-runtime/src/hle/os/os_thread.cpp,558,801B57C0,8035CB60,callees(4/4),npcEntry
+runtime/src/hle/os/os_thread.cpp,526,801B5670,,weak:callees(4/4),npcEntry
+runtime/src/hle/os/os_thread.cpp,558,801B57C0,,weak:callees(4/4),npcEntry
 runtime/src/hle/os/os_thread.cpp,615,80275660,801E15FC,body,OSSuspendThread
 runtime/src/hle/os/os_thread.cpp,718,802753C8,801E1364,body,OSResumeThread
 runtime/src/hle/os/os_time.cpp,64,802759D4,801E1B34,body,OSGetTime
@@ -498,7 +498,7 @@ runtime/src/hle/sc.cpp,98,803869E0,,noref,func_8031bed8
 runtime/src/hle/sc.cpp,112,801B2424,,unmatched,throwDamage
 runtime/src/hle/sc.cpp,126,801B2460,,unmatched,throwDamage
 runtime/src/hle/sc.cpp,132,804BA9E0,8047FAB0,data(3/3),func_8031bed8
-runtime/src/hle/sc.cpp,137,801DD940,80034A10,callees(7/11),func_801df0cc
+runtime/src/hle/sc.cpp,137,801DD940,,weak:callees(7/11),func_801df0cc
 runtime/src/hle/sc.cpp,154,801AE4A0,,unmatched,func_801aefd0
 runtime/src/hle/sc.cpp,173,801AD1D4,,unmatched,npcDispMain
 runtime/src/hle/storage/dvd.cpp,898,8050B690,804E43F0,data(10/10),func_8031bed8
@@ -535,7 +535,7 @@ runtime/src/hle/storage/nand_api.cpp,297,80297258,8020AA78,caller(1/1),NANDRead
 runtime/src/hle/storage/nand_api.cpp,320,80297338,8020AB58,caller(3/3),NANDWrite
 runtime/src/hle/storage/nand_api.cpp,339,801D8BD0,,unmatched,func_801d9f34
 runtime/src/hle/storage/nand_api.cpp,357,801D9040,,unmatched,func_801da74c
-runtime/src/hle/storage/nand_api.cpp,385,801D84E0,80034B94,callees(2/2),func_801d9a88
+runtime/src/hle/storage/nand_api.cpp,385,801D84E0,,weak:callees(2/2),func_801d9a88
 runtime/src/hle/storage/nand_api.cpp,407,80297010,8020A870,body,NANDDelete
 runtime/src/hle/storage/nand_api.cpp,433,8019BBE0,,unmatched,fsort
 runtime/src/hle/storage/nand_api.cpp,583,801D8FD0,,unmatched,func_801da74c
@@ -557,7 +557,7 @@ runtime/src/hle/storage/nand_async.cpp,218,802975F4,8020B06C,body+order,NANDPriv
 runtime/src/hle/storage/nand_async.cpp,225,80297198,8020A9B8,body,NANDPrivateDeleteAsync
 runtime/src/hle/storage/nand_async.cpp,232,80297914,8020B668,body,NANDPrivateGetStatusAsync
 runtime/src/hle/storage/nand_async.cpp,239,802998F0,8020D6F0,caller(2/2),NANDPrivateGetTypeAsync
-runtime/src/hle/storage/nand_async.cpp,497,8019CB74,8016F810,callees(3/4),mtxGetScaleElement
+runtime/src/hle/storage/nand_async.cpp,497,8019CB74,,weak:callees(3/4),mtxGetScaleElement
 runtime/src/hle/storage/nand_async.cpp,506,801D9950,,unmatched,fn_801D9540
 runtime/src/hle/storage/nand_async.cpp,549,8019CF28,,unmatched,intplGetValue
 runtime/src/hle/storage/nand_async.cpp,555,801D9D10,,unmatched,fn_801D9540
@@ -613,8 +613,8 @@ runtime/src/hle/task_thread.cpp,107,80551378,,noref,func_8031bed8
 runtime/src/hle/task_thread.cpp,166,80272904,801DE1BC,body,OSReceiveMessage
 runtime/src/hle/task_thread.cpp,180,80529D68,,noref,func_8031bed8
 runtime/src/hle/task_thread.cpp,202,8027283C,801DE0F4,body,OSSendMessage
-runtime/src/hle/task_thread.cpp,213,80242D7C,800C47B0,callees(3/5),func_80244740
-runtime/src/hle/trk.cpp,16,8002001C,80035730,callees(8/13),fn_8001F284
+runtime/src/hle/task_thread.cpp,213,80242D7C,,weak:callees(3/5),func_80244740
+runtime/src/hle/trk.cpp,16,8002001C,,weak:callees(8/13),fn_8001F284
 runtime/src/hle/vi.cpp,155,8056DD00,805A07A0,data(2/2),func_8031bed8
 runtime/src/hle/vi.cpp,156,8056DD70,805A0810,data(6/6),func_8031bed8
 runtime/src/hle/vi.cpp,157,8050BAF4,804DE644,data(6/6),func_8031bed8
@@ -670,7 +670,7 @@ runtime/src/netplay/world_map_nav.cpp,30,8042A1A0,,noref,func_8031bed8
 runtime/src/netplay/world_map_nav.cpp,35,8042A3CC,,noref,func_8031bed8
 runtime/src/recomp_mod_loader.cpp,203,8000A000,,noref,__flush_cache
 runtime/src/recomp_mod_loader.cpp,203,8000A400,,noref,__flush_cache
-runtime/src/recomp_mod_loader.cpp,204,801A6000,801DBAC4,callees(2/2),smartGarbage
+runtime/src/recomp_mod_loader.cpp,204,801A6000,,weak:callees(2/2),smartGarbage
 runtime/src/recomp_mod_loader.cpp,204,801A7000,,offset-out,romFontPrintGX
 runtime/src/settings_overlay.cpp,2147,80004000,80004338,body,memcpy
 runtime/src/system_bridge.cpp,408,80576720,,heap/rel,func_8031bed8

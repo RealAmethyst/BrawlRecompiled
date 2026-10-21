@@ -66,7 +66,7 @@ PPC_NATIVE_OVERRIDE_VOID(801E1B34, OS__GetTime_HLE, (CpuContext* ctx), (ctx));
 
 // ----------------------------------------------------------------------------
 // OSGetSystemTime HLE - map system time structure to a 64-bit return
-extern "C" uint32_t OS____GetSystemTime_80085e40(uint32_t /*r3_hi*/, uint32_t /*r4_lo*/, uint32_t /*r5*/, int32_t /*r6*/, uint32_t /*r7*/, uint32_t /*r8*/) {
+extern "C" uint32_t OS____GetSystemTime_801aad7c(uint32_t /*r3_hi*/, uint32_t /*r4_lo*/, uint32_t /*r5*/, int32_t /*r6*/, uint32_t /*r7*/, uint32_t /*r8*/) {
     // Save/disable interrupts (mirrors the original implementation).
     int saved_level = OS__DisableInterrupts_801a65ac();
 
@@ -74,7 +74,7 @@ extern "C" uint32_t OS____GetSystemTime_80085e40(uint32_t /*r3_hi*/, uint32_t /*
     try {
         now = ReadSystemTime();
     } catch (const ::Memory::AccessViolation& e) {
-        LogMemoryError(RT_TAG_OS, "OS____GetSystemTime_80085e40", e);
+        LogMemoryError(RT_TAG_OS, "OS____GetSystemTime_801aad7c", e);
         now = (static_cast<uint64_t>(PPC_Mftbu()) << 32) | PPC_Mftb();
     }
     const uint32_t hi = static_cast<uint32_t>(now >> 32);
@@ -88,4 +88,4 @@ extern "C" uint32_t OS____GetSystemTime_80085e40(uint32_t /*r3_hi*/, uint32_t /*
     return hi;
 }
 
-PPC_NATIVE_OVERRIDE(801E1B54, OS____GetSystemTime_80085e40, uint32_t, (uint32_t r3_low, uint32_t r4_high, uint32_t r5_unused, int32_t r6_unused, uint32_t r7_unused, uint32_t r8_unused), (r3_low, r4_high, r5_unused, r6_unused, r7_unused, r8_unused));
+PPC_NATIVE_OVERRIDE(801E1B54, OS____GetSystemTime_801aad7c, uint32_t, (uint32_t r3_low, uint32_t r4_high, uint32_t r5_unused, int32_t r6_unused, uint32_t r7_unused, uint32_t r8_unused), (r3_low, r4_high, r5_unused, r6_unused, r7_unused, r8_unused));

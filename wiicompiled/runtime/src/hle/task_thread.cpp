@@ -134,7 +134,7 @@ void ClearTaskJob(uint32_t taskThread, uint32_t job)
 // HLE override for TaskThread_run (0x80242D7C).
 // This mirrors the worker loop from the original implementation so job slots
 // are retired exactly when the callback has finished.
-extern "C" void TaskThread_run_HLE_800c47b0(CpuContext* ctx) {
+extern "C" void TaskThread_run_HLE_80242d7c(CpuContext* ctx) {
     CpuContext* cpu = ctx ? ctx : &GetPersistentCpuContext();
     const uint32_t taskThread = cpu->gpr[3];
     if (!Memory::Contains(taskThread + kTaskMessageQueueOffset, 0x4Cu)) {
@@ -210,6 +210,8 @@ extern "C" void TaskThread_run_HLE_800c47b0(CpuContext* ctx) {
 #endif  // NSMBW: end of MKW EGG::TaskThread / THP player HLE
 #if 0  // NSMBW: MKW EGG::TaskThread / THP movie player; NSMBW has neither
 #if 0  // SPM: 0x80242d7c: no NSMBW symbol at this address
-PPC_NATIVE_OVERRIDE_VOID(800C47B0, TaskThread_run_HLE_800c47b0, (CpuContext* ctx), (ctx));
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE_VOID(80242D7C, TaskThread_run_HLE_80242d7c, (CpuContext* ctx), (ctx));
+#endif
 #endif
 #endif

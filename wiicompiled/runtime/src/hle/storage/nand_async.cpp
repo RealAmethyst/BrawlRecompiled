@@ -502,9 +502,11 @@ extern "C" int32_t NANDSafeOpen_HLE(uint32_t pathPtr, uint32_t fileInfoPtr, uint
 }
 #if 0  // NSMBW: NANDSafeOpen is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x8019cb74: no NSMBW symbol at this address
-PPC_NATIVE_OVERRIDE(8016F810, NANDSafeOpen_HLE, int32_t,
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE(8019CB74, NANDSafeOpen_HLE, int32_t,
     (uint32_t pathPtr, uint32_t fileInfoPtr, uint32_t mode, uint32_t tempBufferPtr, uint32_t tempBufferSize),
     (pathPtr, fileInfoPtr, mode, tempBufferPtr, tempBufferSize));
+#endif
 #endif
 #endif
 // NSMBW's newer SDK writes saves through NANDSimpleSafeOpen(path, info, accType, buf, length) - a thin

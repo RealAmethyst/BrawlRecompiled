@@ -368,7 +368,9 @@ extern "C" int32_t KPAD__GetUnifiedWpadStatus_HLE(uint32_t chan, uint32_t status
 }
 #if 0  // NSMBW: KPADGetUnifiedWpadStatus is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x8019812c: no NSMBW symbol at this address
-PPC_NATIVE_OVERRIDE(80034AB4, KPAD__GetUnifiedWpadStatus_HLE, int32_t,
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE(8019812C, KPAD__GetUnifiedWpadStatus_HLE, int32_t,
          (uint32_t chan, uint32_t statusPtr, uint32_t count), (chan, statusPtr, count));
+#endif
 #endif
 #endif

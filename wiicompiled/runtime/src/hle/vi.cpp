@@ -45,10 +45,10 @@
 #include <aurora/aurora.h>
 
 // Forward declaration for OSWakeupThread - used to wake threads on VI retrace queue
-extern "C" void OSWakeupThread_HLE_80085b68(CpuContext* ctx);
+extern "C" void OSWakeupThread_HLE_801aaaa4(CpuContext* ctx);
 
 // Forward declaration for OSSleepThread - used by VIWaitForRetrace HLE
-extern "C" void OSSleepThread_HLE_80085a7c(CpuContext* cpu);
+extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* cpu);
 extern "C" int g_gxFrameCount;
 extern "C" int32_t OS__DisableInterrupts_801a65ac();
 extern "C" int32_t OS__RestoreInterrupts_801a65d4(int32_t level);
@@ -542,7 +542,7 @@ void AdvanceRetrace(CpuContext* ctx, Clock::time_point retraceStamp, bool servic
             Memory::TryRead32(kViRetraceQueueAddr, queueHead);
         }
         ctx->gpr[3] = kViRetraceQueueAddr;
-        OSWakeupThread_HLE_80085b68(ctx);
+        OSWakeupThread_HLE_801aaaa4(ctx);
         if (logWake) {
             ++s_wakeLogs;
             uint32_t runQueueBits = 0;
@@ -1349,7 +1349,7 @@ extern "C" void VIWaitForRetrace_HLE_801b99ec(CpuContext* ctx)
 
         do {
             cpu->gpr[3] = kViRetraceQueueAddr;
-            OSSleepThread_HLE_80085a7c(cpu);
+            OSSleepThread_HLE_801aa9b8(cpu);
 
             {
                 std::lock_guard<std::mutex> lock(g_viMutex);

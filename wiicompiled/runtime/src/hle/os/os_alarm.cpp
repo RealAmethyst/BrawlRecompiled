@@ -472,7 +472,7 @@ PPC_NATIVE_OVERRIDE_VOID(801D6968, OS__SetPeriodicAlarm_801a08e0, (CpuContext* c
 // Original at 0x800BD860 reads the "working" flag at RFL manager + 0x1B34,
 // returning 0 when the manager pointer (0x80386298) is null.
 #if 0  // NSMBW: RFL (Mii library) is not linked into NSMBW; this read an MKW RFL manager pointer
-extern "C" uint32_t RFLiIsWorking_HLE_800bad30()
+extern "C" uint32_t RFLiIsWorking_HLE_800bd860()
 {
     // Alarm callbacks interrupt the caller; keep their register writes private.
     GuestInterruptCallbackContext interrupt;
@@ -505,6 +505,8 @@ extern "C" uint32_t RFLiIsWorking_HLE_800bad30()
 #endif
 #if 0  // NSMBW: RFLiIsWorking is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x800bd860: no NSMBW symbol at this address
-PPC_NATIVE_OVERRIDE(800BAD30, RFLiIsWorking_HLE_800bad30, uint32_t, (), ());
+#if 0  // BRAWL: no matching function in the Brawl dol
+PPC_NATIVE_OVERRIDE(800BD860, RFLiIsWorking_HLE_800bd860, uint32_t, (), ());
+#endif
 #endif
 #endif

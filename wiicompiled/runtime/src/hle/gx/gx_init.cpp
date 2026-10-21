@@ -102,8 +102,8 @@ PPC_NATIVE_OVERRIDE_VOID(801eea04, GX__SetCPUFifo_8016c94c, (uint32_t fa), (fa))
 extern "C" void GX__SetGPFifo_8016cb2c(uint32_t fa) { GXSetGPFifo((GXFifoObj*)GuestToHostPtr(fa, sizeof(GXFifoObj))); }
 PPC_NATIVE_OVERRIDE_VOID(801eebe4, GX__SetGPFifo_8016cb2c, (uint32_t fa), (fa));
 
-extern "C" void __GX__SaveFifo_801ed12c(uint32_t fa) { GXSaveCPUFifo((GXFifoObj*)GuestToHostPtr(fa, sizeof(GXFifoObj))); }
-PPC_NATIVE_OVERRIDE_VOID(801eee74, __GX__SaveFifo_801ed12c, (uint32_t fa), (fa));
+extern "C" void __GX__SaveFifo_8016cdbc(uint32_t fa) { GXSaveCPUFifo((GXFifoObj*)GuestToHostPtr(fa, sizeof(GXFifoObj))); }
+PPC_NATIVE_OVERRIDE_VOID(801eee74, __GX__SaveFifo_8016cdbc, (uint32_t fa), (fa));
 
 extern "C" void GX__GetCPUFifo_8016cf10(uint32_t fa) { auto* d=(GXFifoObj*)GuestToHostPtr(fa, sizeof(GXFifoObj)); auto* s=GXGetCPUFifo(); if(d&&s) std::memcpy(d,s,sizeof(GXFifoObj)); }
 PPC_NATIVE_OVERRIDE_VOID(801eef7c, GX__GetCPUFifo_8016cf10, (uint32_t fa), (fa));
