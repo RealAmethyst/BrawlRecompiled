@@ -46,18 +46,16 @@ extern "C" void PPCHalt_8012E5A4()
     RuntimeCrash::WriteCrashArtifacts("halt", "The guest executed PPCHalt.");
     SetRuntimeExitCode(EXIT_FAILURE);
     ShowRuntimeFatalPopup("the guest operating system halted the console",
-                          "Super Smash Bros. Brawl executed PPCHalt, which the console only reaches after an "
+                          "Super Paper Mario executed PPCHalt, which the console only reaches after an "
                           "unrecoverable error.");
     MarkFatalErrorReported();
     std::exit(EXIT_FAILURE);
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801D50A8, PPCHalt_8012E5A4, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026B334, PPCHalt_8012E5A4, (), ());
 
 // 0x801AD4E0 -> OS::Panic
-extern "C" void OS__Panic_800364A4_Cpu(CpuContext* ctx)
+extern "C" void OS__Panic_801A2660_Cpu(CpuContext* ctx)
 {
     const uint32_t file_ptr = ctx ? ctx->gpr[3] : 0;
     const int line = ctx ? static_cast<int>(ctx->gpr[4]) : 0;
@@ -101,7 +99,7 @@ extern "C" void OS__Panic_800364A4_Cpu(CpuContext* ctx)
     std::fflush(stderr);
     std::fflush(stdout);
 
-    std::string details = "Super Smash Bros. Brawl reported an OS panic";
+    std::string details = "Super Paper Mario reported an OS panic";
     if (!file.empty()) {
         details += " at ";
         details += file;
@@ -123,7 +121,7 @@ extern "C" void OS__Panic_800364A4_Cpu(CpuContext* ctx)
     std::exit(EXIT_FAILURE);
 }
 
-PPC_NATIVE_OVERRIDE_VOID(801D8690, OS__Panic_800364A4_Cpu, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(8019D5B0, OS__Panic_801A2660_Cpu, (CpuContext* ctx), (ctx));
 
 // 0x801B3CC0 -> OSResetSystem
 extern "C" uint32_t OSResetSystem()
@@ -139,16 +137,16 @@ extern "C" uint32_t OSResetSystem()
     return 0; // unreachable, but keeps the signature consistent with callers
 }
 
-PPC_NATIVE_OVERRIDE(801DF82C, OSResetSystem, uint32_t, (), ());
+PPC_NATIVE_OVERRIDE(80273B38, OSResetSystem, uint32_t, (), ());
 
 // 0x801B89E0 -> exit(int status)
 extern "C" uint32_t Exit_801AE58C(int status)
 {
-    RT_LOGF(RT_TAG_OS, "exit(status=%d) called via 0x801E41A8\n", status);
+    RT_LOGF(RT_TAG_OS, "exit(status=%d) called via 0x80277888\n", status);
     std::fflush(stderr);
     if (status != 0) {
         const std::string details =
-            "Super Smash Bros. Brawl called exit(" + std::to_string(status) + ").";
+            "Super Paper Mario called exit(" + std::to_string(status) + ").";
         RuntimeCrash::WriteCrashArtifacts("exit", details);
         ShowRuntimeFatalPopup("the game exited with an error status", details);
         MarkFatalErrorReported();
@@ -158,6 +156,4 @@ extern "C" uint32_t Exit_801AE58C(int status)
     return static_cast<uint32_t>(status);
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801E41A8, Exit_801AE58C, uint32_t, (int status), (status));
-#endif
+PPC_NATIVE_OVERRIDE(80277888, Exit_801AE58C, uint32_t, (int status), (status));

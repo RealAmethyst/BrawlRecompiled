@@ -10,7 +10,7 @@
 #include <cstring>
 
 
-static void func_8000FF60(CpuContext*) {}  // SPM has no AXFX standard reverb
+static void func_801A6D30(CpuContext*) {}  // SPM has no AXFX standard reverb
 
 #if defined(__clang__)
 // PowerPC uses discrete fmuls/fadds; a fused multiply-add would change sample rounding.
@@ -24,8 +24,8 @@ constexpr uint32_t kSamplesPerFrame = 96;
 constexpr uint32_t kChannels = 3;
 
 // .sdata2 constants the guest function loads through r2.
-constexpr uint32_t kOneConstantAddr = 0x805A3920u;   // 1.0f (NSMBW .sdata2, loaded by AXFXReverbStdExpCallback)
-constexpr uint32_t kScaleConstantAddr = 0x805A3924u; // 0.6f send pre-scale (NSMBW)
+constexpr uint32_t kOneConstantAddr = 0x80576060u;   // 1.0f (NSMBW .sdata2, loaded by AXFXReverbStdExpCallback)
+constexpr uint32_t kScaleConstantAddr = 0x80576064u; // 0.6f send pre-scale (NSMBW)
 
 // AXFX_REVERBSTD_EXP field offsets (byte offsets into the struct in r4).
 constexpr uint32_t kFieldPreDelayCoef = 0x18;
@@ -346,7 +346,7 @@ extern "C" void AXFXReverbStdExpCallback_8012b830(CpuContext* ctx) {
     try {
         flags = Memory::Read32(stateAddr + ReverbStd::kFieldFlags);
     } catch (const Memory::AccessViolation&) {
-        func_8000FF60(ctx);
+        func_801A6D30(ctx);
         return;
     }
     if (flags != 0) {
@@ -364,7 +364,7 @@ extern "C" void AXFXReverbStdExpCallback_8012b830(CpuContext* ctx) {
         built = false;
     }
     if (!built) {
-        func_8000FF60(ctx);
+        func_801A6D30(ctx);
         return;
     }
 
@@ -372,8 +372,6 @@ extern "C" void AXFXReverbStdExpCallback_8012b830(CpuContext* ctx) {
 }
 
 #if 0  // SPM: AXFXReverbStdExpCallback: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
-REGISTER_NATIVE_FUNCTION_AS(0x8000FF60, AXFXReverbStdExpCallback_8012b830,
-#endif
+REGISTER_NATIVE_FUNCTION_AS(0x801A6D30, AXFXReverbStdExpCallback_8012b830,
                             "AXFXReverbStdExpCallback_8012b830");
 #endif

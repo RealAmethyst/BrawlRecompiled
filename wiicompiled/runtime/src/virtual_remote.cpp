@@ -43,7 +43,7 @@ constexpr uint32_t kScreenLeft = kWpadUp, kScreenRight = kWpadDown, kScreenUp = 
 // What the game's motion code looks for (dGameKeyCore_c::setShakeY and the tilt code after
 // setConfigKey): a shake is acc.y changing by at least 0.28 g between consecutive frames on four
 // frames (gaps of up to two allowed), then a five-frame cool-down; the tilt angle is -acc.z, through
-// KPAD's acc_vertical, at 16384 angle units per g. Super Smash Bros. Brawl (wpadMain 0x80234528, check
+// KPAD's acc_vertical, at 16384 angle units per g. Super Paper Mario (wpadMain 0x80234528, check
 // 0x80235180) instead averages acc.y over four frames at a time and wants a dip then a steep rise
 // (at least 1 g, 0.75 g per four frames); a swing flipping every frame averages to nothing there. So a
 // shake is one flick, added to rest acc.y: a quick dip, a steep rise, back to rest. All but one frame
@@ -82,7 +82,7 @@ std::atomic<float> g_touchTilt{0.0f};
 // +0x44 of the spmario globals (gp).
 bool InArcade() {
     uint32_t gp = 0;
-    return Memory::TryRead32(0x805A1608u, gp) && Memory::Contains(gp, 0x48) && Memory::Read8(gp + 0x44) == 'm' &&
+    return Memory::TryRead32(0x8056D198u, gp) && Memory::Contains(gp, 0x48) && Memory::Read8(gp + 0x44) == 'm' &&
            Memory::Read8(gp + 0x45) == 'g';
 }
 
@@ -136,7 +136,7 @@ Intent KeyboardIntent() {
     return intent;
 }
 
-// Gamepads. Super Smash Bros. Brawl is single-player, so every connected gamepad (not a real Wii Remote, which
+// Gamepads. Super Paper Mario is single-player, so every connected gamepad (not a real Wii Remote, which
 // reaches the game through KPAD) drives player 1 alongside the keyboard; there is no port to pick.
 // The pad's type (SDL_GetGamepadType) picks the default layout; Config.toml [gamepad] <type>_<action>
 // (xbox_jump = "a,b", types xbox / playstation / nintendo, actions in Keybinds order) replaces one

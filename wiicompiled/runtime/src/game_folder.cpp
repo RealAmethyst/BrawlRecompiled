@@ -24,12 +24,12 @@ bool IsExtractedDisc(const fs::path& path) {
 }
 
 #if defined(_WIN32)
-constexpr const wchar_t* kTitle = L"Super Smash Bros. Brawl";
+constexpr const wchar_t* kTitle = L"Super Paper Mario";
 
 constexpr const wchar_t* kSteps =
-    L"This port runs your own copy of Super Smash Bros. Brawl (USA, RSBE01, revision 1). "
+    L"This port runs your own copy of Super Paper Mario (USA, R8PE01, revision 0). "
     L"Extract it once with Dolphin:\n\n"
-    L"1. Open Dolphin on this computer and find Super Smash Bros. Brawl in the game list.\n"
+    L"1. Open Dolphin on this computer and find Super Paper Mario in the game list.\n"
     L"2. Right-click it, choose Properties, then the Filesystem tab.\n"
     L"3. Right-click the disc at the top and choose Extract Entire Disc, then pick an empty folder.\n"
     L"4. Click OK here and choose that folder. Keep it: the game reads it every time.\n\n"
@@ -51,7 +51,7 @@ fs::path PickFolder() {
         DWORD options = 0;
         dialog->GetOptions(&options);
         dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
-        dialog->SetTitle(L"Choose the folder Dolphin extracted Super Smash Bros. Brawl to");
+        dialog->SetTitle(L"Choose the folder Dolphin extracted Super Paper Mario to");
         if (SUCCEEDED(dialog->Show(nullptr))) {
             IShellItem* item = nullptr;
             if (SUCCEEDED(dialog->GetResult(&item))) {
@@ -107,13 +107,13 @@ std::string Problem(const fs::path& root) {
     const std::string id(header, 6);
     const int revision = static_cast<unsigned char>(header[7]);
     // projects/spm/pal/tools/make_pal_runtime.py rewrites these two for the PAL engine (R8PP01, any revision).
-    constexpr const char* kGameId = "RSBE01";
-    constexpr int kRevision = 1;
+    constexpr const char* kGameId = "R8PE01";
+    constexpr int kRevision = 0;
     if (id != kGameId) {
-        return "That is " + id + ", not Super Smash Bros. Brawl " + kGameId + ". This engine runs only that disc.";
+        return "That is " + id + ", not Super Paper Mario " + kGameId + ". This engine runs only that disc.";
     }
     if (kRevision >= 0 && revision != kRevision) {
-        return "That is Super Smash Bros. Brawl revision " + std::to_string(revision) +
+        return "That is Super Paper Mario revision " + std::to_string(revision) +
                ". This port runs only revision 0 (Dolphin shows it under Properties > Info).";
     }
     return {};

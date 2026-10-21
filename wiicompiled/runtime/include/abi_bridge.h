@@ -28,7 +28,7 @@ inline void InvokeIndirectCpu(uint32_t target, CpuContext* ctx);
 inline void ApplyRuntimeCallOptions(uint32_t target, CpuContext* ctx) {
 #if 0  // NSMBW: MKW-only. 0x8023BD38 was Mario Kart's ScnRenderer::createPath; in NSMBW that
        // address is an unrelated function, so rewriting its r4 would corrupt it.
-    if (target == 0x801CCC00u) {
+    if (target == 0x8023BD38u) {
         // ScnRenderer::createPath receives the post-processing path mask in r4.
         ctx->gpr[4] = RuntimeGameGraphicsOptions::FilterScnRendererPathMask(ctx->gpr[4]);
     }
@@ -256,7 +256,7 @@ private:
 // Guest address of OSLoadContext, which models rfi-style context restoration
 // and intentionally replaces the full guest register file instead of returning
 // like a normal ABI call. It can never be guarded.
-inline constexpr uint32_t kOSLoadContextAddress = 0x801D80B4u;
+inline constexpr uint32_t kOSLoadContextAddress = 0x8026DEF4u;
 
 inline bool ShouldPreserveNonvolatileGprsForRawCpuCall(const TranslatedFunctionInfo* info) noexcept {
     return info->kind == FunctionKind::Native && info->address != kOSLoadContextAddress;

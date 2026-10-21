@@ -1,5 +1,5 @@
 // SuperPaperMario.exe: the one engine executable. Each disc region is a static recompilation of its own dol, so
-// the engine proper is a module per region (engine_usa.dll for RSBE01, engine_pal.dll for R8PP01, both built from
+// the engine proper is a module per region (engine_usa.dll for R8PE01, engine_pal.dll for R8PP01, both built from
 // runtime/ by tools/build-spm.ps1 with MKW_ENGINE_MODULE). This stub reads the extracted disc's id and runs the
 // matching module's SDL_main (main.cpp). SPM_ENGINE=usa|pal overrides the choice.
 #include <windows.h>
@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
     if (!entry) {
         const std::wstring message = L"The game engine could not be loaded:\n" + module.wstring() +
                                      L"\n(error " + std::to_wstring(GetLastError()) + L")\n\nUnzip the whole download again.";
-        MessageBoxW(nullptr, message.c_str(), L"Super Smash Bros. Brawl", MB_OK | MB_ICONERROR);
+        MessageBoxW(nullptr, message.c_str(), L"Super Paper Mario", MB_OK | MB_ICONERROR);
         return 1;
     }
     return entry(argc, argv);

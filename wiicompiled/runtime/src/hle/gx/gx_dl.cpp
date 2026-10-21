@@ -1547,9 +1547,7 @@ extern "C" void GX__CallDisplayList_80172f64(uint32_t listAddr, uint32_t nbytes)
     } catch (...) {}
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801F4EAC, GX__CallDisplayList_80172f64, (uint32_t listAddr, uint32_t nbytes), (listAddr, nbytes));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(80291458, GX__CallDisplayList_80172f64, (uint32_t listAddr, uint32_t nbytes), (listAddr, nbytes));
 
 extern "C" void nw4r__lyt__detail__DrawQuad_800847c0(CpuContext* ctx) {
     uint32_t colors[4];
@@ -1567,12 +1565,10 @@ extern "C" void nw4r__lyt__detail__DrawQuad_800847c0(CpuContext* ctx) {
 }
 
 #if 0  // SPM: DrawQuad__Q34nw4r3lyt6detailFRCQ34nw4r4math4VEC2RCQ34nw4r3lyt4SizeUcPA4_CQ34nw4r4math4VEC2PCQ34nw4r2ut5Color: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
-REGISTER_NATIVE_FUNCTION(0x80248E40, nw4r__lyt__detail__DrawQuad_800847c0);  // NSMBW: DrawQuad(VEC2&, Size&, u8, VEC2[4]*, Color*)
-#endif
+REGISTER_NATIVE_FUNCTION(0x802B6C80, nw4r__lyt__detail__DrawQuad_800847c0);  // NSMBW: DrawQuad(VEC2&, Size&, u8, VEC2[4]*, Color*)
 #endif
 
-extern "C" void nw4r__lyt__detail__DrawQuad_801ee138(CpuContext* ctx) {
+extern "C" void nw4r__lyt__detail__DrawQuad_80084d20(CpuContext* ctx) {
     uint32_t colors[4];
     const uint32_t colorAddr = ctx->gpr[7];
     const uint32_t* colorPtr = nullptr;
@@ -1589,5 +1585,5 @@ extern "C" void nw4r__lyt__detail__DrawQuad_801ee138(CpuContext* ctx) {
 }
 
 #if 0  // SPM: DrawQuad__Q34nw4r3lyt6detailFRCQ34nw4r4math4VEC2RCQ34nw4r3lyt4SizeUcPA4_CQ34nw4r4math4VEC2PCQ34nw4r2ut5ColorUc: name not in SPM
-REGISTER_NATIVE_FUNCTION(0x802493A0, nw4r__lyt__detail__DrawQuad_801ee138);  // NSMBW: DrawQuad(..., Color*, u8 alpha)
+REGISTER_NATIVE_FUNCTION(0x802B71E0, nw4r__lyt__detail__DrawQuad_80084d20);  // NSMBW: DrawQuad(..., Color*, u8 alpha)
 #endif

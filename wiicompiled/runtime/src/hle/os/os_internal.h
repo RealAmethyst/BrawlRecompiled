@@ -25,7 +25,7 @@ extern std::atomic<bool> g_interrupts_enabled;
 extern std::atomic<uint32_t> g_interrupt_mask;
 
 // NSMBW SMNE01 rev 1 addresses (symbols from the cracked Shield symbol table, converted to E1).
-constexpr uint32_t kInterruptHandlerTablePtrAddr = 0x805a06d0u;  // InterruptHandlerTable
+constexpr uint32_t kInterruptHandlerTablePtrAddr = 0x8056db88u;  // InterruptHandlerTable
 constexpr uint32_t kInterruptHandlerTableAddr = 0x80003040u;
 constexpr size_t kInterruptHandlerTableBytes = 0x80u;
 constexpr uint32_t kInterruptMaskLoAddr = 0x800000c4u;
@@ -37,17 +37,17 @@ constexpr uint32_t kThreadListHeadAddr = 0x800000dcu;    // First thread in thre
 constexpr uint32_t kThreadListTailAddr = 0x800000e0u;    // Last added thread (tail of thread list)
 constexpr uint32_t kOSRunningContextAddr = 0x800000e4u;  // Currently running thread context
 
-constexpr uint32_t kDefaultThreadContextAddr = 0x804dd558u;  // DefaultThread
-constexpr uint32_t kIdleThreadContextAddr = 0x804DD970u;     // IdleContext
-constexpr uint32_t kThreadQueueArrayAddr = 0x804DD870u;      // RunQueue[32]
+constexpr uint32_t kDefaultThreadContextAddr = 0x80505d18u;  // DefaultThread
+constexpr uint32_t kIdleThreadContextAddr = 0x80506130u;     // IdleContext
+constexpr uint32_t kThreadQueueArrayAddr = 0x80506030u;      // RunQueue[32]
 constexpr size_t kThreadQueueArrayBytes = 0x100u;
-constexpr uint32_t kSwitchThreadCallbackPtrAddr = 0x8059E9F0u;  // SwitchThreadCallback
-constexpr uint32_t kSchedulerReschedCounterAddr = 0x805a06f4u;  // RunQueueHint
-constexpr uint32_t kSchedulerPendingFlagAddr = 0x805a06f8u;     // RunQueueBits
+constexpr uint32_t kSwitchThreadCallbackPtrAddr = 0x8056D2A0u;  // SwitchThreadCallback
+constexpr uint32_t kSchedulerReschedCounterAddr = 0x8056dbacu;  // RunQueueHint
+constexpr uint32_t kSchedulerPendingFlagAddr = 0x8056dbb0u;     // RunQueueBits
 // RVL OS uses this as the OSDisableScheduler/OSEnableScheduler nesting count.
 // SelectThread exits early while the count is non-zero.
-constexpr uint32_t kSchedulerIdleFlagAddr = 0x805a06f0u;  // Reschedule
-constexpr uint32_t kAlarmQueueOffsetFromR13 = 0x3DA8u;   // SPM AlarmQueue = 0x8056DB30 = r13 - 0x73F0 (InsertAlarm)
+constexpr uint32_t kSchedulerIdleFlagAddr = 0x8056dba8u;  // Reschedule
+constexpr uint32_t kAlarmQueueOffsetFromR13 = 0x73F0u;   // SPM AlarmQueue = 0x8056DB30 = r13 - 0x73F0 (InsertAlarm)
 
 constexpr uint32_t kThreadStateOffset = 0x2C8u;
 constexpr uint32_t kThreadAttrOffset = 0x2CAu;
@@ -158,8 +158,8 @@ extern "C" int32_t OS__RestoreInterrupts_801a65d4(int32_t level);
 extern "C" void OS__ClearContext_801a2098(uint32_t contextAddr);
 extern "C" void OS__SetCurrentContext_801a1e70(uint32_t contextAddr);
 extern "C" [[noreturn]] void OS__LoadContext_801a1f58(CpuContext* ctx);
-extern "C" void OSSuspendThread_HLE_8008576c(CpuContext* ctx);
-extern "C" void OSResumeThread_HLE_80085650(CpuContext* ctx);
-extern "C" void OSWakeupThread_HLE_80085b68(CpuContext* ctx);
-extern "C" void OSSleepThread_HLE_80085a7c(CpuContext* ctx);
+extern "C" void OSSuspendThread_HLE_801aa6a8(CpuContext* ctx);
+extern "C" void OSResumeThread_HLE_801aa58c(CpuContext* ctx);
+extern "C" void OSWakeupThread_HLE_801aaaa4(CpuContext* ctx);
+extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* ctx);
 extern "C" void SelectThread_801a9c08(CpuContext* ctx);

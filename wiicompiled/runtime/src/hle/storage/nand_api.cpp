@@ -110,22 +110,20 @@ extern "C" int32_t NANDInit_HLE(void) {
     ISFS_OpenLib_Initialize(&GetPersistentCpuContext());
 
     // NAND home directory buffer: s_homeDir (NSMBW 0x80522780, 0x40 bytes)
-    WriteGuestNandPath(0x804ED040, CurrentNandDataDir());
+    WriteGuestNandPath(0x80522780, CurrentNandDataDir());
 
     // Mark NAND as initialized: s_libState = 2 (NSMBW 0x8056E030)
-    Memory::Write32(0x805A0BA8, 2);
+    Memory::Write32(0x8056E030, 2);
 
     return NAND_RESULT_OK;
 }
-PPC_NATIVE_OVERRIDE(8020CDB8, NANDInit_HLE, int32_t, (void), ());
+PPC_NATIVE_OVERRIDE(80298CE8, NANDInit_HLE, int32_t, (void), ());
 
 extern "C" int32_t NANDGetCurrentDir_HLE(uint32_t outPathPtr) {
     return WriteNandDataDir(outPathPtr);
 }
 #if 0  // SPM: NANDGetCurrentDir: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801DAA70, NANDGetCurrentDir_HLE, int32_t, (uint32_t outPathPtr), (outPathPtr));
-#endif
 #endif
 
 extern "C" int32_t NANDCheck_HLE(uint32_t blockSize, uint32_t blockCount, uint32_t outResults) {
@@ -148,9 +146,7 @@ extern "C" int32_t NANDCheck_HLE(uint32_t blockSize, uint32_t blockCount, uint32
     return result;
 }
 #if 0  // SPM: NANDCheck: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801DB140, NANDCheck_HLE, int32_t, (uint32_t blockSize, uint32_t blockCount, uint32_t outResults), (blockSize, blockCount, outResults));
-#endif
 #endif
 
 extern "C" int32_t NANDOpen_HLE(uint32_t pathPtr, uint32_t fileInfoPtr, uint32_t mode) {
@@ -242,7 +238,7 @@ extern "C" int32_t NANDOpen_HLE(uint32_t pathPtr, uint32_t fileInfoPtr, uint32_t
     Memory::Write8(fileInfoPtr + 0x8a, NAND_OPEN_FLAG_OPEN);
     return NAND_RESULT_OK;
 }
-PPC_NATIVE_OVERRIDE(8020B9BC, NANDOpen_HLE, int32_t, (uint32_t pathPtr, uint32_t fileInfoPtr, uint32_t mode), (pathPtr, fileInfoPtr, mode));
+PPC_NATIVE_OVERRIDE(80297AAC, NANDOpen_HLE, int32_t, (uint32_t pathPtr, uint32_t fileInfoPtr, uint32_t mode), (pathPtr, fileInfoPtr, mode));
 
 extern "C" int32_t NANDClose_HLE(uint32_t fileInfoPtr) {
     NSMBW_NAND_TRACE("NANDClose fileInfo=0x%08X fd=%d\n", fileInfoPtr,
@@ -276,7 +272,7 @@ extern "C" int32_t NANDClose_HLE(uint32_t fileInfoPtr) {
     Memory::Write8(fileInfoPtr + 0x8a, NAND_OPEN_FLAG_CLOSED); // Mark as closed
     return NAND_RESULT_OK;
 }
-PPC_NATIVE_OVERRIDE(8020BC3C, NANDClose_HLE, int32_t, (uint32_t fileInfoPtr), (fileInfoPtr));
+PPC_NATIVE_OVERRIDE(80297D2C, NANDClose_HLE, int32_t, (uint32_t fileInfoPtr), (fileInfoPtr));
 
 extern "C" int32_t NANDRead_HLE(uint32_t fileInfoPtr, uint32_t bufferPtr, uint32_t length) {
     NSMBW_NAND_TRACE("NANDRead fileInfo=0x%08X fd=%d len=%u\n", fileInfoPtr,
@@ -298,7 +294,7 @@ extern "C" int32_t NANDRead_HLE(uint32_t fileInfoPtr, uint32_t bufferPtr, uint32
     size_t bytesRead = std::fread(buffer, 1, length, handle->file);
     return static_cast<int32_t>(bytesRead);
 }
-PPC_NATIVE_OVERRIDE(8020AA78, NANDRead_HLE, int32_t, (uint32_t fileInfoPtr, uint32_t bufferPtr, uint32_t length), (fileInfoPtr, bufferPtr, length));
+PPC_NATIVE_OVERRIDE(80297258, NANDRead_HLE, int32_t, (uint32_t fileInfoPtr, uint32_t bufferPtr, uint32_t length), (fileInfoPtr, bufferPtr, length));
 
 extern "C" int32_t NANDWrite_HLE(uint32_t fileInfoPtr, uint32_t bufferPtr, uint32_t length) {
     NSMBW_NAND_TRACE("NANDWrite fileInfo=0x%08X fd=%d len=%u\n", fileInfoPtr,
@@ -321,7 +317,7 @@ extern "C" int32_t NANDWrite_HLE(uint32_t fileInfoPtr, uint32_t bufferPtr, uint3
     std::fflush(handle->file);
     return static_cast<int32_t>(bytesWritten);
 }
-PPC_NATIVE_OVERRIDE(8020AB58, NANDWrite_HLE, int32_t, (uint32_t fileInfoPtr, uint32_t bufferPtr, uint32_t length), (fileInfoPtr, bufferPtr, length));
+PPC_NATIVE_OVERRIDE(80297338, NANDWrite_HLE, int32_t, (uint32_t fileInfoPtr, uint32_t bufferPtr, uint32_t length), (fileInfoPtr, bufferPtr, length));
 
 extern "C" int32_t NANDSeek_HLE(uint32_t fileInfoPtr, int32_t offset, int32_t whence) {
     if (!fileInfoPtr) {
@@ -340,9 +336,7 @@ extern "C" int32_t NANDSeek_HLE(uint32_t fileInfoPtr, int32_t offset, int32_t wh
     return static_cast<int32_t>(std::ftell(handle->file));
 }
 #if 0  // SPM: NANDSeek: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801D8BD0, NANDSeek_HLE, int32_t, (uint32_t fileInfoPtr, int32_t offset, int32_t whence), (fileInfoPtr, offset, whence));
-#endif
 #endif
 
 extern "C" int32_t NANDGetLength_HLE(uint32_t fileInfoPtr, uint32_t outLengthPtr) {
@@ -360,9 +354,7 @@ extern "C" int32_t NANDGetLength_HLE(uint32_t fileInfoPtr, uint32_t outLengthPtr
     return NAND_RESULT_OK;
 }
 #if 0  // SPM: NANDGetLength: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801D9040, NANDGetLength_HLE, int32_t, (uint32_t fileInfoPtr, uint32_t outLengthPtr), (fileInfoPtr, outLengthPtr));
-#endif
 #endif
 
 extern "C" int32_t NANDCreate_HLE(uint32_t pathPtr, uint32_t perm, uint32_t attr) {
@@ -390,7 +382,7 @@ extern "C" int32_t NANDCreate_HLE(uint32_t pathPtr, uint32_t perm, uint32_t attr
     return NAND_RESULT_OK;
 }
 #if 0  // SPM: NANDCreate: name not in SPM
-PPC_NATIVE_OVERRIDE(80034B94, NANDCreate_HLE, int32_t, (uint32_t pathPtr, uint32_t perm, uint32_t attr), (pathPtr, perm, attr));
+PPC_NATIVE_OVERRIDE(801D84E0, NANDCreate_HLE, int32_t, (uint32_t pathPtr, uint32_t perm, uint32_t attr), (pathPtr, perm, attr));
 #endif
 
 extern "C" int32_t NANDDelete_HLE(uint32_t pathPtr) {
@@ -412,7 +404,7 @@ extern "C" int32_t NANDDelete_HLE(uint32_t pathPtr) {
     
     return NAND_RESULT_UNKNOWN;
 }
-PPC_NATIVE_OVERRIDE(8020A870, NANDDelete_HLE, int32_t, (uint32_t pathPtr), (pathPtr));
+PPC_NATIVE_OVERRIDE(80297010, NANDDelete_HLE, int32_t, (uint32_t pathPtr), (pathPtr));
 
 extern "C" int32_t NANDCreateDir_HLE(uint32_t pathPtr, uint32_t perm, uint32_t attr) {
     const char* path = pathPtr ? (const char*)Memory::GetPointer(pathPtr) : nullptr;
@@ -438,9 +430,7 @@ extern "C" int32_t NANDCreateDir_HLE(uint32_t pathPtr, uint32_t perm, uint32_t a
 }
 #if 0  // NSMBW: NANDCreateDir is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x8019bbe0: no NSMBW symbol at this address
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(8019BBE0, NANDCreateDir_HLE, int32_t, (uint32_t pathPtr, uint32_t perm, uint32_t attr), (pathPtr, perm, attr));
-#endif
 #endif
 #endif
 
@@ -590,9 +580,7 @@ extern "C" int32_t NANDMove_HLE(uint32_t srcPathPtr, uint32_t dstPathPtr) {
     return NAND_RESULT_UNKNOWN;
 }
 #if 0  // SPM: NANDMove: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801D8FD0, NANDMove_HLE, int32_t, (uint32_t srcPathPtr, uint32_t dstPathPtr), (srcPathPtr, dstPathPtr));
-#endif
 #endif
 
 extern "C" int32_t NANDGetStatus_HLE(uint32_t pathPtr, uint32_t outStatusPtr) {
@@ -617,9 +605,7 @@ extern "C" int32_t NANDGetStatus_HLE(uint32_t pathPtr, uint32_t outStatusPtr) {
 }
 #if 0  // NSMBW: NANDGetStatus is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x8019c380: no NSMBW symbol at this address
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(8019C380, NANDGetStatus_HLE, int32_t, (uint32_t pathPtr, uint32_t outStatusPtr), (pathPtr, outStatusPtr));
-#endif
 #endif
 #endif
 
@@ -642,9 +628,7 @@ extern "C" int32_t NANDGetType_HLE(uint32_t pathPtr, uint32_t outTypePtr) {
     return NAND_RESULT_OK;
 }
 #if 0  // SPM: NANDGetType: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(801DAE70, NANDGetType_HLE, int32_t, (uint32_t pathPtr, uint32_t outTypePtr), (pathPtr, outTypePtr));
-#endif
 #endif
 
 // ============================================================================
@@ -657,9 +641,7 @@ extern "C" int32_t contentFastOpenNAND_HLE(uint32_t contentId, uint32_t outHandl
 }
 #if 0  // NSMBW: contentFastOpenNAND is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x8015bc80: no NSMBW symbol at this address
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(8015BC80, contentFastOpenNAND_HLE, int32_t, (uint32_t contentId, uint32_t outHandlePtr), (contentId, outHandlePtr));
-#endif
 #endif
 #endif
 
@@ -668,8 +650,6 @@ extern "C" int32_t contentReadNAND_HLE(uint32_t handlePtr, uint32_t buffer, uint
 }
 #if 0  // NSMBW: contentReadNAND is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x8015bcf8: no NSMBW symbol at this address
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE(8015BCF8, contentReadNAND_HLE, int32_t, (uint32_t handlePtr, uint32_t buffer, uint32_t length, uint32_t outReadPtr), (handlePtr, buffer, length, outReadPtr));
-#endif
 #endif
 #endif

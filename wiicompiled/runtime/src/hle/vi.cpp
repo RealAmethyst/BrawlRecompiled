@@ -45,10 +45,10 @@
 #include <aurora/aurora.h>
 
 // Forward declaration for OSWakeupThread - used to wake threads on VI retrace queue
-extern "C" void OSWakeupThread_HLE_80085b68(CpuContext* ctx);
+extern "C" void OSWakeupThread_HLE_801aaaa4(CpuContext* ctx);
 
 // Forward declaration for OSSleepThread - used by VIWaitForRetrace HLE
-extern "C" void OSSleepThread_HLE_80085a7c(CpuContext* cpu);
+extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* cpu);
 extern "C" int g_gxFrameCount;
 extern "C" int32_t OS__DisableInterrupts_801a65ac();
 extern "C" int32_t OS__RestoreInterrupts_801a65d4(int32_t level);
@@ -152,19 +152,19 @@ ViState g_vi;
 
 
 // Guest-side state addresses used by the SDK's VI globals.
-constexpr uint32_t kViInitializedFlagAddr   = 0x805a07a0;  // IsInitialized (NSMBW)
-constexpr uint32_t kViTvFormatAddr          = 0x805a0810;  // CurrTvMode (NSMBW)
-constexpr uint32_t kViRenderWidthAddr       = 0x804de644;  // HorVer.DispSizeX (NSMBW)
-constexpr uint32_t kViRenderHeightAddr      = 0x804de646;  // HorVer.DispSizeY (NSMBW)
-constexpr uint32_t kViXfbWidthAddr          = 0x804de652;  // HorVer.FBSizeX (NSMBW)
-constexpr uint32_t kViXfbHeightAddr         = 0x804de65c;  // HorVer+0x1C (PanSizeY) (NSMBW)
-constexpr uint32_t kViRetraceCountAddr      = 0x805a084c;  // retraceCount (NSMBW); // matches VIWaitForRetrace/handler
-constexpr uint32_t kViTimingGuardAddr       = 0x805a07ac;  // IsInitialized+0xC = __VIDimming_All_Clear in NSMBW (offset-matched; MKW name unverified)
-constexpr uint32_t kViPreRetraceCallback    = 0x805a0820;  // PreCB (NSMBW)
-constexpr uint32_t kViPostRetraceCallback   = 0x805a081c;  // PostCB (NSMBW)
-constexpr uint32_t kViNextFrameBufferAddr   = 0x805a0808;  // CurrBufAddr in the SDK layout (offset-matched to MKW) (NSMBW)
-constexpr uint32_t kViNextFrameBufferHwAddr = 0x804de670;  // HorVer.bufAddr (NSMBW)
-constexpr uint32_t kViRetraceQueueAddr      = 0x805a0828;  // retraceQueue (NSMBW); // Thread queue for VIWaitForRetrace
+constexpr uint32_t kViInitializedFlagAddr   = 0x8056dd00;  // IsInitialized (NSMBW)
+constexpr uint32_t kViTvFormatAddr          = 0x8056dd70;  // CurrTvMode (NSMBW)
+constexpr uint32_t kViRenderWidthAddr       = 0x8050baf4;  // HorVer.DispSizeX (NSMBW)
+constexpr uint32_t kViRenderHeightAddr      = 0x8050baf6;  // HorVer.DispSizeY (NSMBW)
+constexpr uint32_t kViXfbWidthAddr          = 0x8050bb02;  // HorVer.FBSizeX (NSMBW)
+constexpr uint32_t kViXfbHeightAddr         = 0x8050bb0c;  // HorVer+0x1C (PanSizeY) (NSMBW)
+constexpr uint32_t kViRetraceCountAddr      = 0x8056ddac;  // retraceCount (NSMBW); // matches VIWaitForRetrace/handler
+constexpr uint32_t kViTimingGuardAddr       = 0x8056dd0c;  // IsInitialized+0xC = __VIDimming_All_Clear in NSMBW (offset-matched; MKW name unverified)
+constexpr uint32_t kViPreRetraceCallback    = 0x8056dd80;  // PreCB (NSMBW)
+constexpr uint32_t kViPostRetraceCallback   = 0x8056dd7c;  // PostCB (NSMBW)
+constexpr uint32_t kViNextFrameBufferAddr   = 0x8056dd68;  // CurrBufAddr in the SDK layout (offset-matched to MKW) (NSMBW)
+constexpr uint32_t kViNextFrameBufferHwAddr = 0x8050bb20;  // HorVer.bufAddr (NSMBW)
+constexpr uint32_t kViRetraceQueueAddr      = 0x8056dd88;  // retraceQueue (NSMBW); // Thread queue for VIWaitForRetrace
 
 // (MKW gated the post-retrace callback on EGG::BaseSystem::sSystem at 0x80386F60; not used for NSMBW.)
 
@@ -461,8 +461,7 @@ void LogGuestModulesOnce() {
             if (bssSection != 0) {
                 Memory::TryRead32(sectionInfo + bssSection * 8u, bss);  // absolute after OSLink
             }
-            RT_LOGF(RT_TAG_OS, "REL module %u linked at image 0x%08X bss 0x%08X
-", id, module, bss & ~1u);
+            RT_LOGF(RT_TAG_OS, "REL module %u linked at image 0x%08X bss 0x%08X\n", id, module, bss & ~1u);
         }
         module = next;
     }
@@ -542,11 +541,11 @@ void AdvanceRetrace(CpuContext* ctx, Clock::time_point retraceStamp, bool servic
             Memory::TryRead32(kViRetraceQueueAddr, queueHead);
         }
         ctx->gpr[3] = kViRetraceQueueAddr;
-        OSWakeupThread_HLE_80085b68(ctx);
+        OSWakeupThread_HLE_801aaaa4(ctx);
         if (logWake) {
             ++s_wakeLogs;
             uint32_t runQueueBits = 0;
-            Memory::TryRead32(0x805A06F8u, runQueueBits);  // RunQueueBits (NSMBW)
+            Memory::TryRead32(0x8056DBB0u, runQueueBits);  // RunQueueBits (NSMBW)
             RT_LOGF(RT_TAG_VI, "[retrace %u] woke retrace queue (head 0x%08X) -> RunQueueBits 0x%08X\n",
                     retraceValue, queueHead, runQueueBits);
         }
@@ -826,7 +825,7 @@ void VI_HLE_PresentFrame(bool presentedXfb, bool paceToRetrace) {
             auto be = [&](size_t o) { return (uint32_t(d[o]) << 24) | (uint32_t(d[o + 1]) << 16) | (uint32_t(d[o + 2]) << 8) | d[o + 3]; };
             for (int sec = 7; d.size() > 0xE4 && sec < 18; ++sec) {
                 const uint32_t off = be(sec * 4), addr = be(0x48 + sec * 4), size = be(0x90 + sec * 4);
-                if (addr != 0x80406800u && addr != 0x805A0EA8u) continue;  // .rodata, .sdata2
+                if (addr != 0x80319200u && addr != 0x8056E280u) continue;  // .rodata, .sdata2
                 int reported = 0;
                 for (uint32_t i = 0; i + 4 <= size && off + i + 4 <= d.size() && reported < 40; i += 4) {
                     uint32_t v = 0;
@@ -1051,17 +1050,13 @@ extern "C" void VIInit_HLE_801b94a4(CpuContext* ctx)
 {
     SeedViStateForInit(ctx, "VIInit_801b94a4");
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E83E4, VIInit_HLE_801b94a4, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(802808C4, VIInit_HLE_801b94a4, (CpuContext* ctx), (ctx));
 
 extern "C" void __VIInit_HLE_801b9294(CpuContext* ctx)
 {
     SeedViStateForInit(ctx, "__VIInit_801b9294");
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E81D4, __VIInit_HLE_801b9294, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(802806B4, __VIInit_HLE_801b9294, (CpuContext* ctx), (ctx));
 
 // -----------------------------------------------------------------------------
 // Helper stubs referenced by VIInit switch cases (case D variants).
@@ -1074,9 +1069,7 @@ extern "C" void VIInit_caseD_0_HLE_801b9934(CpuContext* ctx)
 }
 #if 0  // NSMBW: MKW switch-case label; its function is native in NSMBW (was MKW-only)
 #if 0  // SPM: 0x801b9934: no NSMBW symbol at this address
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801B9934, VIInit_caseD_0_HLE_801b9934, (CpuContext* ctx), (ctx));
-#endif
 #endif
 #endif
 
@@ -1087,9 +1080,7 @@ extern "C" void VIInit_caseD_1_HLE_801b993c(CpuContext* ctx)
 }
 #if 0  // NSMBW: MKW switch-case label; its function is native in NSMBW (was MKW-only)
 #if 0  // SPM: 0x801b993c: no NSMBW symbol at this address
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801B993C, VIInit_caseD_1_HLE_801b993c, (CpuContext* ctx), (ctx));
-#endif
 #endif
 #endif
 
@@ -1100,9 +1091,7 @@ extern "C" void VIInit_caseD_2_HLE_801b9944(CpuContext* ctx)
 }
 #if 0  // NSMBW: MKW switch-case label; its function is native in NSMBW (was MKW-only)
 #if 0  // SPM: 0x801b9944: no NSMBW symbol at this address
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801B9944, VIInit_caseD_2_HLE_801b9944, (CpuContext* ctx), (ctx));
-#endif
 #endif
 #endif
 
@@ -1122,9 +1111,7 @@ extern "C" void VISetPreRetraceCallback_HLE_801b90f4(CpuContext* ctx)
     }
     ViSetR3(ctx, prev);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E8034, VISetPreRetraceCallback_HLE_801b90f4, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(80280524, VISetPreRetraceCallback_HLE_801b90f4, (CpuContext* ctx), (ctx));
 
 // -----------------------------------------------------------------------------
 // VISetPostRetraceCallback (0x801BC430)
@@ -1142,9 +1129,7 @@ extern "C" void VISetPostRetraceCallback_HLE_801b9138(CpuContext* ctx)
     }
     ViSetR3(ctx, prev);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E8078, VISetPostRetraceCallback_HLE_801b9138, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(80280568, VISetPostRetraceCallback_HLE_801b9138, (CpuContext* ctx), (ctx));
 
 // -----------------------------------------------------------------------------
 // VIGetDTVStatus (0x801BE070)
@@ -1154,9 +1139,7 @@ extern "C" void VIGetDTVStatus_HLE_801bad38(CpuContext* ctx)
 {
     ViSetR3(ctx, 0); // return 0 -> not ready / disabled
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E9C9C, VIGetDTVStatus_HLE_801bad38, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8028217C, VIGetDTVStatus_HLE_801bad38, (CpuContext* ctx), (ctx));
 
 // -----------------------------------------------------------------------------
 // VIConfigure & related helpers: translate GXRenderModeObj into guest globals.
@@ -1198,9 +1181,7 @@ extern "C" void VIConfigure_HLE_801b9f6c(CpuContext* ctx)
 
     ViSetR3(ctx, 0);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E8DC8, VIConfigure_HLE_801b9f6c, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(802812A8, VIConfigure_HLE_801b9f6c, (CpuContext* ctx), (ctx));
 
 extern "C" void VIFlush_HLE_801ba9a4(CpuContext* ctx)
 {
@@ -1237,9 +1218,7 @@ extern "C" void VIFlush_HLE_801ba9a4(CpuContext* ctx)
 
     ViSetR3(ctx, 0);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E98B0, VIFlush_HLE_801ba9a4, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(80281D90, VIFlush_HLE_801ba9a4, (CpuContext* ctx), (ctx));
 
 extern "C" void VISetNextFrameBuffer_HLE_801baab8(CpuContext* ctx)
 {
@@ -1254,9 +1233,7 @@ extern "C" void VISetNextFrameBuffer_HLE_801baab8(CpuContext* ctx)
     }
     ViSetR3(ctx, 0);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E99C4, VISetNextFrameBuffer_HLE_801baab8, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(80281EA4, VISetNextFrameBuffer_HLE_801baab8, (CpuContext* ctx), (ctx));
 
 extern "C" void VIGetNextFrameBuffer_HLE_801bab24(CpuContext* ctx)
 {
@@ -1272,9 +1249,7 @@ extern "C" void VIGetNextFrameBuffer_HLE_801bab24(CpuContext* ctx)
 }
 #if 0  // NSMBW: VIGetNextFrameBuffer is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801bab24: no NSMBW symbol at this address
-#if 0  // BRAWL: no matching function in the Brawl dol
 PPC_NATIVE_OVERRIDE_VOID(801BAB24, VIGetNextFrameBuffer_HLE_801bab24, (CpuContext* ctx), (ctx));
-#endif
 #endif
 #endif
 
@@ -1289,9 +1264,7 @@ extern "C" void VISetBlack_HLE_801bab2c(CpuContext* ctx)
     }
     ViSetR3(ctx, 0);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E9A30, VISetBlack_HLE_801bab2c, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(80281F10, VISetBlack_HLE_801bab2c, (CpuContext* ctx), (ctx));
 
 extern "C" void VIGetRetraceCount_HLE_801baba4(CpuContext* ctx)
 {
@@ -1304,9 +1277,7 @@ extern "C" void VIGetRetraceCount_HLE_801baba4(CpuContext* ctx)
     ViSetR3(ctx, count);
     VI_HLE_PollRetrace(ctx);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E9AA8, VIGetRetraceCount_HLE_801baba4, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(80281F88, VIGetRetraceCount_HLE_801baba4, (CpuContext* ctx), (ctx));
 
 extern "C" void VIGetNextField_HLE_801babac(CpuContext* ctx)
 {
@@ -1319,9 +1290,7 @@ extern "C" void VIGetNextField_HLE_801babac(CpuContext* ctx)
     ViSetR3(ctx, fieldOdd ? 1 : 0);
     VI_HLE_PollRetrace(ctx);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E9AB0, VIGetNextField_HLE_801babac, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(80281F90, VIGetNextField_HLE_801babac, (CpuContext* ctx), (ctx));
 
 extern "C" void VIGetCurrentLine_HLE_801bac48(CpuContext* ctx)
 {
@@ -1354,9 +1323,7 @@ extern "C" void VIGetCurrentLine_HLE_801bac48(CpuContext* ctx)
     }
     ViSetR3(ctx, line);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E9B4C, VIGetCurrentLine_HLE_801bac48, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8028202C, VIGetCurrentLine_HLE_801bac48, (CpuContext* ctx), (ctx));
 
 extern "C" void VIWaitForRetrace_HLE_801b99ec(CpuContext* ctx)
 {
@@ -1373,7 +1340,7 @@ extern "C" void VIWaitForRetrace_HLE_801b99ec(CpuContext* ctx)
 
         do {
             cpu->gpr[3] = kViRetraceQueueAddr;
-            OSSleepThread_HLE_80085a7c(cpu);
+            OSSleepThread_HLE_801aa9b8(cpu);
 
             {
                 std::lock_guard<std::mutex> lock(g_viMutex);
@@ -1403,14 +1370,12 @@ extern "C" void VIWaitForRetrace_HLE_801b99ec(CpuContext* ctx)
     }
     ViSetR3(cpu, 0);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E892C, VIWaitForRetrace_HLE_801b99ec, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(80280E0C, VIWaitForRetrace_HLE_801b99ec, (CpuContext* ctx), (ctx));
 
 // VIGetScanMode (SPM 0x8028211C): reads the VI clock/DTV registers on hardware. The host has no
 // cable, so report interlaced (VI_INTERLACE = 0), the mode every NTSC console supports.
 extern "C" uint32_t VIGetScanMode_HLE() { return 0; }
-PPC_NATIVE_OVERRIDE(801E9C3C, VIGetScanMode_HLE, uint32_t, (), ());
+PPC_NATIVE_OVERRIDE(8028211C, VIGetScanMode_HLE, uint32_t, (), ());
 
 
 uint32_t SpmPresentedFrames() { return g_spmFramesFn(); }

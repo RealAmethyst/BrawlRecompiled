@@ -73,9 +73,7 @@ extern "C" void NHTTPStartup_Reentrant_HLE_801d8d30(CpuContext* ctx) {
 
 #if 0  // NSMBW: NHTTPStartup_Reentrant is not linked into NSMBW (was MKW-only)
 #if 0  // SPM: 0x801d8d30: no NSMBW symbol at this address
-#if 0  // BRAWL: no matching function in the Brawl dol
 REGISTER_NATIVE_FUNCTION_AS(0x801D8D30, NHTTPStartup_Reentrant_HLE_801d8d30, "NHTTPStartup_Reentrant_HLE_801d8d30");
-#endif
 #endif
 #endif
 

@@ -18,18 +18,16 @@
 #include "runtime_log.h"
 #include "system_bridge.h"
 
-extern "C" void func_801E0480(CpuContext* ctx);
+extern "C" void func_80274664(CpuContext* ctx);
 #if 0  // NSMBW: MKW StaticR.rel prolog
 extern "C" void func_8055531C(CpuContext* ctx);
 #endif
 
 extern "C" void OSInitAlarm_RecompModLateInit_801a961c(CpuContext* ctx) {
-    func_801E0480(ctx);
+    func_80274664(ctx);
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-REGISTER_NATIVE_FUNCTION_AS(0x801E0480, OSInitAlarm_RecompModLateInit_801a961c, "OSInitAlarm_RecompModLateInit_801a961c");
-#endif
+REGISTER_NATIVE_FUNCTION_AS(0x80274664, OSInitAlarm_RecompModLateInit_801a961c, "OSInitAlarm_RecompModLateInit_801a961c");
 
 #if 0  // NSMBW: MKW StaticR.rel prolog wrapper (Retro Rewind mod init); NSMBW has no StaticR
 extern "C" void StaticRProlog_RecompModInit_8055531c(CpuContext* ctx) {
@@ -88,9 +86,7 @@ extern "C" void OSFatal_HLE_801a4ec4(CpuContext* ctx) {
     std::exit(EXIT_FAILURE);
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-REGISTER_NATIVE_FUNCTION_AS(0x801DB7E8, OSFatal_HLE_801a4ec4, "OSFatal_HLE_801a4ec4");
-#endif
+REGISTER_NATIVE_FUNCTION_AS(0x80270198, OSFatal_HLE_801a4ec4, "OSFatal_HLE_801a4ec4");
 
 extern "C" void GKI_delay_HLE_801301b4(CpuContext* ctx)
 {
@@ -103,7 +99,7 @@ extern "C" uint32_t BTM_IsDeviceUp_HLE_8013a300(CpuContext* ctx)
 {
     // Force Bluetooth stack to "up" to avoid endless polling loops while we lack
     // real hardware bring-up.
-    constexpr uint32_t kBtmCbBase = 0x80529CF8u;  // btm_cb (NSMBW); BTM_IsDeviceUp reads +0x64E == 5
+    constexpr uint32_t kBtmCbBase = 0x80557218u;  // btm_cb (NSMBW); BTM_IsDeviceUp reads +0x64E == 5
     constexpr uint32_t kDevStateOffset = 0x64Eu;
     try {
         ::Memory::Write8(kBtmCbBase + kDevStateOffset, 5u);
@@ -117,25 +113,21 @@ extern "C" uint32_t BTM_IsDeviceUp_HLE_8013a300(CpuContext* ctx)
     return 1;
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(80230458, GKI_delay_HLE_801301b4, (CpuContext* ctx), (ctx));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(8023a5a4, BTM_IsDeviceUp_HLE_8013a300, uint32_t, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8029D9C0, GKI_delay_HLE_801301b4, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE(802a83e4, BTM_IsDeviceUp_HLE_8013a300, uint32_t, (CpuContext* ctx), (ctx));
 
 // Serial Interface (SI) - GameCube controller ports; stubbed since we don't emulate the MMIO.
 
 // SIInit (0x801baef0): skips MMIO setup at 0xCD006434 and controller detection.
-extern "C" void SIInit_80034f10()
+extern "C" void SIInit_801b2de0()
 {
-    RT_LOG(RT_TAG_OS) << "SIInit_80034f10 called: skipping MMIO register setup and controller detection" << std::endl;
+    RT_LOG(RT_TAG_OS) << "SIInit_801b2de0 called: skipping MMIO register setup and controller detection" << std::endl;
 }
 
 // SISetSamplingRate (0x801bb840): ignored, we don't emulate SI polling timing.
-extern "C" void HLE_SISetSamplingRate_80034f98(uint32_t msec)
+extern "C" void HLE_SISetSamplingRate_801b3acc(uint32_t msec)
 {
-    RT_LOG(RT_TAG_OS) << "HLE_SISetSamplingRate_80034f98 called: msec=" << msec << ": Stubbed success." << std::endl;
+    RT_LOG(RT_TAG_OS) << "HLE_SISetSamplingRate_801b3acc called: msec=" << msec << ": Stubbed success." << std::endl;
 }
 
 // Video Interface (VI) - TV output.
@@ -149,8 +141,8 @@ extern "C" uint32_t HLE_VIGetTvFormat_801bacd8()
     return 1;
 }
 
-REGISTER_NATIVE_FUNCTION(0x801E67DC, SIInit_80034f10);
-PPC_NATIVE_OVERRIDE_VOID(801E74C8, HLE_SISetSamplingRate_80034f98, (uint32_t msec), (msec));
+REGISTER_NATIVE_FUNCTION(0x8026A5B0, SIInit_801b2de0);
+PPC_NATIVE_OVERRIDE_VOID(8026B214, HLE_SISetSamplingRate_801b3acc, (uint32_t msec), (msec));
 
 // OS____InitMemoryProtection (0x801B2D50): real version touches MMU/MMIO we don't emulate;
 // no-op and return success so boot doesn't stall.
@@ -161,9 +153,7 @@ extern "C" uint32_t OS____InitMemoryProtection_801a7dfc(uint32_t r3, uint32_t r4
     return 0;
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801DEACC, OS____InitMemoryProtection_801a7dfc, uint32_t, (uint32_t r3, uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8), (r3, r4, r5, r6, r7, r8));
-#endif
+PPC_NATIVE_OVERRIDE(80273144, OS____InitMemoryProtection_801a7dfc, uint32_t, (uint32_t r3, uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8), (r3, r4, r5, r6, r7, r8));
 
 // OSGetConsoleType (0x801a9ee0): standard Wii = 0x12, NDEV (expanded MEM2) = 0x10000012;
 // MKWii uses the NDEV result to enable its extra-memory heap path.
@@ -184,9 +174,7 @@ extern "C" uint32_t OS__GetConsoleType_8019f33c(uint32_t /*r4*/, uint32_t /*r5*/
 }
 
 // Register the function
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801D536C, OS__GetConsoleType_8019f33c, uint32_t, (uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8, uint32_t r31), (r4, r5, r6, r7, r8, r31));
-#endif
+PPC_NATIVE_OVERRIDE(8026B6E0, OS__GetConsoleType_8019f33c, uint32_t, (uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8, uint32_t r31), (r4, r5, r6, r7, r8, r31));
 
 // OSGetResetCode (0x801b3c90): real version reads MMIO 0xCC003024; we always report
 // Cold Boot (0).
@@ -202,9 +190,7 @@ extern "C" uint32_t OSGetResetCode_801a8a50()
 }
 
 // Register the function
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801DF7FC, OSGetResetCode_801a8a50, uint32_t, (), ());
-#endif
+PPC_NATIVE_OVERRIDE(80273B08, OSGetResetCode_801a8a50, uint32_t, (), ());
 
 // __OSInitSTM (0x801B6820): real version opens /dev/stm/* handles. We stub it by writing
 // fake handles and the success flag into the SDA (r13) block so OSResetSystem's checks pass.
@@ -226,11 +212,11 @@ extern "C" uint32_t __OSInitSTM_HLE_801ab848(CpuContext* ctx)
     // r13-0x4F5C=StmEhDesc (/dev/stm/eventhook).
     try {
         // Mark STM as initialized
-        ::Memory::Write32(r13 - 0x3d14u, 1);  // SPM StmReady
+        ::Memory::Write32(r13 - 0x735cu, 1);  // SPM StmReady
 
         // Fake non-zero handles so callers' zero-checks pass.
-        ::Memory::Write32(r13 - 0x3d10u, 0x00535401);  // SPM StmImDesc // "ST\x01"
-        ::Memory::Write32(r13 - 0x3d0cu, 0x00535402);  // SPM StmEhDesc // "ST\x02"
+        ::Memory::Write32(r13 - 0x7358u, 0x00535401);  // SPM StmImDesc // "ST\x01"
+        ::Memory::Write32(r13 - 0x7354u, 0x00535402);  // SPM StmEhDesc // "ST\x02"
 
         // Default Power/Reset callback pointers are left unset; safe since we never fire
         // the STM hardware interrupt that would invoke them.
@@ -245,9 +231,7 @@ extern "C" uint32_t __OSInitSTM_HLE_801ab848(CpuContext* ctx)
 }
 
 // Register the function
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801E25C0, __OSInitSTM_HLE_801ab848, uint32_t, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE(802761C0, __OSInitSTM_HLE_801ab848, uint32_t, (CpuContext* ctx), (ctx));
 
 
 extern "C" void OS____PSInit_801a04a0()
@@ -255,18 +239,16 @@ extern "C" void OS____PSInit_801a04a0()
     RT_LOG(RT_TAG_OS) << "OS____PSInit_801a04a0 called (stubbed)" << std::endl;
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801D6528, OS____PSInit_801a04a0, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026C7A0, OS____PSInit_801a04a0, (), ());
 
 
 
-extern "C" void __init_hardware_80004260()
+extern "C" void __init_hardware_80006348()
 {
-    RT_LOG(RT_TAG_OS) << "__init_hardware_80004260 called (stubbed)" << std::endl;
+    RT_LOG(RT_TAG_OS) << "__init_hardware_80006348 called (stubbed)" << std::endl;
 }
 
-PPC_NATIVE_OVERRIDE_VOID(800042e0,__init_hardware_80004260, (), ());
+PPC_NATIVE_OVERRIDE_VOID(800063c8,__init_hardware_80006348, (), ());
 
 
 // PPC SPR (Special Purpose Register) access stubs; these registers don't exist on x86 so
@@ -278,14 +260,10 @@ PPC_NATIVE_OVERRIDE_VOID(800042e0,__init_hardware_80004260, (), ());
     extern "C" void name() { RT_LOG(RT_TAG_OS) << message << std::endl; }
 
 PPC_SPR_STUB_BODY(PPCMfhid0_8012e574, "PPCMfhid0 called (stubbed) - Move From HID0")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d5078, PPCMfhid0_8012e574, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b304, PPCMfhid0_8012e574, (), ());
 
 PPC_SPR_STUB_BODY(PPCMthid0_8012e57c, "PPCMthid0 called (stubbed) - Move To HID0")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d5080, PPCMthid0_8012e57c, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b30c, PPCMthid0_8012e57c, (), ());
 
 extern "C" void PPCMtdec_8012e594()
 {
@@ -298,9 +276,7 @@ extern "C" void PPCMtdec_8012e594()
     // AsyncDisplay's pacing alarm by multiple retraces.
     OS_HLE_ProcessAlarms(32);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801D5098, PPCMtdec_8012e594, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026B324, PPCMtdec_8012e594, (), ());
 
 extern "C" void PPCSync_8012e59c()
 {
@@ -308,39 +284,25 @@ extern "C" void PPCSync_8012e59c()
     // and the runtime's own cross-thread state uses C++ atomics, so there is no
     // guest-visible reordering for this barrier to prevent.
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d50a0, PPCSync_8012e59c, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b32c, PPCSync_8012e59c, (), ());
 
 PPC_SPR_STUB_BODY(PPCMtmmcr0_8012e5b8, "PPCMtmmcr0 called (stubbed) - Move To MMCR0")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d50bc, PPCMtmmcr0_8012e5b8, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b348, PPCMtmmcr0_8012e5b8, (), ());
 
 PPC_SPR_STUB_BODY(PPCMtmmcr1_8012e5c0, "PPCMtmmcr1 called (stubbed) - Move To MMCR1")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d50c4, PPCMtmmcr1_8012e5c0, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b350, PPCMtmmcr1_8012e5c0, (), ());
 
 PPC_SPR_STUB_BODY(PPCMtpmc1_8012e5c8, "PPCMtpmc1 called (stubbed) - Move To PMC1")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d50cc, PPCMtpmc1_8012e5c8, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b358, PPCMtpmc1_8012e5c8, (), ());
 
 PPC_SPR_STUB_BODY(PPCMtpmc2_8012e5d0, "PPCMtpmc2 called (stubbed) - Move To PMC2")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d50d4, PPCMtpmc2_8012e5d0, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b360, PPCMtpmc2_8012e5d0, (), ());
 
 PPC_SPR_STUB_BODY(PPCMtpmc3_8012e5d8, "PPCMtpmc3 called (stubbed) - Move To PMC3")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d50dc, PPCMtpmc3_8012e5d8, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b368, PPCMtpmc3_8012e5d8, (), ());
 
 PPC_SPR_STUB_BODY(PPCMtpmc4_8012e5e0, "PPCMtpmc4 called (stubbed) - Move To PMC4")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d50e4, PPCMtpmc4_8012e5e0, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b370, PPCMtpmc4_8012e5e0, (), ());
 
 extern "C" uint32_t PPCMfhid2_8012e630_impl()
 {
@@ -357,7 +319,7 @@ extern "C" void PPCMfhid2_HLE_8012e630(CpuContext* ctx)
 {
     ctx->gpr[3] = PPCMfhid2_8012e630_impl();
 }
-REGISTER_TRANSLATED_FUNCTION(0x801d5134, PPCMfhid2_HLE_8012e630);
+REGISTER_TRANSLATED_FUNCTION(0x8026b3c0, PPCMfhid2_HLE_8012e630);
 
 extern "C" void PPCMthid2_8012e638(CpuContext* ctx)
 {
@@ -369,28 +331,18 @@ extern "C" void PPCMthid2_8012e638(CpuContext* ctx)
         RT_LOG(RT_TAG_OS) << "PPCMthid2 set HID2=0x" << std::hex << cpu->hid2 << std::dec << std::endl;
     }
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d513c, PPCMthid2_8012e638, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b3c8, PPCMthid2_8012e638, (CpuContext* ctx), (ctx));
 
 PPC_SPR_STUB_BODY(PPCMfwpar_8012e640,
                   "PPCMfwpar called (stubbed) - Move From Write Pipe Address Register")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d5144, PPCMfwpar_8012e640, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b3d0, PPCMfwpar_8012e640, (), ());
 
 PPC_SPR_STUB_BODY(PPCMtwpar_8012e64c,
                   "PPCMtwpar called (stubbed) - Move To Write Pipe Address Register")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d5150, PPCMtwpar_8012e64c, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b3dc, PPCMtwpar_8012e64c, (), ());
 
 PPC_SPR_STUB_BODY(PPCDisableSpeculation_8012e654, "PPCDisableSpeculation called (stubbed)")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d5158, PPCDisableSpeculation_8012e654, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b3e4, PPCDisableSpeculation_8012e654, (), ());
 
 PPC_SPR_STUB_BODY(PPCMthid4_8012e684, "PPCMthid4 called (stubbed) - Move To HID4")
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801d5188, PPCMthid4_8012e684, (), ());
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026b414, PPCMthid4_8012e684, (), ());

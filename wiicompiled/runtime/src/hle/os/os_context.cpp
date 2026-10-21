@@ -77,15 +77,9 @@ extern "C" void OS__SetCurrentContext_801a1e70(uint32_t contextAddr)
     }
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801D81F4, OS__ClearContext_801a2098, (uint32_t contextAddr), (contextAddr));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801D7FCC, OS__SetCurrentContext_801a1e70, (uint32_t contextAddr), (contextAddr));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-REGISTER_NATIVE_FUNCTION(0x801E0714, OS__GetCurrentThread_801a98b0_hle);
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026E034, OS__ClearContext_801a2098, (uint32_t contextAddr), (contextAddr));
+PPC_NATIVE_OVERRIDE_VOID(8026DE0C, OS__SetCurrentContext_801a1e70, (uint32_t contextAddr), (contextAddr));
+REGISTER_NATIVE_FUNCTION(0x802748F8, OS__GetCurrentThread_801a98b0_hle);
 
 // OSLoadContext (0x801ACE30): restores CPU state from a guest OSContext and jumps to SRR0 by hand,
 // since the real function's privileged mtspr/rfi can't be translated.
@@ -170,6 +164,4 @@ extern "C" [[noreturn]] void OS__LoadContext_801a1f58(CpuContext* ctx)
     std::abort();
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801D80B4, OS__LoadContext_801a1f58, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(8026DEF4, OS__LoadContext_801a1f58, (CpuContext* ctx), (ctx));

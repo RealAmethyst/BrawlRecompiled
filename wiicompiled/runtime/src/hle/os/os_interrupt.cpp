@@ -233,33 +233,15 @@ extern "C" uint32_t SetInterruptMask_801a66e0(uint32_t mask, uint32_t enable)
     return 0;
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801DCF10, OS__DisableInterrupts_801a65ac, int32_t, (), ());
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801DCF24, OS__EnableInterrupts_801a65c0, int32_t, (), ());
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801DCF38, OS__RestoreInterrupts_801a65d4, int32_t, (int32_t level), (level));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801DCF80, OS____InterruptInit_801a661c, uint32_t, (uint32_t r3, uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8), (r3, r4, r5, r6, r7, r8));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801DD044, SetInterruptMask_801a66e0, uint32_t, (uint32_t mask, uint32_t enable), (mask, enable));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801D6168, OS__ExceptionInit_801a00e0, uint32_t, (uint32_t r3, uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8, uint32_t r20), (r3, r4, r5, r6, r7, r8, r20));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801E531C, EXIInit_80168fa0, uint32_t, (), ());
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-REGISTER_NATIVE_FUNCTION(0x801DCF5C, __OSSetInterruptHandler_801a65f8_hle);
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-REGISTER_NATIVE_FUNCTION(0x801DD320, __OSUnmaskInterrupts_801a69bc_hle);
-#endif
+PPC_NATIVE_OVERRIDE(802716B8, OS__DisableInterrupts_801a65ac, int32_t, (), ());
+PPC_NATIVE_OVERRIDE(802716CC, OS__EnableInterrupts_801a65c0, int32_t, (), ());
+PPC_NATIVE_OVERRIDE(802716E0, OS__RestoreInterrupts_801a65d4, int32_t, (int32_t level), (level));
+PPC_NATIVE_OVERRIDE(80271728, OS____InterruptInit_801a661c, uint32_t, (uint32_t r3, uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8), (r3, r4, r5, r6, r7, r8));
+PPC_NATIVE_OVERRIDE(802717EC, SetInterruptMask_801a66e0, uint32_t, (uint32_t mask, uint32_t enable), (mask, enable));
+PPC_NATIVE_OVERRIDE(8026C3E0, OS__ExceptionInit_801a00e0, uint32_t, (uint32_t r3, uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8, uint32_t r20), (r3, r4, r5, r6, r7, r8, r20));
+PPC_NATIVE_OVERRIDE(80269128, EXIInit_80168fa0, uint32_t, (), ());
+REGISTER_NATIVE_FUNCTION(0x80271704, __OSSetInterruptHandler_801a65f8_hle);
+REGISTER_NATIVE_FUNCTION(0x80271AC8, __OSUnmaskInterrupts_801a69bc_hle);
 
 // OS____MaskInterrupts (0x801b1510): stubbed out because its verification loop reads MMIO
 // registers we don't emulate, which would spin forever.
@@ -290,9 +272,7 @@ extern "C" uint32_t OS____MaskInterrupts_801a693c(uint32_t mask, uint32_t unmask
     return old_mask;
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801DD2A0, OS____MaskInterrupts_801a693c, uint32_t, (uint32_t mask, uint32_t unmask), (mask, unmask));
-#endif
+PPC_NATIVE_OVERRIDE(80271A48, OS____MaskInterrupts_801a693c, uint32_t, (uint32_t mask, uint32_t unmask), (mask, unmask));
 
 // ----------------------------------------------------------------------------
 // EXISelect / EXIDeselect - HLE Stubs (0x801b95c0 / 0x801b96f0)
@@ -329,12 +309,8 @@ extern "C" uint32_t EXISelect_801689d0(uint32_t channel, uint32_t device, uint32
 EXI_CHANNEL_STUB(EXIDeselect_80168b00, 10, "channel=")
 
 // Register the functions
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801E4D4C, EXISelect_801689d0, uint32_t, (uint32_t channel, uint32_t device, uint32_t frequency), (channel, device, frequency));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801E4E7C, EXIDeselect_80168b00, uint32_t, (uint32_t channel), (channel));
-#endif
+PPC_NATIVE_OVERRIDE(80268B58, EXISelect_801689d0, uint32_t, (uint32_t channel, uint32_t device, uint32_t frequency), (channel, device, frequency));
+PPC_NATIVE_OVERRIDE(80268C88, EXIDeselect_80168b00, uint32_t, (uint32_t channel), (channel));
 
 // ----------------------------------------------------------------------------
 // SetExiInterruptMask (0x801b8a30): stubbed no-op, our fake EXI devices need no interrupt masking.
@@ -348,9 +324,7 @@ extern "C" void SetExiInterruptMask_80167e78(uint32_t channel, uint32_t exi_stru
 }
 
 // Register the function
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(801E41F4, SetExiInterruptMask_80167e78, (uint32_t channel, uint32_t exi_struct_ptr), (channel, exi_struct_ptr));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(80268000, SetExiInterruptMask_80167e78, (uint32_t channel, uint32_t exi_struct_ptr), (channel, exi_struct_ptr));
 
 // ----------------------------------------------------------------------------
 // EXI Transaction Stubs (Imm, Dma, Sync, Unlock)
@@ -420,11 +394,11 @@ extern "C" uint32_t OSSetPowerCallback_801ab75c(CpuContext* ctx)
     const uint32_t r13 = cpu->gpr[13];
 
     // __OSDefaultPowerCallback in NSMBW
-    constexpr uint32_t kDefaultCallbackAddr = 0x801E2984u;
+    constexpr uint32_t kDefaultCallbackAddr = 0x80276544u;
 
     // Offsets from R13 (SDA2)
-    const uint32_t kCallbackPtrAddr = r13 - 0x3d00u;    // PowerCallback (SPM)
-    const uint32_t kHandlerActiveAddr = r13 - 0x3d08u;  // StmEhRegistered (SPM)
+    const uint32_t kCallbackPtrAddr = r13 - 0x7348u;    // PowerCallback (SPM)
+    const uint32_t kHandlerActiveAddr = r13 - 0x7350u;  // StmEhRegistered (SPM)
 
     RT_LOG(RT_TAG_OS) << "OSSetPowerCallback_801ab75c called: newCB=0x"
               << std::hex << newCallback << std::dec << std::endl;
@@ -467,22 +441,12 @@ extern "C" uint32_t OSSetPowerCallback_801ab75c(CpuContext* ctx)
 }
 
 // Register the function
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801E2504, OSSetPowerCallback_801ab75c, uint32_t, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE(80276104, OSSetPowerCallback_801ab75c, uint32_t, (CpuContext* ctx), (ctx));
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801E42E4, EXIImm_80167f68, uint32_t, (uint32_t channel, uint32_t buffer, uint32_t length, uint32_t type, uint32_t callback), (channel, buffer, length, type, callback));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801E4604, EXIDma_80168288, uint32_t, (uint32_t channel, uint32_t buffer, uint32_t length, uint32_t type, uint32_t callback), (channel, buffer, length, type, callback));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801E46FC, EXISync_80168380, uint32_t, (uint32_t channel), (channel));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801E55DC, EXIUnlock_80169260, uint32_t, (uint32_t channel), (channel));
-#endif
+PPC_NATIVE_OVERRIDE(802680F0, EXIImm_80167f68, uint32_t, (uint32_t channel, uint32_t buffer, uint32_t length, uint32_t type, uint32_t callback), (channel, buffer, length, type, callback));
+PPC_NATIVE_OVERRIDE(80268410, EXIDma_80168288, uint32_t, (uint32_t channel, uint32_t buffer, uint32_t length, uint32_t type, uint32_t callback), (channel, buffer, length, type, callback));
+PPC_NATIVE_OVERRIDE(80268508, EXISync_80168380, uint32_t, (uint32_t channel), (channel));
+PPC_NATIVE_OVERRIDE(802693E8, EXIUnlock_80169260, uint32_t, (uint32_t channel), (channel));
 
 // ----------------------------------------------------------------------------
 // IPC Register Access Stubs (0x80224350 write / 0x80224340 read): Broadway-IOS MMIO,
@@ -512,12 +476,8 @@ extern "C" uint32_t IPCReadReg_80193010(uint32_t index)
 }
 
 // Register the functions
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(80211ad0, IPCWriteReg_80193020, (uint32_t index, uint32_t value), (index, value));
-#endif
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(80211ac0, IPCReadReg_80193010, uint32_t, (uint32_t index), (index));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(802950d0, IPCWriteReg_80193020, (uint32_t index, uint32_t value), (index, value));
+PPC_NATIVE_OVERRIDE(802950c0, IPCReadReg_80193010, uint32_t, (uint32_t index), (index));
 
 // ----------------------------------------------------------------------------
 // IPCCltInit (0x802247D0): hardware parts (interrupt handler, MMIO) are stubbed, but we still
@@ -529,7 +489,7 @@ extern "C" int32_t IPCCltInit_80193478(CpuContext* ctx)
     RT_LOG(RT_TAG_OS) << "IPCCltInit_80193478 called: calling IPCInit for buffer setup" << std::endl;
     
     // Sets IPCBufferLo/Hi + Initialized (NSMBW 0x8056E004/B0/A0) from __OSGetIPCBufferLo/Hi.
-    InvokeIndirectCpu(0x80211A2Cu, ctx);
+    InvokeIndirectCpu(0x80295074u, ctx);
 
     // Advance the buffer lo pointer by 0x1000 (iosHeap size), matching real IPCCltInit.
     uint32_t bufferLo = Memory::Read32(ctx->gpr[13] - 0x6F24u); // SPM IPCBufferLo (IPCGetBufferLo)
@@ -543,6 +503,4 @@ extern "C" int32_t IPCCltInit_80193478(CpuContext* ctx)
     return 0; // Success
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(80211F28, IPCCltInit_80193478, int32_t, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE(80295534, IPCCltInit_80193478, int32_t, (CpuContext* ctx), (ctx));

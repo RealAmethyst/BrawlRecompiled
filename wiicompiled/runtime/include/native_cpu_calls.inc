@@ -7,7 +7,7 @@
 // cannot compile standalone and must never be included anywhere else.
 
 extern "C" void nw4r__lyt__detail__DrawQuad_800847c0(CpuContext* ctx);
-extern "C" void nw4r__lyt__detail__DrawQuad_801ee138(CpuContext* ctx);
+extern "C" void nw4r__lyt__detail__DrawQuad_80084d20(CpuContext* ctx);
 
 extern "C" void GX__SetVtxDesc_8016d3a4(uint32_t a, uint32_t t);
 extern "C" void GX__ClearVtxDesc_8016dc34();
@@ -49,39 +49,39 @@ template <> struct KnownTypedNativeCpuCall<addr> { \
     static void Invoke(CpuContext* cpu) { (void)cpu; fn(__VA_ARGS__); } \
 }
 
-MKW_KNOWN_TYPED_NATIVE(0x801EF280u, GX__SetVtxDesc_8016d3a4, cpu->gpr[3], cpu->gpr[4]);
-MKW_KNOWN_TYPED_NATIVE(0x801EFB10u, GX__ClearVtxDesc_8016dc34);
-MKW_KNOWN_TYPED_NATIVE(0x801EFB44u, GX__SetVtxAttrFmt_8016dc68, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7]);
-MKW_KNOWN_TYPED_NATIVE(0x801F0258u, GX__SetTexCoordGen2_8016e37c, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7], cpu->gpr[8]);
-MKW_KNOWN_TYPED_NATIVE(0x801F0480u, GX__SetNumTexGens_8016e5a4, cpu->gpr[3]);
-MKW_KNOWN_TYPED_NATIVE(0x801F0A30u, GX__DrawDone_8016eab0);
-MKW_KNOWN_TYPED_NATIVE(0x801F1088u, GX__Begin_8016f0f0, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5]);
-MKW_KNOWN_TYPED_NATIVE(0x801F12ACu, GX__SetLineWidth_8016f314, cpu->gpr[3], cpu->gpr[4]);
-MKW_KNOWN_TYPED_NATIVE(0x801F12FCu, GX__SetPointSize_8016f348, cpu->gpr[3], cpu->gpr[4]);
-MKW_KNOWN_TYPED_NATIVE(0x801F136Cu, GX__SetCullMode_8016f3b8, cpu->gpr[3]);
-MKW_KNOWN_TYPED_NATIVE(0x801F2644u, GX__SetNumChans_8017054c, cpu->gpr[3]);
-MKW_KNOWN_TYPED_NATIVE(0x801F2668u, GX__SetChanCtrl_80170570, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7], cpu->gpr[8], cpu->gpr[9]);
-MKW_KNOWN_TYPED_NATIVE(0x801F28F0u, GX__InitTexObj_801707f8, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7], cpu->gpr[8], cpu->gpr[9], cpu->gpr[10]);
-MKW_KNOWN_TYPED_NATIVE(0x801F2B44u, GX__InitTexObjLOD_80170a4c, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], static_cast<float>(cpu->fpr[1].d), static_cast<float>(cpu->fpr[2].d), static_cast<float>(cpu->fpr[3].d), cpu->gpr[6], cpu->gpr[7], cpu->gpr[8]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3194u, GX__InvalidateTexAll_80171110);
-MKW_KNOWN_TYPED_NATIVE(0x801F2FB0u, GX__LoadTexObj_80170f2c, cpu->gpr[3], cpu->gpr[4]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3ADCu, GX__SetNumIndStages_80171b38, cpu->gpr[3]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3AFCu, GX__SetTevDirect_80171b58, cpu->gpr[3]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3C30u, GX__SetTevColorIn_80171ce0, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3C70u, GX__SetTevAlphaIn_80171d20, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3CB0u, GX__SetTevColorOp_80171d60, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7], cpu->gpr[8]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3D08u, GX__SetTevAlphaOp_80171db8, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7], cpu->gpr[8]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3DC0u, GX__SetTevColorS10_80171e70, cpu->gpr[3], cpu->gpr[4]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3E24u, GX__SetTevKColor_80171ed4, cpu->gpr[3], cpu->gpr[4]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3E80u, GX__SetTevKColorSel_80171f30, cpu->gpr[3], cpu->gpr[4]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3ED0u, GX__SetTevKAlphaSel_80171f80, cpu->gpr[3], cpu->gpr[4]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3F20u, GX__SetTevSwapMode_80171fd0, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5]);
-MKW_KNOWN_TYPED_NATIVE(0x801F3F5Cu, GX__SetTevSwapModeTable_8017200c, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7]);
-MKW_KNOWN_TYPED_NATIVE(0x801F409Cu, GX__SetTevOrder_8017214c, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6]);
-MKW_KNOWN_TYPED_NATIVE(0x801F41F8u, GX__SetNumTevStages_801722a8, cpu->gpr[3]);
-MKW_KNOWN_TYPED_NATIVE(0x801F46CCu, GX__SetBlendMode_8017277c, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6]);
-MKW_KNOWN_TYPED_NATIVE(0x801F51DCu, GX__LoadPosMtxImm_8017310c, cpu->gpr[3], cpu->gpr[4]);
-MKW_KNOWN_TYPED_NATIVE(0x801F52E4u, GX__SetCurrentMtx_80173214, cpu->gpr[3]);
+MKW_KNOWN_TYPED_NATIVE(0x8028B638u, GX__SetVtxDesc_8016d3a4, cpu->gpr[3], cpu->gpr[4]);
+MKW_KNOWN_TYPED_NATIVE(0x8028BEC8u, GX__ClearVtxDesc_8016dc34);
+MKW_KNOWN_TYPED_NATIVE(0x8028BEFCu, GX__SetVtxAttrFmt_8016dc68, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7]);
+MKW_KNOWN_TYPED_NATIVE(0x8028C610u, GX__SetTexCoordGen2_8016e37c, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7], cpu->gpr[8]);
+MKW_KNOWN_TYPED_NATIVE(0x8028C838u, GX__SetNumTexGens_8016e5a4, cpu->gpr[3]);
+MKW_KNOWN_TYPED_NATIVE(0x8028CD50u, GX__DrawDone_8016eab0);
+MKW_KNOWN_TYPED_NATIVE(0x8028D3B4u, GX__Begin_8016f0f0, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5]);
+MKW_KNOWN_TYPED_NATIVE(0x8028D5D8u, GX__SetLineWidth_8016f314, cpu->gpr[3], cpu->gpr[4]);
+MKW_KNOWN_TYPED_NATIVE(0x8028D60Cu, GX__SetPointSize_8016f348, cpu->gpr[3], cpu->gpr[4]);
+MKW_KNOWN_TYPED_NATIVE(0x8028D67Cu, GX__SetCullMode_8016f3b8, cpu->gpr[3]);
+MKW_KNOWN_TYPED_NATIVE(0x8028E778u, GX__SetNumChans_8017054c, cpu->gpr[3]);
+MKW_KNOWN_TYPED_NATIVE(0x8028E79Cu, GX__SetChanCtrl_80170570, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7], cpu->gpr[8], cpu->gpr[9]);
+MKW_KNOWN_TYPED_NATIVE(0x8028EA24u, GX__InitTexObj_801707f8, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7], cpu->gpr[8], cpu->gpr[9], cpu->gpr[10]);
+MKW_KNOWN_TYPED_NATIVE(0x8028EC78u, GX__InitTexObjLOD_80170a4c, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], static_cast<float>(cpu->fpr[1].d), static_cast<float>(cpu->fpr[2].d), static_cast<float>(cpu->fpr[3].d), cpu->gpr[6], cpu->gpr[7], cpu->gpr[8]);
+MKW_KNOWN_TYPED_NATIVE(0x8028F198u, GX__InvalidateTexAll_80171110);
+MKW_KNOWN_TYPED_NATIVE(0x8028EF78u, GX__LoadTexObj_80170f2c, cpu->gpr[3], cpu->gpr[4]);
+MKW_KNOWN_TYPED_NATIVE(0x8028FD44u, GX__SetNumIndStages_80171b38, cpu->gpr[3]);
+MKW_KNOWN_TYPED_NATIVE(0x8028FD64u, GX__SetTevDirect_80171b58, cpu->gpr[3]);
+MKW_KNOWN_TYPED_NATIVE(0x8028FEECu, GX__SetTevColorIn_80171ce0, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7]);
+MKW_KNOWN_TYPED_NATIVE(0x8028FF2Cu, GX__SetTevAlphaIn_80171d20, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7]);
+MKW_KNOWN_TYPED_NATIVE(0x8028FF6Cu, GX__SetTevColorOp_80171d60, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7], cpu->gpr[8]);
+MKW_KNOWN_TYPED_NATIVE(0x8028FFC4u, GX__SetTevAlphaOp_80171db8, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7], cpu->gpr[8]);
+MKW_KNOWN_TYPED_NATIVE(0x8029007Cu, GX__SetTevColorS10_80171e70, cpu->gpr[3], cpu->gpr[4]);
+MKW_KNOWN_TYPED_NATIVE(0x802900E0u, GX__SetTevKColor_80171ed4, cpu->gpr[3], cpu->gpr[4]);
+MKW_KNOWN_TYPED_NATIVE(0x8029013Cu, GX__SetTevKColorSel_80171f30, cpu->gpr[3], cpu->gpr[4]);
+MKW_KNOWN_TYPED_NATIVE(0x8029018Cu, GX__SetTevKAlphaSel_80171f80, cpu->gpr[3], cpu->gpr[4]);
+MKW_KNOWN_TYPED_NATIVE(0x802901DCu, GX__SetTevSwapMode_80171fd0, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5]);
+MKW_KNOWN_TYPED_NATIVE(0x80290218u, GX__SetTevSwapModeTable_8017200c, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6], cpu->gpr[7]);
+MKW_KNOWN_TYPED_NATIVE(0x80290358u, GX__SetTevOrder_8017214c, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6]);
+MKW_KNOWN_TYPED_NATIVE(0x802904B4u, GX__SetNumTevStages_801722a8, cpu->gpr[3]);
+MKW_KNOWN_TYPED_NATIVE(0x80290828u, GX__SetBlendMode_8017277c, cpu->gpr[3], cpu->gpr[4], cpu->gpr[5], cpu->gpr[6]);
+MKW_KNOWN_TYPED_NATIVE(0x80291788u, GX__LoadPosMtxImm_8017310c, cpu->gpr[3], cpu->gpr[4]);
+MKW_KNOWN_TYPED_NATIVE(0x80291830u, GX__SetCurrentMtx_80173214, cpu->gpr[3]);
 
 #undef MKW_KNOWN_TYPED_NATIVE
 
@@ -93,12 +93,10 @@ template <> struct KnownNativeCpuCall<addr> { \
 }
 
 #if 0  // SPM: DrawQuad__Q34nw4r3lyt6detailFRCQ34nw4r4math4VEC2RCQ34nw4r3lyt4SizeUcPA4_CQ34nw4r4math4VEC2PCQ34nw4r2ut5Color: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
-MKW_KNOWN_NATIVE_CPU_CALL(0x80248E40u, nw4r__lyt__detail__DrawQuad_800847c0);
-#endif
+MKW_KNOWN_NATIVE_CPU_CALL(0x802B6C80u, nw4r__lyt__detail__DrawQuad_800847c0);
 #endif
 #if 0  // SPM: DrawQuad__Q34nw4r3lyt6detailFRCQ34nw4r4math4VEC2RCQ34nw4r3lyt4SizeUcPA4_CQ34nw4r4math4VEC2PCQ34nw4r2ut5ColorUc: name not in SPM
-MKW_KNOWN_NATIVE_CPU_CALL(0x802493A0u, nw4r__lyt__detail__DrawQuad_801ee138);
+MKW_KNOWN_NATIVE_CPU_CALL(0x802B71E0u, nw4r__lyt__detail__DrawQuad_80084d20);
 #endif
 
 #undef MKW_KNOWN_NATIVE_CPU_CALL
