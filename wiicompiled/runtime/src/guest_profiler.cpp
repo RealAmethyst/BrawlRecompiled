@@ -51,7 +51,7 @@ void Report(const std::unordered_map<uintptr_t, uint32_t>& samples, const std::v
             uint32_t total) {
     // Every translated function's host entry point, sorted, to find which one a sample falls in.
     std::vector<Entry> entries;
-    for (const auto& [lo, hi] : {std::pair{0x80004338u, 0x804064E0u}, std::pair{0x80BF691Cu, 0x80C5A648u}}) {  // SPM main.dol text, relF text
+    for (const auto& [lo, hi] : {std::pair{0x80004000u, 0x804064E0u}}) {  // Brawl main.dol .init and .text
         for (uint32_t address = lo; address < hi; address += 4) {
             if (const TranslatedFunctionInfo* info = TranslatedFunctionRegistry::FindByAddressPtr(address);
                 info != nullptr && info->entryPoint != nullptr && info->address == address) {
@@ -60,7 +60,11 @@ void Report(const std::unordered_map<uintptr_t, uint32_t>& samples, const std::v
         }
     }
     std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) { return a.host < b.host; });
-    const auto exeBase = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    // The module holding the translated code: the engine DLL, not the loader exe.
+    HMODULE self = nullptr;
+    GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                       reinterpret_cast<LPCSTR>(&Report), &self);
+    const auto exeBase = reinterpret_cast<uintptr_t>(self);
     const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(exeBase);
     const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(exeBase + dos->e_lfanew);
     const uintptr_t exeEnd = exeBase + nt->OptionalHeader.SizeOfImage;

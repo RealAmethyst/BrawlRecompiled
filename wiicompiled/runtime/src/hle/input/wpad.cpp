@@ -104,7 +104,9 @@ extern "C" int32_t WPADInit_HLE()
 {
     return InitializeWpadLibrary();
 }
-PPC_NATIVE_OVERRIDE(80218AF0, WPADInit_HLE, int32_t, (), ());
+// Brawl: WPADInit (0x80218D00) wraps the SPM-era body (0x80218AF0) and also starts the Bluetooth stack (BTA_Init);
+// the HLE replaces the wrapper so no Bluetooth init runs.
+PPC_NATIVE_OVERRIDE(80218D00, WPADInit_HLE, int32_t, (), ());
 
 extern "C" int32_t WUDGetStatus_HLE()
 {

@@ -48,12 +48,29 @@ PPC_NATIVE_OVERRIDE_VOID(8016e9fc, GX__SetDrawSync_8016e9fc, (uint32_t token), (
 #endif
 #endif
 
+extern "C" void OSWakeupThread_HLE_80085b68(CpuContext* ctx);
+
+// Brawl (RSBE01) GXFinishInterruptHandler globals: DrawDoneCB r13-0x3B5C, FinishQueue r13-0x3B68.
+constexpr uint32_t kGxDrawDoneCallbackAddr = 0x805A08C4u;
+constexpr uint32_t kGxFinishQueueAddr = 0x805A08B8u;
+
 extern "C" void GX__FinishInterruptHandler_8016ed94() {
     try {
         uint32_t gd = Memory::Read32(kGXDataPtrAddr);
         if (gd) Memory::Write16(gd + 0x0Au, static_cast<uint16_t>(Memory::Read16(gd + 0x0Au) | 0x0008u));
         Memory::Write8(kGxDrawDoneFlagAddr, 1);
     } catch (...) {}
+    // As the SDK handler: the game's draw-done callback, then wake GXWaitDrawDone sleepers. Brawl's frame
+    // pacing (gfApplication's frame buffer slots) is released from that callback.
+    if (CpuContext* cpu = TryGetCpuContext()) {
+        if (const uint32_t cb = Memory::Read32(kGxDrawDoneCallbackAddr)) {
+            CpuContext call = *cpu;
+            InvokeIndirectCpu(cb, &call);
+        }
+        CpuContext wake = *cpu;
+        wake.gpr[3] = kGxFinishQueueAddr;
+        OSWakeupThread_HLE_80085b68(&wake);
+    }
 }
 PPC_NATIVE_OVERRIDE_VOID(801f0d2c, GX__FinishInterruptHandler_8016ed94, (), ());
 

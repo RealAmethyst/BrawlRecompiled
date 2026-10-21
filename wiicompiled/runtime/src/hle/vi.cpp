@@ -474,6 +474,7 @@ void AdvanceRetrace(CpuContext* ctx, Clock::time_point retraceStamp, bool servic
         return;
     }
     StartStallWatchdogOnce();
+    GuestProfiler::OnFramePresented();  // Brawl bring-up: profile from the first retrace, frames or not
     LogGuestModulesOnce();
 
     uint32_t preCb = 0;
