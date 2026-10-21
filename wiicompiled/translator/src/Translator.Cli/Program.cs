@@ -3656,7 +3656,8 @@ static (string? Positional, CommandOption[] Options)? CommandSpec(string command
         new("--native-source-dir", "path"),
         new("--resolved-profile", "path"),
         new("--retro-cpp-dir", "path"),
-        new("--out", "generated/build_shards")
+        new("--out", "generated/build_shards"),
+        new("--base-shards", "72")
     }),
     _ => null
 };

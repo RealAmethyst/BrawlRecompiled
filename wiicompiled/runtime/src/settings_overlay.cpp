@@ -1659,7 +1659,7 @@ void DrawTopBar() {
     ImGui::End();
     if (!ImGui::BeginMainMenuBar()) return;
 
-    ImGui::TextUnformatted("New Super Paper Bros.");
+    ImGui::TextUnformatted("Brawl Recompiled");
     ImGui::Separator();
     const auto resolutionIt = std::find_if(kResolutions.begin(), kResolutions.end(), [](const ResolutionItem& item) {
         return std::fabs(item.scale - g_resolutionScale) < 0.001f;
@@ -2162,7 +2162,7 @@ void PatchBootStrings() {
 }
 
 void Draw() noexcept {
-    PatchBootStrings();
+    // PatchBootStrings() is Super Paper Mario's boot screen line; Brawl has none.
     // Wait for the frame worker's DONE phase: it has replayed the previous frame's ImGui draw lists
     // and started the next ImGui frame, so all overlay callers can now safely issue ImGui commands.
     aurora_wait_for_frame_worker();

@@ -384,9 +384,9 @@ inline void EnsureConfigFile() {
     if (!output) {
         return;
     }
-    // New Super Paper Bros. defaults: borderless 1080p (2.25 x 480 lines; 4.5 = 4K, 0 = the screen's own
-    // size), cinematic 2.39:1, 120 fps interpolation, HD textures on. The launcher writes the same keys.
-    output << "# New Super Paper Bros. user configuration\n"
+    // Brawl Recompiled defaults: borderless 1080p (2.25 x 480 lines; 4.5 = 4K, 0 = the screen's own size), the
+    // game's own 16:9 mode, HD textures on. Frame interpolation stays off until it is verified on Brawl.
+    output << "# Brawl Recompiled user configuration\n"
               "# paths.dvd_root is your Super Smash Bros. Brawl (USA, RSBE01) extracted to a DATA folder; the\n"
               "# launcher's Game disc page fills it in from a .iso/.ciso/.wbfs.\n\n"
               "[video]\n"
@@ -395,11 +395,11 @@ inline void EnsureConfigFile() {
               "# render height = 480 x resolution_multiplier: 1.5 = 720p, 2.25 = 1080p, 4.5 = 4K, 0 = screen size\n"
               "resolution_multiplier = 2.25\n"
               "# 0 (off), 120 or 180\n"
-              "frame_interpolation_fps = 120\n"
+              "frame_interpolation_fps = 0\n"
               "# wait for the display when presenting: no screen tearing\n"
               "vsync = true\n"
               "# 0 = original 4:3, 1 = 16:9, 2 = fill the screen, 3 = cinematic 2.39:1\n"
-              "aspect_mode = 3\n"
+              "aspect_mode = 1\n"
               "display_mode = \"borderless\"\n"
               "graphics_api = \"auto\"\n"
               "skip_unready_pipelines = true\n"
@@ -434,7 +434,7 @@ inline void EnsureConfigFile() {
               "enabled = true\n"
               "# client_id = \"123456789012345678\"\n\n"
               "[paths]\n"
-              "# dvd_root = \"D:\\\\Games\\\\SuperPaperMario\\\\DATA\"\n"
+              "# dvd_root = \"D:\\\\Games\\\\SuperSmashBrosBrawl\\\\DATA\"\n"
               "# nand_root = \"D:\\\\WiiNand\"\n"
               "# retro_rewind_root = \"D:\\\\RetroRewind\\\\RetroRewind6\"\n"
               "# overlay_roots = [\"D:\\\\RetroRewind\"]\n";
