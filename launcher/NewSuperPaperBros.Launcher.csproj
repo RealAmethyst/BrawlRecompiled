@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>New Super Paper Bros</AssemblyName>
+    <RootNamespace>NewSuperPaperBros</RootNamespace>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Version>1.0.3</Version>
+    <Product>New Super Paper Bros.</Product>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <DebugType>embedded</DebugType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>pixl.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- linux\ is its own project (nspb-disc) -->
+    <Compile Remove="linux/**" />
+    <None Remove="linux/**" />
+  </ItemGroup>
+</Project>

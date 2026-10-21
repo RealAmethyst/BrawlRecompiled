@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The Linux launcher: the Windows launcher's pages and art (MainForm.cs) rebuilt with Avalonia, sharing its
+       non-window code (settings file, disc extraction, save import, gamepads). Published by tools\build-launcher.ps1 into launcher\linux\publish. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>New Super Paper Bros</AssemblyName>
+    <RootNamespace>NewSuperPaperBros</RootNamespace>
+    <!-- The one version number is the Windows launcher's <Version>. -->
+    <Version>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../NewSuperPaperBros.Launcher.csproj')), '&lt;Version&gt;([^&lt;]+)').Groups[1].Value)</Version>
+    <Product>New Super Paper Bros.</Product>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>embedded</DebugType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../GameConfig.cs;../WiiDisc.cs;../WiiSave.cs;../Gamepads.cs" />
+    <EmbeddedResource Include="../pixl.ico" LogicalName="pixl.ico" />
+  </ItemGroup>
+</Project>

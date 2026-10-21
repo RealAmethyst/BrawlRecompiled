@@ -1,0 +1,994 @@
+using System.Diagnostics;
+using System.Drawing.Drawing2D;
+
+namespace NewSuperPaperBros;
+
+// The launcher window: a paper-craft header, a nav column (Play, Display, Controls, Mods) and one
+// card per page. Everything it changes goes to <game folder>\UserData\Config.toml (engine\ in a release, Play\ in the dev tree), read by the game at start.
+sealed class MainForm : Form
+{
+    static readonly Color Cream = ColorTranslator.FromHtml("#FFF6DC"), Paper = ColorTranslator.FromHtml("#FFFCF2"),
+        Ink = ColorTranslator.FromHtml("#3A2A18"), Yellow = ColorTranslator.FromHtml("#FFD83A"),
+        Red = ColorTranslator.FromHtml("#E04040"), Sky = ColorTranslator.FromHtml("#7EC8F5"), Green = ColorTranslator.FromHtml("#56B24A");
+
+    readonly bool selfTest;
+    readonly string? screenshotDir;
+    // Fonts are in points and grow with Windows display scaling; every pixel size goes through S() so it grows too.
+    static float k = 1f;
+    static int S(int v) => (int)Math.Round(v * k);
+    static Size S(int w, int h) => new(S(w), S(h));
+    static Padding S(int l, int t, int r, int b) => new(S(l), S(t), S(r), S(b));
+    Button chooseDisc = null!;
+    // play = the folder holding the game exe and its UserData: engine\ in a release, Play\ in the dev tree.
+    readonly string root, play, gameExe, userData, configPath, modsDir, discDir;
+    // The one version number: <Version> in NewSuperPaperBros.Launcher.csproj (package-spm.ps1 names the zip after it).
+    static readonly string AppVersion = typeof(MainForm).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "?";
+    readonly GameConfig config;
+    readonly Dictionary<string, Image> sprites = new();
+    readonly Panel content = new() { Dock = DockStyle.Fill };
+    readonly List<(Button button, Control page)> pages = new();
+    Label playStatus = null!, dumpHelp = null!, gameNote = null!;
+    Control tipRow = null!;  // shown with gameNote once a disc is set up, so first-time setup stays short
+    ListView modList = null!;
+    Button? capturing;
+    Func<bool>? cancelPadCapture;  // the Controls page's gamepad capture: Escape ends it
+    string? captureKey;
+
+    static readonly (string key, string label, string defaults)[] Actions =
+    {
+        ("up", "Up", "Up"), ("down", "Down", "Down"), ("left", "Left", "Left"), ("right", "Right", "Right"),
+        ("jump", "Jump (2)", "X,Space"), ("run", "Pixl / action (1)", "Z,Left Shift"), ("a", "Flip (A)", "A"),
+        ("shake", "Shake (stylish)", "C,Left Ctrl"), ("tilt_left", "Tilt left", "Q"), ("tilt_right", "Tilt right", "E"),
+        ("plus", "Menu (+)", "Return,Escape"), ("minus", "Minus (-)", "-,Tab"),
+    };
+
+    public MainForm(bool selfTest, string? screenshotDir = null)
+    {
+        this.selfTest = selfTest;
+        this.screenshotDir = screenshotDir;
+        k = DeviceDpi / 96f;
+        content.Padding = S(16, 12, 20, 16);
+        (root, play, gameExe) = FindGame();
+        // Zips drop the hidden attribute: keep the release's engine\ folder out of sight so only this exe shows.
+        try
+        {
+            var engineDir = new DirectoryInfo(play);
+            if (engineDir.Exists && engineDir.Name.Equals("engine", StringComparison.OrdinalIgnoreCase) && !engineDir.Attributes.HasFlag(FileAttributes.Hidden))
+                engineDir.Attributes |= FileAttributes.Hidden;
+        }
+        catch (Exception) { }  // read-only media or no rights: cosmetic only
+        userData = Path.Combine(play, "UserData");
+        configPath = Path.Combine(userData, "Config.toml");
+        modsDir = Path.Combine(userData, "mods");
+        discDir = Path.Combine(root, "Disc", "DATA");
+        config = new GameConfig(configPath);
+        EnsureDefaults();
+        Gamepads.Init(play);
+        foreach (var name in new[] { "mario", "luigi", "merlon", "tippi", "sparkle" })
+        {
+            var file = Path.Combine(play, "startup", name + ".png");
+            if (File.Exists(file)) sprites[name] = Image.FromStream(new MemoryStream(File.ReadAllBytes(file)));
+        }
+
+        Text = "New Super Paper Bros.  v" + AppVersion;
+        tippiCursor = MakeTippiCursor(clickable: false);
+        tippiHand = MakeTippiCursor(clickable: true);
+        Cursor = tippiCursor;  // child controls without their own cursor inherit it
+        Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!);  // Pixl, embedded from pixl.ico
+        var area = Screen.PrimaryScreen?.WorkingArea.Size ?? new Size(S(1100), S(760));
+        ClientSize = new Size(Math.Min(S(1100), area.Width - 40), Math.Min(S(760), area.Height - 60));
+        MinimumSize = new Size(Math.Min(S(940), area.Width), Math.Min(S(640), area.Height));
+        BackColor = Cream;
+        Font = new Font("Segoe UI", 10.5f);
+        KeyPreview = true;
+        StartPosition = FormStartPosition.CenterScreen;
+        DoubleBuffered = true;
+
+        var header = new DoubleBufferedPanel { Dock = DockStyle.Top, Height = S(150) };
+        header.Paint += PaintHeader;
+        var nav = new BufferedFlow { Dock = DockStyle.Left, Width = S(220), FlowDirection = FlowDirection.TopDown, Padding = S(16, 18, 0, 0), WrapContents = false };
+        nav.Paint += PaintNav;
+        // Click Mario or Luigi to make them hop, Tippi for another tip, Merlon to make him twirl.
+        header.MouseClick += (_, e) =>
+        {
+            if (marioRect.Contains(e.Location)) jumpAt["mario"] = T;
+            else if (luigiRect.Contains(e.Location)) jumpAt["luigi"] = T;
+            else if (tippiRect.Contains(e.Location)) NextTip();
+        };
+        header.MouseMove += (_, e) => header.Cursor = marioRect.Contains(e.Location) || luigiRect.Contains(e.Location) || tippiRect.Contains(e.Location) ? tippiHand : tippiCursor;
+        nav.MouseClick += (_, e) => { if (merlonRect.Contains(e.Location)) jumpAt["merlon"] = T; };
+        nav.MouseMove += (_, e) => nav.Cursor = merlonRect.Contains(e.Location) ? tippiHand : tippiCursor;
+        var frame = new System.Windows.Forms.Timer { Interval = 33 };
+        frame.Tick += (_, _) =>
+        {
+            if (!animate || WindowState == FormWindowState.Minimized) return;
+            header.Invalidate();
+            nav.Invalidate(new Rectangle(0, navSpriteTop, nav.Width, Math.Max(0, nav.Height - navSpriteTop)));
+            float glow = (float)(Math.Sin(T * 3) + 1) / 2;  // PLAY breathes between two reds
+            playButton.BackColor = Color.FromArgb(Lerp(Red.R, 255, glow), Lerp(Red.G, 106, glow), Lerp(Red.B, 74, glow));
+        };
+        frame.Start();
+        Controls.Add(content);
+        Controls.Add(nav);
+        Controls.Add(header);
+
+        AddPage(nav, "Play", BuildPlayPage());
+        AddPage(nav, "Display", BuildDisplayPage());
+        AddPage(nav, "Controls", BuildControlsPage());
+        AddPage(nav, "Mods", BuildModsPage());
+        ShowPage(pages[0].button);
+        Shown += (_, _) =>
+        {
+            if (screenshotDir != null)
+            {
+                // Headless visual check: every page drawn to <dir>\<page>.png.
+                Directory.CreateDirectory(screenshotDir);
+                foreach (var p in pages)
+                {
+                    ShowPage(p.button);
+                    Application.DoEvents();
+                    using var bmp = new Bitmap(Width, Height);
+                    DrawToBitmap(bmp, new Rectangle(Point.Empty, Size));
+                    bmp.Save(Path.Combine(screenshotDir, p.button.Text.Replace(' ', '_') + ".png"));
+                }
+                using (var cur = new Bitmap(128, 64))
+                using (var g = Graphics.FromImage(cur)) { g.Clear(Sky); for (int i = 0; i < cursorBitmaps.Count; i++) g.DrawImageUnscaled(cursorBitmaps[i], i * 64, 0); cur.Save(Path.Combine(screenshotDir, "cursor.png")); }
+                Close();
+            }
+            else if (selfTest) { foreach (var p in pages) ShowPage(p.button); Environment.ExitCode = !File.Exists(gameExe) ? 6 : !Gamepads.Ready ? 4 : Gamepads.Connected().All(p => Gamepads.Opens(p.id)) ? 0 : 5; Close(); }
+        };
+    }
+
+    // The release keeps the game in engine\ (renamed so nobody double-clicks it); the dev tree keeps it in Play\.
+    // Search up from the launcher's own folder, so launcher\publish\ works in the dev tree too.
+    // The engine exe loads engine_usa.dll or engine_pal.dll beside it by the extracted disc's id (engine_loader.cpp).
+    public const string EngineExe = "nspb-engine.exe";
+    static (string root, string dir, string exe) FindGame()
+    {
+        var start = new DirectoryInfo(AppContext.BaseDirectory);
+        for (var d = start; d != null; d = d.Parent)
+        {
+            foreach (var (dir, exe) in new[] { ("engine", EngineExe), ("Play", "SuperPaperMario.exe") })
+                if (File.Exists(Path.Combine(d.FullName, dir, exe))) return (d.FullName, Path.Combine(d.FullName, dir), Path.Combine(d.FullName, dir, exe));
+        }
+        return (start.FullName, Path.Combine(start.FullName, "engine"), Path.Combine(start.FullName, "engine", EngineExe));
+    }
+
+    // The extracted disc's id (R8PE01 USA, R8PP01 Europe), "" when none is set up.
+    string DiscGameId()
+    {
+        try
+        {
+            var header = new byte[8];
+            using var f = File.OpenRead(Path.Combine(DiscStatus().path, "sys", "boot.bin"));
+            f.ReadExactly(header, 0, 8);
+            return System.Text.Encoding.ASCII.GetString(header, 0, 6);
+        }
+        catch (Exception) { return ""; }
+    }
+
+    // This disc's save folder (per disc region and per extracted disc, as the game keeps them).
+    string SaveDataDir() => WiiSave.DataDir(userData, DiscStatus().path, DiscGameId() is { Length: > 0 } id ? id : "R8PE01");
+
+    // The packaged defaults: borderless 1080p, cinematic 2.39:1, 120 fps interpolation, HD textures. Keys the
+    // user already has are left alone.
+    void EnsureDefaults()
+    {
+        bool changed = false;
+        foreach (var (key, value) in new[] { ("display_mode", "\"borderless\""), ("resolution_multiplier", "2.25"), ("aspect_mode", "3"),
+                     ("frame_interpolation_fps", "120"), ("texture_replacements", "true"), ("widescreen", "true"), ("vsync", "true") })
+            if (config.Get("video", key) == null) { config.Set("video", key, value); changed = true; }
+        // The HD textures are part of the port, not an option.
+        if (config.Get("video", "texture_replacements") != "true") { config.Set("video", "texture_replacements", "true"); changed = true; }
+        if (changed) config.Save();
+    }
+
+    void AddPage(FlowLayoutPanel nav, string title, Control page)
+    {
+        var button = new Button
+        {
+            Text = title, Size = S(188, 50), FlatStyle = FlatStyle.Flat, BackColor = Paper, ForeColor = Ink,
+            Font = new Font("Segoe UI", 13f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = S(12, 0, 0, 0),
+            Margin = S(0, 0, 0, 10), Cursor = tippiHand, UseCompatibleTextRendering = false,
+        };
+        button.FlatAppearance.BorderColor = Ink;
+        button.FlatAppearance.BorderSize = S(2);
+        button.Click += (_, _) => ShowPage(button);
+        button.MouseEnter += (_, _) => { if (button.BackColor == Paper) button.BackColor = Hover; };
+        button.MouseLeave += (_, _) => { if (button.BackColor == Hover) button.BackColor = Paper; };
+        page.Dock = DockStyle.Fill;
+        page.Visible = false;
+        content.Controls.Add(page);
+        nav.Controls.Add(button);
+        pages.Add((button, page));
+    }
+
+    void ShowPage(Button button)
+    {
+        foreach (var (b, page) in pages)
+        {
+            bool on = b == button;
+            b.BackColor = on ? Yellow : Paper;
+            page.Visible = on;
+        }
+        RefreshStatus();
+    }
+
+    // ----- The fun bits: animated header and side column -----
+    // Everything moves on one clock; with Windows animations turned off the scene stands still.
+    readonly bool animate = SystemInformation.UIEffectsEnabled;
+    readonly Stopwatch clock = Stopwatch.StartNew();
+    double T => animate ? clock.Elapsed.TotalSeconds : 1.0;
+    readonly Dictionary<string, double> jumpAt = new();
+    readonly Dictionary<(string, int, int, bool), Bitmap> scaled = new();
+    Bitmap? headerBack, headerTitle;
+    Rectangle marioRect, luigiRect, tippiRect, merlonRect;
+    int navSpriteTop;
+    Button playButton = null!;
+    static readonly Color Hover = ColorTranslator.FromHtml("#FFEFA8");
+
+    static int Lerp(int a, int b, float f) => (int)(a + (b - a) * f);
+
+    // The pointer (Tippi) and the one over anything clickable (Tippi with a sparkle). Static so Btn() can use it.
+    static Cursor tippiCursor = Cursors.Default, tippiHand = Cursors.Hand;
+    readonly List<Bitmap> cursorBitmaps = new();  // the pointer images, for the screenshot check
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    struct IconInfo { public bool fIcon; public int xHotspot, yHotspot; public IntPtr hbmMask, hbmColor; }
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr CreateIconIndirect(ref IconInfo info);
+    [System.Runtime.InteropServices.DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr obj);
+
+    // Tippi as the mouse pointer, sized for the display scaling, clicking with her top-left wing tip. Over clickable
+    // things she is a little smaller with a sparkle at her side, so it still shows what can be clicked.
+    Cursor MakeTippiCursor(bool clickable)
+    {
+        if (!sprites.TryGetValue("tippi", out var img)) return clickable ? Cursors.Hand : Cursors.Default;
+        int size = S(32);
+        using var bmp = new Bitmap(size, size);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            var b = Opaque((Bitmap)img);  // her drawn area, without the sprite's empty margin
+            float fit = (clickable ? 0.78f : 1f) * size / Math.Max(b.Width, b.Height);  // whole Tippi inside the square
+            g.DrawImage(img, new Rectangle(0, 0, (int)(b.Width * fit), (int)(b.Height * fit)), b, GraphicsUnit.Pixel);
+            if (clickable)
+            {
+                // A bold four-point sparkle in the bottom-right corner.
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                float cx = size * 0.76f, cy = size * 0.76f, r = size * 0.23f, n = r * 0.32f;
+                using var star = new GraphicsPath();
+                star.AddPolygon(new[] { new PointF(cx, cy - r), new PointF(cx + n, cy - n), new PointF(cx + r, cy), new PointF(cx + n, cy + n),
+                                        new PointF(cx, cy + r), new PointF(cx - n, cy + n), new PointF(cx - r, cy), new PointF(cx - n, cy - n) });
+                using (var ink = new Pen(Ink, Math.Max(1.5f, size / 20f)) { LineJoin = LineJoin.Round }) g.DrawPath(ink, star);
+                using (var fill = new SolidBrush(Yellow)) g.FillPath(fill, star);
+            }
+        }
+        int hx = 0, hy = 0;
+        for (int y = 0, found = 0; y < size && found == 0; y++)
+            for (int x = 0; x < size / 2; x++)
+                if (bmp.GetPixel(x, y).A > 128) { hx = x; hy = y; found = 1; break; }
+        var info = new IconInfo { fIcon = false, xHotspot = hx, yHotspot = hy, hbmColor = bmp.GetHbitmap(Color.FromArgb(0)), hbmMask = new Bitmap(size, size).GetHbitmap() };
+        cursorBitmaps.Add((Bitmap)bmp.Clone());
+        var handle = CreateIconIndirect(ref info);
+        DeleteObject(info.hbmColor);
+        DeleteObject(info.hbmMask);
+        return handle == IntPtr.Zero ? Cursors.Default : new Cursor(handle);
+    }
+
+    // Bounding box of a sprite's visible pixels.
+    static Rectangle Opaque(Bitmap b)
+    {
+        int l = b.Width, t = b.Height, r = -1, bo = -1;
+        for (int y = 0; y < b.Height; y += 2)
+            for (int x = 0; x < b.Width; x += 2)
+                if (b.GetPixel(x, y).A > 24) { l = Math.Min(l, x); t = Math.Min(t, y); r = Math.Max(r, x); bo = Math.Max(bo, y); }
+        return r < 0 ? new Rectangle(0, 0, b.Width, b.Height) : Rectangle.FromLTRB(l, t, r + 1, bo + 1);
+    }
+
+    // A sprite resized once and kept (drawing a pre-sized bitmap every frame is cheap).
+    Bitmap Sprite(string name, int w, int h, bool flip = false)
+    {
+        if (scaled.TryGetValue((name, w, h, flip), out var b)) return b;
+        b = new Bitmap(Math.Max(1, w), Math.Max(1, h));
+        using (var g = Graphics.FromImage(b))
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            if (sprites.TryGetValue(name, out var img)) g.DrawImage(img, new Rectangle(0, 0, w, h));
+        }
+        if (flip) b.RotateFlip(RotateFlipType.RotateNoneFlipX);
+        return scaled[(name, w, h, flip)] = b;
+    }
+
+    // How far into a click-triggered move (0..1), or -1 when none is playing.
+    double Hop(string name, double seconds) => jumpAt.TryGetValue(name, out var at) && T - at < seconds ? (T - at) / seconds : -1;
+
+    void BuildHeaderLayers(Size size)
+    {
+        headerBack?.Dispose();
+        headerTitle?.Dispose();
+        var r = new Rectangle(Point.Empty, size);
+        headerBack = new Bitmap(size.Width, size.Height);
+        using (var g = Graphics.FromImage(headerBack))
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var sky = new LinearGradientBrush(r, Sky, ColorTranslator.FromHtml("#C8EAFF"), LinearGradientMode.Vertical)) g.FillRectangle(sky, r);
+        }
+        headerTitle = new Bitmap(size.Width, size.Height);
+        using (var g = Graphics.FromImage(headerTitle))
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var hill = new SolidBrush(Green))
+            using (var hillInk = new Pen(ColorTranslator.FromHtml("#1E3C1E"), S(4)))
+                for (int i = 0; i < 9; i++)
+                {
+                    int rad = S(70 + 30 * (i % 3));
+                    var c = new Rectangle(r.Width * i / 8 - rad, r.Height - rad / 3 - S(6), rad * 2, rad * 2);
+                    g.DrawEllipse(hillInk, c);
+                    g.FillEllipse(hill, c);
+                }
+            using (var pen = new Pen(Ink, S(4))) g.DrawLine(pen, 0, r.Height - S(2), r.Width, r.Height - S(2));
+            using var path = new GraphicsPath();
+            var fmt = new StringFormat { Alignment = StringAlignment.Center };
+            // Shrink the title if the window is narrow, so it never runs under the sprites.
+            float em = Math.Min(S(46), (r.Width - S(2 * 210)) / 12.5f);
+            path.AddString("NEW SUPER PAPER BROS.", new FontFamily("Segoe UI"), (int)FontStyle.Bold, em, new Point(r.Width / 2, S(26)), fmt);
+            using (var outline = new Pen(Ink, S(7)) { LineJoin = LineJoin.Round }) g.DrawPath(outline, path);
+            using (var fill = new LinearGradientBrush(new Rectangle(0, S(24), 10, (int)em + S(10)), Yellow, ColorTranslator.FromHtml("#FF9A1E"), LinearGradientMode.Vertical)) g.FillPath(fill, path);
+            using var sub = new Font("Segoe UI", 10.5f, FontStyle.Bold);
+            var subText = "Super Paper Mario (Wii) on PC  -  made by JosiahG  -  v" + AppVersion;
+            var subSize = g.MeasureString(subText, sub);
+            var subRect = new RectangleF(r.Width / 2f - subSize.Width / 2 - S(10), S(26) + em * 1.25f, subSize.Width + S(20), subSize.Height + S(2));
+            using (var tag = Rounded(Rectangle.Round(subRect), S(8))) { g.FillPath(new SolidBrush(Paper), tag); g.DrawPath(new Pen(Ink, S(2)), tag); }
+            g.DrawString(subText, sub, new SolidBrush(Ink), new PointF(r.Width / 2f, subRect.Y + S(1)), fmt);
+        }
+    }
+
+    void PaintHeader(object? sender, PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        var r = ((Control)sender!).ClientRectangle;
+        if (r.Width <= 0 || r.Height <= 0) return;
+        if (headerBack == null || headerBack.Size != r.Size) BuildHeaderLayers(r.Size);
+        double t = T;
+        g.DrawImageUnscaled(headerBack!, 0, 0);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.InterpolationMode = InterpolationMode.Bilinear;
+
+        // Paper clouds drift right and wrap around.
+        using (var cloud = new SolidBrush(Color.FromArgb(240, 255, 255, 255)))
+            for (int i = 0; i < 4; i++)
+            {
+                float span = r.Width + S(240);
+                float x = (float)((i * span / 4 + t * S(10 + 5 * i)) % span) - S(120);
+                float y = S(14 + (i % 2) * 30);
+                for (int j = 0; j < 3; j++) g.FillEllipse(cloud, x + j * S(30), y - (j == 1 ? S(12) : 0), S(50), S(34));
+            }
+
+        g.DrawImageUnscaled(headerTitle!, 0, 0);  // hills and title; Tippi flies in front of them
+
+        // Tippi loops across the sky, trailing sparkles.
+        double half = r.Width / 2.0 - S(220);
+        PointF At(double when) => new((float)(r.Width / 2.0 + Math.Sin(when * 0.45) * half), (float)(S(40) + Math.Sin(when * 1.3) * S(16)));
+        using (var fade = new System.Drawing.Imaging.ImageAttributes())
+            for (int k = 6; k >= 1; k--)
+            {
+                var p = At(t - k * 0.09);
+                int size = S(26 - k * 2);
+                fade.SetColorMatrix(new System.Drawing.Imaging.ColorMatrix { Matrix33 = 1f - k / 7f });
+                g.DrawImage(Sprite("sparkle", size, size), new Rectangle((int)p.X - size / 2, (int)p.Y - size / 2, size, size), 0, 0, size, size, GraphicsUnit.Pixel, fade);
+            }
+        var tp = At(t);
+        bool headingLeft = Math.Cos(t * 0.45) < 0;
+        int flap = (int)(S(56) * (0.82 + 0.18 * Math.Abs(Math.Sin(t * 9))));
+        tippiRect = new Rectangle((int)tp.X - S(28), (int)tp.Y - flap / 2, S(56), flap);
+        g.DrawImage(Sprite("tippi", S(56), S(56), headingLeft), tippiRect);
+
+        // Mario and Luigi bounce on the hills; a click makes one hop.
+        float Lift(string name, double phase)
+        {
+            double hop = Hop(name, 0.7);
+            return (float)(Math.Abs(Math.Sin(t * 2.2 + phase)) * S(5) + (hop < 0 ? 0 : Math.Sin(hop * Math.PI) * S(28)));
+        }
+        marioRect = new Rectangle(S(24), S(30) - (int)Lift("mario", 0), S(96), S(116));
+        luigiRect = new Rectangle(r.Width - S(120), S(30) - (int)Lift("luigi", 1.3), S(92), S(116));
+        g.DrawImage(Sprite("mario", marioRect.Width, marioRect.Height), marioRect.Location);
+        g.DrawImage(Sprite("luigi", luigiRect.Width, luigiRect.Height), luigiRect.Location);
+    }
+
+    // Merlon hovers under the menu buttons, when the window is tall enough for him; a click makes him twirl.
+    void PaintNav(object? sender, PaintEventArgs e)
+    {
+        var nav = (Control)sender!;
+        var g = e.Graphics;
+        double t = T;
+        navSpriteTop = pages.Count > 0 ? pages[^1].button.Bottom + S(10) : 0;
+        int bottom = nav.ClientSize.Height - S(10);
+        int room = bottom - navSpriteTop - S(12);
+        if (room < S(90)) { merlonRect = Rectangle.Empty; return; }
+        int size = Math.Min(S(170), room);
+        double twirl = Hop("merlon", 0.9);
+        // The twirl squeezes him to a sliver and back (a paper turn), flipping him halfway.
+        double turn = twirl < 0 ? 1 : Math.Cos(twirl * Math.PI * 2);
+        int w = Math.Max(1, (int)(size * Math.Abs(turn)));
+        int y = bottom - size - S(12) - (int)((Math.Sin(t * 1.6) + 1) * S(6));
+        int cx = (nav.Width + S(16)) / 2;
+        merlonRect = new Rectangle(cx - size / 2, y, size, size);
+        // A soft shadow on the ground under him, smaller while he floats higher.
+        int shadowW = size * 2 / 3 - (int)((Math.Sin(t * 1.6) + 1) * S(8));
+        using (var shadow = new SolidBrush(Color.FromArgb(45, 58, 42, 24)))
+            g.FillEllipse(shadow, cx - shadowW / 2, bottom - S(10), shadowW, S(12));
+        g.InterpolationMode = InterpolationMode.Bilinear;
+        g.DrawImage(Sprite("merlon", size, size, turn < 0), new Rectangle(cx - w / 2, y, w, size));
+    }
+
+    // A white paper card holding one page's controls, top to bottom.
+    static (Panel card, FlowLayoutPanel body) NewCard(string heading)
+    {
+        var card = new DoubleBufferedPanel { Padding = S(22, 16, 22, 16) };
+        card.Paint += (s, e) =>
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            var r = ((Control)s!).ClientRectangle;
+            r.Width -= S(8); r.Height -= S(8);
+            r.Offset(S(2), S(2));
+            using var path = Rounded(r, S(14));
+            using var shadow = Rounded(new Rectangle(r.X + S(5), r.Y + S(5), r.Width, r.Height), S(14));
+            g.FillPath(new SolidBrush(Color.FromArgb(50, 0, 0, 0)), shadow);
+            g.FillPath(new SolidBrush(Paper), path);
+            g.DrawPath(new Pen(Ink, S(3)), path);
+        };
+        // The body sizes to its content and the card scrolls only when that is taller than the card.
+        var body = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.TopDown, WrapContents = false, BackColor = Paper };
+        card.AutoScroll = true;
+        body.Controls.Add(new Label { Text = heading, Font = new Font("Segoe UI", 18f, FontStyle.Bold), ForeColor = Ink, AutoSize = true, Margin = S(0, 0, 0, 10) });
+        card.Controls.Add(body);
+        return (card, body);
+    }
+
+    static GraphicsPath Rounded(Rectangle r, int radius)
+    {
+        var p = new GraphicsPath();
+        int d = radius * 2;
+        p.AddArc(r.X, r.Y, d, d, 180, 90);
+        p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+        p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+        p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+        p.CloseFigure();
+        return p;
+    }
+
+    static Label Note(string text, int width = 700) => new()
+    {
+        Text = text, AutoSize = true, MaximumSize = new Size(S(width), 0), ForeColor = Ink, Margin = S(0, 6, 0, 6),
+    };
+
+    static Button Btn(string text, EventHandler onClick, Color? back = null)
+    {
+        var b = new Button
+        {
+            Text = text, AutoSize = true, FlatStyle = FlatStyle.Flat, BackColor = back ?? Yellow, ForeColor = Ink,
+            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), Padding = S(10, 4, 10, 4), Margin = S(0, 6, 10, 6), Cursor = tippiHand,
+        };
+        b.FlatAppearance.BorderColor = Ink;
+        b.FlatAppearance.BorderSize = S(2);
+        b.Click += onClick;
+        return b;
+    }
+
+    // ----- Play -----
+    Control BuildPlayPage()
+    {
+        var (card, body) = NewCard("Ready to play?");
+        playButton = Btn("PLAY", (_, _) => Launch(), Red);
+        playButton.ForeColor = Color.White;
+        playButton.Font = new Font("Segoe UI", 24f, FontStyle.Bold);
+        playButton.Padding = S(60, 8, 60, 8);
+        body.Controls.Add(playButton);
+        playStatus = Note("");
+        playStatus.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
+        body.Controls.Add(playStatus);
+        AddDiscSetup(body);
+        // The Wii system language the game sees (runtime SCGetLanguage, Config.toml [game] language). The European
+        // disc ships English, French, German, Spanish and Italian text; the USA disc is English only.
+        body.Controls.Add(Choice("Language (European disc)", "language", new[] { ("English", "\"en\""), ("Français", "\"fr\""), ("Deutsch", "\"de\""), ("Español", "\"es\""), ("Italiano", "\"it\"") }, "game"));
+        body.Controls.Add(gameNote = Note("The game starts borderless at 1080p. " +
+                               "In the game, F10 opens the settings menu (resolution, aspect, controllers, audio) and F11 switches between fullscreen and a window."));
+        // Tippi's tips: click the bubble (or Tippi in the sky) for another one.
+        var tipRow = new FlowLayoutPanel { AutoSize = true, Margin = S(0, 10, 0, 6) };
+        tipRow.Controls.Add(new PictureBox { Image = Sprite("tippi", S(48), S(48)), Size = S(48, 48), Margin = S(0, 0, 8, 0) });
+        tipLabel = new Label
+        {
+            AutoSize = true, MaximumSize = new Size(S(620), 0), BackColor = ColorTranslator.FromHtml("#FFF3C4"), ForeColor = Ink,
+            BorderStyle = BorderStyle.FixedSingle, Padding = S(10, 8, 10, 8), Cursor = tippiHand, Margin = S(0, 4, 0, 0),
+        };
+        tipLabel.Click += (_, _) => NextTip();
+        tipRow.Controls.Add(tipLabel);
+        tipIndex = Random.Shared.Next(Tips.Length) - 1;
+        NextTip();
+        body.Controls.Add(tipRow);
+        this.tipRow = tipRow;
+        var row = new FlowLayoutPanel { AutoSize = true, Margin = Padding.Empty };
+        row.Controls.Add(Btn("Open game folder", (_, _) => Process.Start("explorer.exe", play), Paper));
+        row.Controls.Add(Btn("Open saves folder", (_, _) => Process.Start("explorer.exe", Directory.CreateDirectory(SaveDataDir()).FullName), Paper));
+        row.Controls.Add(Btn("Import Wii / Dolphin save...", (_, _) => ImportSave(), Paper));
+        body.Controls.Add(row);
+        return card;
+    }
+
+    // A Wii save (data.bin from SD: Wii Menu > Data Management > Save Data > Copy) or a Dolphin save folder.
+    void ImportSave()
+    {
+        const string saveDir = @"Wii\title\00010000\52385045\data";
+        var dolphin = new[] { Environment.SpecialFolder.ApplicationData, Environment.SpecialFolder.MyDocuments }
+            .Select(f => Path.Combine(Environment.GetFolderPath(f), "Dolphin Emulator", saveDir)).FirstOrDefault(Directory.Exists);
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Choose a Super Paper Mario save: data.bin from a Wii's SD card, or wiimario00 in a Dolphin save folder",
+            Filter = "Wii or Dolphin save (data.bin, wiimario00)|data.bin;wiimario0*|All files|*.*",
+            InitialDirectory = dolphin ?? "",
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        var dataDir = SaveDataDir();
+        if (Directory.Exists(dataDir) && Directory.EnumerateFiles(dataDir).Any() &&
+            MessageBox.Show(this, "This replaces your current save files. They are kept as a backup next to them (data.backup-<date>).\n\nImport the save?",
+                "Import save", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
+        try
+        {
+            var files = WiiSave.Import(dialog.FileName, dataDir);
+            MessageBox.Show(this, "Imported " + string.Join(", ", files) + ".", "Import save", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        {
+            MessageBox.Show(this, "The save could not be imported:\n" + e.Message, "Import save", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    static readonly string[] Tips =
+    {
+        "Press F10 during the game to change the resolution, aspect ratio or controls without quitting.",
+        "F11 flips the game between fullscreen and a window.",
+        "Shake right after a jump to pull off a stylish move for extra points.",
+        "Plug in any controller and it works right away. Remap it on the Controls page.",
+        "Cinematic 2.39:1 shows more of every level than the Wii ever could.",
+        "Something look odd at 120 FPS? Turn frame interpolation off on the Display page.",
+        "Open saves folder takes you straight to your saves. A backup now and then never hurts.",
+        "When two mods change the same file, the one whose name comes later wins.",
+        "Click Mario or Luigi up there. Go on.",
+        "Merlon is down there by the menu. Give him a click.",
+    };
+    Label? tipLabel;
+    int tipIndex;
+
+    void NextTip()
+    {
+        tipIndex = (tipIndex + 1) % Tips.Length;
+        if (tipLabel != null) tipLabel.Text = "Tippi says: " + Tips[tipIndex];
+    }
+
+    void Launch()
+    {
+        var (ok, text, _) = DiscStatus();
+        if (!ok)
+        {
+            MessageBox.Show(this, text + "\n\nChoose your disc image with the button under PLAY first.", "New Super Paper Bros.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            ShowPage(pages[0].button);
+            return;
+        }
+        var exe = gameExe;
+        if (!File.Exists(exe))
+        {
+            MessageBox.Show(this, "The game files (the engine folder) are missing. Unzip the whole download again, keeping the engine folder next to this launcher.", "New Super Paper Bros.", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+        Gamepads.Release();
+        var game = Process.Start(new ProcessStartInfo(exe) { WorkingDirectory = play, UseShellExecute = false });
+        if (game != null)
+        {
+            game.EnableRaisingEvents = true;
+            game.Exited += (_, _) => BeginInvoke(Gamepads.Resume);
+        }
+        else Gamepads.Resume();
+        WindowState = FormWindowState.Minimized;
+    }
+
+    // ----- Display -----
+    Control BuildDisplayPage()
+    {
+        var (card, body) = NewCard("Display");
+        body.Controls.Add(Choice("Display mode", "display_mode", new[] { ("Borderless fullscreen", "\"borderless\""), ("Windowed", "\"windowed\""), ("Exclusive fullscreen", "\"exclusive\"") }));
+        body.Controls.Add(Choice("Resolution", "resolution_multiplier", new[] { ("1080p", "2.25"), ("4K (2160p)", "4.5"), ("Match the screen", "0"), ("1440p", "3"), ("720p", "1.5"), ("480p (original)", "1") }));
+        body.Controls.Add(Choice("Aspect ratio", "aspect_mode", new[] { ("Cinematic 2.39:1", "3"), ("Fill the screen", "2"), ("16:9", "1"), ("Original 4:3", "0") }));
+        body.Controls.Add(Choice("Frame interpolation", "frame_interpolation_fps", new[] { ("120 FPS", "120"), ("180 FPS", "180"), ("Off (60 FPS)", "0") }));
+        body.Controls.Add(Choice("Vsync", "vsync", new[] { ("On (no screen tearing)", "true"), ("Off", "false") }));
+        body.Controls.Add(Note("Changes are saved at once and used the next time the game starts. The same settings are in the game's F10 menu. " +
+                               "Cinematic and Fill widen the game's camera (more of the level is visible); 16:9 keeps the Wii picture with bars on wider screens. " +
+                               "Frame interpolation inserts frames between the game's 60 fps; turn it off if you see artifacts."));
+        return card;
+    }
+
+    Control Choice(string label, string key, (string label, string value)[] items, string section = "video")
+    {
+        var row = new FlowLayoutPanel { AutoSize = true, Margin = S(0, 4, 0, 4) };
+        row.Controls.Add(new Label { Text = label, AutoSize = false, Size = S(200, 32), ForeColor = Ink, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft });
+        var combo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = S(260), FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10.5f), Margin = S(3, 4, 3, 4) };
+        foreach (var item in items) combo.Items.Add(item.label);
+        string current = config.Get(section, key) ?? "";
+        int index = Array.FindIndex(items, i => i.value.Trim('"') == current || (double.TryParse(i.value, out var a) && double.TryParse(current, out var b) && a == b));
+        combo.SelectedIndex = index < 0 ? 0 : index;
+        combo.SelectedIndexChanged += (_, _) => { config.Set(section, key, items[combo.SelectedIndex].value); config.Save(); };
+        row.Controls.Add(combo);
+        return row;
+    }
+
+    // ----- Controls -----
+    // Every connected gamepad drives Mario (runtime virtual_remote.cpp GamepadIntent), laid out for its type; the
+    // Gamepad view remaps one type's actions into Config.toml [gamepad] <type>_<action>. Only the inputs actually
+    // connected are listed (the keyboard, plus each pad SDL sees), refreshed every second.
+    static readonly string[] PadStyles = { "xbox", "playstation", "nintendo" };
+    // SDL inputs by position with their printed names on Xbox, PlayStation and Nintendo pads.
+    static readonly (string token, string xbox, string ps, string nintendo)[] PadInputs =
+    {
+        ("a", "A", "Cross", "B"), ("b", "B", "Circle", "A"), ("x", "X", "Square", "Y"), ("y", "Y", "Triangle", "X"),
+        ("leftshoulder", "LB", "L1", "L"), ("rightshoulder", "RB", "R1", "R"), ("lefttrigger", "LT", "L2", "ZL"), ("righttrigger", "RT", "R2", "ZR"),
+        ("back", "View", "Create", "Minus"), ("start", "Menu", "Options", "Plus"), ("touchpad", "Touchpad", "Touchpad", "Touchpad"),
+        ("leftstick", "Left stick click", "L3", "Left stick click"), ("rightstick", "Right stick click", "R3", "Right stick click"),
+        ("dpup", "D-pad up", "D-pad up", "D-pad up"), ("dpdown", "D-pad down", "D-pad down", "D-pad down"),
+        ("dpleft", "D-pad left", "D-pad left", "D-pad left"), ("dpright", "D-pad right", "D-pad right", "D-pad right"),
+        ("leftx-", "Left stick left", "Left stick left", "Left stick left"), ("leftx+", "Left stick right", "Left stick right", "Left stick right"),
+        ("lefty-", "Left stick up", "Left stick up", "Left stick up"), ("lefty+", "Left stick down", "Left stick down", "Left stick down"),
+        ("misc1", "Share", "Mic", "Capture"), ("paddle1", "Paddle 1", "Paddle 1", "Paddle 1"), ("paddle2", "Paddle 2", "Paddle 2", "Paddle 2"),
+        ("paddle3", "Paddle 3", "Paddle 3", "Paddle 3"), ("paddle4", "Paddle 4", "Paddle 4", "Paddle 4"),
+        ("rightx-", "Right stick left", "Right stick left", "Right stick left"), ("rightx+", "Right stick right", "Right stick right", "Right stick right"),
+        ("righty-", "Right stick up", "Right stick up", "Right stick up"), ("righty+", "Right stick down", "Right stick down", "Right stick down"),
+    };
+    // Must match kPadDefaults in virtual_remote.cpp (Xbox, PlayStation, Nintendo), in Actions order.
+    static readonly string[][] PadDefaults =
+    {
+        new[] { "lefty-,dpup", "lefty-,dpup", "lefty-,dpup" }, new[] { "lefty+,dpdown", "lefty+,dpdown", "lefty+,dpdown" },
+        new[] { "leftx-,dpleft", "leftx-,dpleft", "leftx-,dpleft" }, new[] { "leftx+,dpright", "leftx+,dpright", "leftx+,dpright" },
+        new[] { "a", "a", "a,b" }, new[] { "b,x", "b,x", "x" }, new[] { "y", "y", "y" },
+        new[] { "rightshoulder,righttrigger", "rightshoulder,righttrigger", "rightshoulder,righttrigger" },
+        new[] { "", "", "" }, new[] { "", "", "" }, new[] { "start", "start", "start" },
+        new[] { "back,leftshoulder,lefttrigger", "back,touchpad,leftshoulder,lefttrigger", "back,leftshoulder,lefttrigger" },
+    };
+    static readonly string[] PadActionLabels = { "Remote D-pad up", "Remote D-pad down", "Remote D-pad left", "Remote D-pad right" };
+
+    static string PadLabel(int style, string token)
+    {
+        var input = PadInputs.FirstOrDefault(i => i.token == token);
+        if (input.token == null) return token;
+        return style switch { 1 => input.ps, 2 => input.nintendo, _ => input.xbox };
+    }
+
+    static string PadLabels(int style, string tokens) =>
+        string.Join(" / ", tokens.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(t => PadLabel(style, t)));
+
+    Control BuildControlsPage()
+    {
+        var (card, body) = NewCard("Controls");
+        var inputRow = new FlowLayoutPanel { AutoSize = true, Margin = S(0, 0, 0, 6) };
+        inputRow.Controls.Add(new Label { Text = "Input", AutoSize = false, Size = S(110, 32), ForeColor = Ink, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft });
+        var inputCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = S(460), FlatStyle = FlatStyle.Flat, Margin = S(3, 4, 3, 4) };
+        inputRow.Controls.Add(inputCombo);
+        body.Controls.Add(inputRow);
+        var gamepad = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty };
+        var keyboard = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty };
+        body.Controls.Add(gamepad);
+        body.Controls.Add(keyboard);
+
+        // Gamepad: one button per action; click it, then press the controller input to bind (Escape or a click cancels).
+        int style = 0;
+        uint padId = 0;
+        var padNote = Note("This controller controls Mario and is set up automatically; the left stick moves the Wii Remote's D-pad. " +
+                           "To change an action, click it and press the button on your controller (Escape cancels).");
+        gamepad.Controls.Add(padNote);
+        var padTable = new TableLayoutPanel { AutoSize = true, ColumnCount = 4, Margin = S(0, 4, 0, 4) };
+        gamepad.Controls.Add(padTable);
+        Button? capturingPad = null;
+        var heldAtStart = new HashSet<string>();
+        var padTimer = new System.Windows.Forms.Timer { Interval = 30 };
+        void FillPadTable()
+        {
+            padTable.SuspendLayout();
+            padTable.Controls.Clear();
+            for (int i = 0; i < Actions.Length; i++)
+            {
+                string key = PadStyles[style] + "_" + Actions[i].key;
+                string label = i < PadActionLabels.Length ? PadActionLabels[i] : Actions[i].label;
+                padTable.Controls.Add(new Label { Text = label, AutoSize = true, ForeColor = Ink, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), Margin = S(0, 12, 12, 0) }, (i / 6) * 2, i % 6);
+                string? custom = config.Get("gamepad", key);
+                var b = Btn(PadLabels(style, custom ?? PadDefaults[i][style]), null!, custom == null ? Paper : ColorTranslator.FromHtml("#FFF0B0"));
+                b.AutoSize = false;
+                b.Size = S(240, 40);
+                b.Margin = S(0, 4, 18, 4);
+                b.Tag = key;
+                b.Click += (_, _) =>
+                {
+                    if (capturingPad != null) { EndPadCapture(null); return; }
+                    capturingPad = b;
+                    b.Text = "Press a button...";
+                    b.BackColor = Yellow;
+                    heldAtStart = Gamepads.Active(padId);
+                    padTimer.Start();
+                };
+                padTable.Controls.Add(b, (i / 6) * 2 + 1, i % 6);
+            }
+            padTable.ResumeLayout();
+        }
+        void EndPadCapture(string? token)
+        {
+            padTimer.Stop();
+            if (capturingPad == null) return;
+            if (token != null) { config.SetString("gamepad", (string)capturingPad.Tag!, token); config.Save(); }
+            capturingPad = null;
+            FillPadTable();
+        }
+        padTimer.Tick += (_, _) =>
+        {
+            var held = Gamepads.Active(padId);
+            heldAtStart.IntersectWith(held);  // a key held when the capture began counts once it is released and pressed again
+            var pressed = held.FirstOrDefault(t => !heldAtStart.Contains(t));
+            if (pressed != null) EndPadCapture(pressed);
+        };
+        cancelPadCapture = () => { if (capturingPad == null) return false; EndPadCapture(null); return true; };
+        gamepad.Controls.Add(Btn("Reset to automatic", (_, _) =>
+        {
+            EndPadCapture(null);
+            foreach (var (key, _, _) in Actions) config.Remove("gamepad", PadStyles[style] + "_" + key);
+            config.Save();
+            FillPadTable();
+        }, Paper));
+
+        // Keyboard: a sideways Wii Remote.
+        keyboard.Controls.Add(Note("The keyboard works as a sideways Wii Remote. Click a key to change it, then press the new key (Escape cancels, Delete clears)."));
+        var table = new TableLayoutPanel { AutoSize = true, ColumnCount = 4, Margin = S(0, 4, 0, 4) };
+        var buttons = new List<Button>();
+        for (int i = 0; i < Actions.Length; i++)
+        {
+            var (key, label, defaults) = Actions[i];
+            table.Controls.Add(new Label { Text = label, AutoSize = true, ForeColor = Ink, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), Margin = S(0, 12, 12, 0) }, (i / 6) * 2, i % 6);
+            var b = Btn(KeyText(config.Get("keyboard", key) ?? defaults), null!, Paper);
+            b.MinimumSize = S(170, 0);
+            b.Margin = S(0, 4, 24, 4);
+            b.Tag = key;
+            b.Click += (s, _) => BeginCapture((Button)s!);
+            buttons.Add(b);
+            table.Controls.Add(b, (i / 6) * 2 + 1, i % 6);
+        }
+        keyboard.Controls.Add(table);
+        keyboard.Controls.Add(Btn("Reset to defaults", (_, _) =>
+        {
+            foreach (var (key, _, defaults) in Actions) config.Set("keyboard", key, "\"" + defaults + "\"");
+            config.Save();
+            foreach (var b in buttons) b.Text = KeyText(Actions.First(a => a.key == (string)b.Tag!).defaults);
+        }, Paper));
+
+        // The input list: connected pads first (the first one is selected: it is the main controller), then the keyboard.
+        var shown = new List<(uint id, string name, int style)>();
+        void ShowSelected()
+        {
+            int i = inputCombo.SelectedIndex;
+            bool isPad = i >= 0 && i < shown.Count;
+            gamepad.Visible = isPad;
+            keyboard.Visible = !isPad;
+            if (isPad) { EndPadCapture(null); style = shown[i].style; padId = shown[i].id; FillPadTable(); }
+        }
+        void RefreshInputs()
+        {
+            var pads = Gamepads.Connected();
+            if (pads.Count == 0 && screenshotDir != null) pads.Add((0, "Test controller (screenshot mode)", 0));
+            if (pads.SequenceEqual(shown) && inputCombo.Items.Count > 0) return;
+            uint? selectedId = inputCombo.SelectedIndex >= 0 && inputCombo.SelectedIndex < shown.Count ? shown[inputCombo.SelectedIndex].id : null;
+            bool keyboardSelected = inputCombo.Items.Count > 0 && inputCombo.SelectedIndex == shown.Count;
+            shown.Clear();
+            shown.AddRange(pads);
+            inputCombo.Items.Clear();
+            foreach (var pad in pads) inputCombo.Items.Add($"{pad.name}  ({new[] { "Xbox", "PlayStation", "Nintendo" }[pad.style]} layout)");
+            inputCombo.Items.Add(pads.Count == 0 ? "Keyboard  (no controller connected - plug one in and it appears here)" : "Keyboard");
+            int keep = selectedId is uint id ? shown.FindIndex(p => p.id == id) : -1;
+            inputCombo.SelectedIndex = keyboardSelected ? shown.Count : keep >= 0 ? keep : 0;
+            ShowSelected();
+        }
+        inputCombo.SelectedIndexChanged += (_, _) => ShowSelected();
+        RefreshInputs();
+        var poll = new System.Windows.Forms.Timer { Interval = 1000 };
+        poll.Tick += (_, _) => { if (card.Visible) RefreshInputs(); };
+        poll.Start();
+        return card;
+    }
+
+    static string KeyText(string keys) => keys.Length == 0 ? "None" : keys.Replace(",", " / ");
+
+    void BeginCapture(Button button)
+    {
+        if (capturing != null) capturing.Text = captureKey!;
+        capturing = button;
+        captureKey = button.Text;
+        button.Text = "Press a key...";
+        button.BackColor = Yellow;
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (capturing == null)
+        {
+            if (e.KeyCode == Keys.Escape && cancelPadCapture?.Invoke() == true) { e.Handled = true; return; }
+            base.OnKeyDown(e);
+            return;
+        }
+        e.SuppressKeyPress = true;
+        e.Handled = true;
+        string? name = e.KeyCode == Keys.Escape ? null : e.KeyCode == Keys.Delete ? "" : SdlName(e.KeyCode);
+        if (name == null && e.KeyCode != Keys.Escape) return;  // a key SDL has no name for here: keep waiting
+        if (name != null)
+        {
+            config.Set("keyboard", (string)capturing.Tag!, "\"" + name + "\"");
+            config.Save();
+            captureKey = KeyText(name);
+        }
+        capturing.Text = captureKey!;
+        capturing.BackColor = Paper;
+        capturing = null;
+    }
+
+    // SDL scancode names, as Keybinds::Parse (SDL_GetScancodeFromName) reads them from Config.toml.
+    static string? SdlName(Keys k) => k switch
+    {
+        >= Keys.A and <= Keys.Z => k.ToString(),
+        >= Keys.D0 and <= Keys.D9 => ((char)('0' + (k - Keys.D0))).ToString(),
+        >= Keys.NumPad0 and <= Keys.NumPad9 => "Keypad " + (k - Keys.NumPad0),
+        >= Keys.F1 and <= Keys.F12 => k.ToString(),
+        Keys.Up => "Up", Keys.Down => "Down", Keys.Left => "Left", Keys.Right => "Right",
+        Keys.Space => "Space", Keys.Return => "Return", Keys.Tab => "Tab", Keys.Back => "Backspace", Keys.Insert => "Insert",
+        Keys.Home => "Home", Keys.End => "End", Keys.PageUp => "PageUp", Keys.PageDown => "PageDown", Keys.CapsLock => "CapsLock",
+        Keys.ShiftKey => "Left Shift", Keys.ControlKey => "Left Ctrl", Keys.Menu => "Left Alt",
+        Keys.OemMinus => "-", Keys.Oemplus => "=", Keys.OemOpenBrackets => "[", Keys.OemCloseBrackets => "]", Keys.Oemcomma => ",",
+        Keys.OemPeriod => ".", Keys.OemQuestion => "/", Keys.OemSemicolon => ";", Keys.OemQuotes => "'", Keys.Oemtilde => "`",
+        _ => null,
+    };
+
+    // ----- Game disc (part of the Play page) -----
+    // One button sets the disc up (or changes it later); extraction progress shows under it, and the dump
+    // instructions only while no disc is set up.
+    void AddDiscSetup(FlowLayoutPanel body)
+    {
+        var progress = new ProgressBar { Size = S(640, 22), Margin = S(0, 6, 0, 2), Visible = false };
+        var progressText = Note("");
+        progressText.Visible = false;
+        progressText.TextChanged += (_, _) => progressText.Visible = progressText.Text.Length > 0;  // no empty gap
+        var choose = chooseDisc = Btn("Choose disc image (.iso, .ciso, .wbfs)...", null!);
+        choose.AutoSizeMode = AutoSizeMode.GrowAndShrink;  // "Change disc..." is shorter
+        choose.Click += async (_, _) =>
+        {
+            using var dialog = new OpenFileDialog { Title = "Choose your Super Paper Mario disc image", Filter = "Wii disc images (*.iso;*.ciso;*.wbfs)|*.iso;*.ciso;*.wbfs|All files|*.*" };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            WiiDisc disc;
+            try { disc = WiiDisc.Open(dialog.FileName); }
+            catch (Exception ex) { progressText.Text = "Could not read that image: " + ex.Message; return; }
+            using (disc)
+            {
+                if (disc.Problem() is { Length: > 0 } problem) { progressText.Text = problem; return; }
+                choose.Enabled = false;
+                progress.Visible = true;
+                var staging = discDir + ".new";
+                try
+                {
+                    if (Directory.Exists(staging)) Directory.Delete(staging, true);
+                    var report = new Progress<(int done, int total, string name)>(p =>
+                    {
+                        progress.Maximum = p.total;
+                        progress.Value = Math.Min(p.done, p.total);
+                        progressText.Text = $"Extracting {p.done}/{p.total}  {p.name}";
+                    });
+                    await Task.Run(() => disc.Extract(staging, (d, t, n) => ((IProgress<(int, int, string)>)report).Report((d, t, n))));
+                    if (disc.Holes > 0) throw new InvalidDataException("the image is incomplete (blocks missing); dump the disc again.");
+                    if (Directory.Exists(discDir)) Directory.Delete(discDir, true);
+                    Directory.Move(staging, discDir);
+                    config.SetString("paths", "dvd_root", "../../Disc/DATA");  // relative to <game folder>\UserData (one level below the root in both layouts), so the folder can move
+                    config.Save();
+                    progressText.Text = "Done. The disc is extracted and ready.";
+                }
+                catch (Exception ex)
+                {
+                    progressText.Text = "Extraction failed: " + ex.Message;
+                }
+                finally
+                {
+                    choose.Enabled = true;
+                    progress.Visible = false;
+                    RefreshStatus();
+                }
+            }
+        };
+        body.Controls.Add(choose);
+        body.Controls.Add(progress);
+        body.Controls.Add(progressText);
+        body.Controls.Add(dumpHelp = Note(
+            "This port runs your own copy of Super Paper Mario (USA R8PE01 or Europe R8PP01). It needs a disc image of the disc you own, " +
+            "which the launcher decrypts and extracts once into its Disc folder (about 400 MB).\n\n" +
+            "Making a legal image of your disc (Wii or Wii U consoles can read the disc; PC drives can't):\n" +
+            "1. On a Wii with the Homebrew Channel, run CleanRip (or USB Loader GX's install option).\n" +
+            "2. Insert Super Paper Mario and dump it to an SD card or USB drive. CleanRip writes a .iso " +
+            "(it may be split into .part files: join them with  copy /b  on the PC); USB Loader GX writes a .wbfs.\n" +
+            "3. Copy the file to this PC and choose it with the button above. .iso, .ciso and .wbfs all work.\n" +
+            "The USA release (revision 0) and the European release work; the European disc also offers French, German, Spanish and Italian. " +
+            "A Dolphin-extracted folder also works: put it in Disc\\DATA next to the launcher."));
+    }
+
+    (bool ok, string text, string path) DiscStatus()
+    {
+        string? configured = config.Get("paths", "dvd_root");
+        string path = configured == null ? discDir : Path.GetFullPath(Path.Combine(userData, configured));
+        if (!File.Exists(Path.Combine(path, "sys", "boot.bin")))
+            return (false, "No game disc set up yet. Choose your Super Paper Mario disc image below; the launcher extracts it into its Disc folder.", path);
+        var header = new byte[8];
+        using (var f = File.OpenRead(Path.Combine(path, "sys", "boot.bin"))) f.ReadExactly(header, 0, 8);
+        string id = System.Text.Encoding.ASCII.GetString(header, 0, 6);
+        if (!(id == "R8PE01" && header[7] == 0) && id != "R8PP01")
+            return (false, $"The disc folder holds {id} revision {header[7]}, not Super Paper Mario USA revision 0 or Europe: {path}", path);
+        return (true, $"Super Paper Mario ({id}, {(id == "R8PP01" ? "Europe" : "USA")}) is ready: " + path, path);
+    }
+
+    void RefreshStatus()
+    {
+        var (ok, text, _) = DiscStatus();
+        playStatus.Text = ok ? "Disc: ready.  Mods: " + ModNames() : text;
+        playStatus.ForeColor = ok ? Ink : Red;
+        chooseDisc.Text = ok ? "Change disc..." : "Choose disc image (.iso, .ciso, .wbfs)...";
+        chooseDisc.BackColor = ok ? Paper : Yellow;
+        dumpHelp.Visible = !ok;
+        gameNote.Visible = tipRow.Visible = ok;
+    }
+
+    string ModNames()
+    {
+        var names = Directory.Exists(modsDir) ? Directory.GetDirectories(modsDir).Where(d => !File.Exists(Path.Combine(d, "disabled"))).Select(Path.GetFileName).ToArray() : Array.Empty<string>();
+        return names.Length == 0 ? "none" : string.Join(", ", names);
+    }
+
+    // ----- Mods -----
+    Control BuildModsPage()
+    {
+        var (card, body) = NewCard("Mods");
+        body.Controls.Add(Note("How to install a mod:\n" +
+                               "1. Click Open mods folder.\n" +
+                               "2. Put the mod's folder in it (one folder per mod).\n" +
+                               "3. Click Refresh. Ticked mods load when the game starts; untick one to turn it off."));
+        var row = new FlowLayoutPanel { AutoSize = true, Margin = Padding.Empty };
+        row.Controls.Add(Btn("Open mods folder", (_, _) => Process.Start("explorer.exe", Directory.CreateDirectory(modsDir).FullName)));
+        row.Controls.Add(Btn("Refresh", (_, _) => LoadMods(), Paper));
+        body.Controls.Add(row);
+        modList = new ListView { View = View.Details, CheckBoxes = true, Size = S(660, 240), FullRowSelect = true, Font = new Font("Segoe UI", 10.5f), Margin = S(0, 6, 0, 6), HeaderStyle = ColumnHeaderStyle.Nonclickable };
+        modList.Columns.Add("Installed mods", S(630));
+        modList.ItemCheck += (_, e) =>
+        {
+            var dir = (string)modList.Items[e.Index].Tag!;
+            var marker = Path.Combine(dir, "disabled");
+            if (e.NewValue == CheckState.Checked) File.Delete(marker); else File.WriteAllText(marker, "");
+            BeginInvoke(RefreshStatus);
+        };
+        body.Controls.Add(modList);
+        LoadMods();
+        return card;
+    }
+
+    void LoadMods()
+    {
+        modList.Items.Clear();
+        if (!Directory.Exists(modsDir)) return;
+        foreach (var dir in Directory.GetDirectories(modsDir).OrderBy(d => d, StringComparer.Ordinal))
+            modList.Items.Add(new ListViewItem(Path.GetFileName(dir)) { Tag = dir, Checked = !File.Exists(Path.Combine(dir, "disabled")) });
+    }
+
+    sealed class BufferedFlow : FlowLayoutPanel
+    {
+        public BufferedFlow() { DoubleBuffered = true; ResizeRedraw = true; }
+    }
+
+    sealed class DoubleBufferedPanel : Panel
+    {
+        public DoubleBufferedPanel() { DoubleBuffered = true; ResizeRedraw = true; }
+    }
+}

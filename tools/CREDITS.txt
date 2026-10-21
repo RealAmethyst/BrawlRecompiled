@@ -1,0 +1,34 @@
+NEW SUPER PAPER BROS. - credits and licenses
+=============================================
+Made by JosiahG.
+
+Engine
+- Based on WiiCompiled (https://github.com/patchzyy/Wiicompiled) by patchzyy and contributors,
+  GNU General Public License v3.0 (LICENSE.txt). This port's source code is published in the GitHub
+  repository this release comes from.
+- aurora (WebGPU GameCube/Wii graphics), MIT, Copyright (c) 2022 Luke Street.
+- Bundled libraries and their licenses: engine\licenses\THIRD-PARTY-NOTICES.md and the license
+  files next to it (SDL3 zlib, Dawn BSD-3-Clause, DirectXShaderCompiler NCSA, Dear ImGui MIT,
+  libpng, zlib, FreeType FTL, Zstandard BSD-3-Clause, xxHash BSD-2-Clause, Abseil Apache-2.0,
+  {fmt} MIT, libusb LGPL-2.1, Tracy BSD-3-Clause, SQLite public domain).
+- Portions of this software are copyright (c) The FreeType Project (www.freetype.org).
+  All rights reserved.
+- engine\dsp_coef.bin and engine\wii_bootstrap: Dolphin Emulator data files, GPL-2.0-or-later,
+  Copyright (c) 2003+ Dolphin Emulator Project.
+- engine\msvcp140*.dll and engine\vcruntime140*.dll: Microsoft Visual C++ runtime, redistributed
+  under the Visual Studio redistributable terms.
+- The launcher runs on .NET (MIT, Copyright (c) .NET Foundation and Contributors).
+
+Built-in extras
+- Higher-quality music (engine\game_files\sound): from the "SPM High Definition Audio" mod by
+  Toadette Hack Fan and PaperToadette, with game patches by JohnP55; soundtrack sources credited
+  by the mod's authors to the khinsider website.
+- HD textures (engine\UserData\texture_replacements\SPM_HD_4x_BC3): converted from the
+  "SPM Textures v1.0" HD texture pack.
+- Character artwork in engine\startup and the launcher/window icon (Tippi) are Nintendo's.
+- Controller button icons and controller pictures (engine\UserData\button_icons): from "Input Prompts"
+  by Kenney (www.kenney.nl), CC0. Xbox, PlayStation and Nintendo Switch are trademarks of their owners.
+
+Super Paper Mario and its characters are trademarks and copyrights of Nintendo. This project is
+not affiliated with or endorsed by Nintendo. It contains no game disc data: you supply your own
+legally dumped disc, which the launcher extracts on your computer.
