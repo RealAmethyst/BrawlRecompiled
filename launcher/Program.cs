@@ -1,4 +1,4 @@
-namespace NewSuperPaperBros;
+namespace BrawlRecompiled;
 
 static class Program
 {

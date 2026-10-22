@@ -846,7 +846,10 @@ static void BuildAndPublishRuntimeFst() {
         FailRuntimeFst(reason.str());
     }
 
-    const uint32_t fstAddress = g_dvdFstReservedBase;
+    // Where the console's apploader puts it, the top of MEM1 just above the game's arena (mods and game code find it
+    // there); only an FST grown past that room (files a mod adds) uses the MEM2 reservation.
+    const uint32_t mem1Fst = (0x81800000u - static_cast<uint32_t>(image.bytes.size())) & ~31u;
+    const uint32_t fstAddress = mem1Fst >= Memory::Read32(0x80003110u) ? mem1Fst : g_dvdFstReservedBase;
     for (size_t i = 0; i < image.bytes.size(); ++i) {
         Memory::Write8(fstAddress + static_cast<uint32_t>(i), image.bytes[i]);
     }
@@ -856,7 +859,7 @@ static void BuildAndPublishRuntimeFst() {
 
     RT_LOG(RT_TAG_DVD) << "published " << image.entries.size() << " FST entries ("
               << image.bytes.size() << " bytes) at 0x" << std::hex << fstAddress
-              << " inside the boot-time MEM2 reservation" << std::dec << std::endl;
+              << std::dec << std::endl;
 
     if (const char* dumpPath = std::getenv("MKW_DUMP_FST")) {
         std::ofstream dump(dumpPath, std::ios::binary);
@@ -962,11 +965,9 @@ extern "C" void DVDInit_8015EA1C()
     }
     Memory::Write32(diskHeader + 0x00, CurrentDiscGameCode());
     
-    // Map "<dvd_root>/files" -> "/"
+    // Map "<dvd_root>/files" -> "/". The disc's sys files are not in its file system, so not in the FST either:
+    // the FST stays the disc's own, at the console's address (BuildAndPublishRuntimeFst).
     ScanDirectory(rootPath / "files", "/");
-
-    // Map "<dvd_root>/sys" -> "/sys/" (e.g. main.dol, bi2.bin)
-    ScanDirectory(rootPath / "sys", "/sys/");
 
     const auto& overlays = RuntimeRiivolution::Overlays();
     if (overlays.empty() && RuntimeProduct::IsRetroRewind()) {

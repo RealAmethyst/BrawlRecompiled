@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -25,6 +26,9 @@
 // "patched" byte.
 extern "C" const uint32_t g_mkwGuardedFunctionStarts[];
 extern "C" const uint32_t g_mkwGuardedFunctionCount;
+// (leaf, caller) pairs of guard indices, by leaf: callers that hold an inlined copy of a small leaf function.
+extern "C" const uint32_t g_mkwInlinedLeaves[];
+extern "C" const uint32_t g_mkwInlinedLeafCount;
 
 namespace {
 
@@ -54,6 +58,20 @@ int64_t FunctionIndex(uint32_t address) {
     return it == begin ? -1 : (it - begin) - 1;
 }
 
+// The callers a patched leaf was inlined into run their copy of the old code: they go to the interpreter too.
+void MarkInliningCallers(uint32_t leaf) {
+    const auto* pairs = reinterpret_cast<const std::array<uint32_t, 2>*>(g_mkwInlinedLeaves);
+    const auto* end = pairs + g_mkwInlinedLeafCount;
+    for (auto* it = std::lower_bound(pairs, end, leaf, [](const auto& pair, uint32_t value) { return pair[0] < value; });
+         it != end && (*it)[0] == leaf; ++it) {
+        const uint32_t caller = (*it)[1];
+        if (g_mkwGuestCodePatched[caller]) continue;
+        g_mkwGuestCodePatched[caller] = 1;
+        RT_LOGF(RT_TAG_MOD, "[mods] function 0x%08X inlined 0x%08X: it now runs in the interpreter too\n",
+                g_mkwGuardedFunctionStarts[caller], g_mkwGuardedFunctionStarts[leaf]);
+    }
+}
+
 void SnapshotLocked(uint32_t start, uint32_t end) {
     for (uint32_t page = start & ~(kPage - 1); page < end; page += kPage) {
         auto& slot = g_pristine[page];
@@ -67,6 +85,26 @@ void SnapshotLocked(uint32_t start, uint32_t end) {
 namespace GuestCodePatch {
 
 bool Active() { return g_active.load(std::memory_order_acquire); }
+
+void InterpretFromEnvironment() {
+    const char* text = std::getenv("BRAWL_INTERPRET");
+    if (text == nullptr) return;
+    char* dash = nullptr;
+    const uint32_t start = static_cast<uint32_t>(std::strtoul(text, &dash, 16));
+    const uint32_t end = *dash == '-' ? static_cast<uint32_t>(std::strtoul(dash + 1, nullptr, 16)) : 0;
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < g_mkwGuardedFunctionCount; ++i) {
+        const uint32_t function = g_mkwGuardedFunctionStarts[i];
+        if (function < start || function >= end) continue;
+        // A veneer is the translator's own stand-in for a far call; nothing executable sits at its address.
+        const auto* info = TranslatedFunctionRegistry::FindByAddressPtr(function);
+        if (info != nullptr && info->name != nullptr && std::strstr(info->name, "_veneer_") != nullptr) continue;
+        g_mkwGuestCodePatched[i] = 1;
+        ++count;
+    }
+    RT_LOGF(RT_TAG_MOD, "[mods] BRAWL_INTERPRET: %u translated function(s) in 0x%08X-0x%08X run in the interpreter\n",
+            count, start, end);
+}
 
 void Protect(uint32_t start, uint32_t end, const char* name) {
     {
@@ -115,6 +153,7 @@ void Sync() {
                     RT_LOGF(RT_TAG_MOD, "[mods] code at 0x%08X changed: function 0x%08X now runs in the interpreter\n",
                             address, function);
                 }
+                MarkInliningCallers(static_cast<uint32_t>(index));
             }
         }
     }

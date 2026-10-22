@@ -7,17 +7,21 @@ emulator: the game runs as a Windows program.
 ![Donkey Kong on Mario Circuit](screenshots/07_vs_dk_mario_circuit.png)
 
 **Work in progress.** What works today: boot, saves, every menu tested so far, VS battles, the attract demos,
-Classic mode's start, and the Subspace Emissary's opening (cutscenes and the first battle). The launcher still has
-to be adapted from the Super Paper Mario port; for now the game is built and run from this repository.
+Classic mode's start, and the Subspace Emissary's opening (cutscenes and the first battle). Project+ loads from the
+virtual SD card up to its character and stage select; its matches still crash while loading (being worked on).
 
 ## Features
 
 - Up to 4K, and the game's own 16:9 mode (plus fill-the-window for ultrawide)
-- 120 fps frame interpolation (needs a display faster than 60 Hz)
-- GameCube-style controls on Xbox, PlayStation and Nintendo gamepads and the keyboard; real Wii Remotes too
+- 120 fps frame interpolation (experimental on Brawl; needs a display faster than 60 Hz)
+- Every gamepad is a GameCube controller (Xbox, PlayStation and Nintendo layouts), the keyboard too; real Wii
+  Remotes over Bluetooth
+- A launcher that installs the game from your own disc image (.iso, .ciso, .wbfs), with the display, controller
+  and mod settings, and Wii / Dolphin save import
 - Saves in `UserData\NAND`, compatible in layout with a Wii's
 - A virtual SD card (`UserData\SD`), so the game's own SD features and SD-based mods work
 - Gecko codes and Project+-style mods (in progress, see below)
+- Windows and Linux
 
 **No game data is included**: the game's files are read from your own copy of the game.
 
@@ -55,13 +59,18 @@ powershell -ExecutionPolicy Bypass -File tools\build-brawl.ps1 -SkipTools
 `Play\engine_usa.dll` (`-SkipTranslate` recompiles only the runtime). The function map comes from the
 [Brawl decompilation](https://github.com/doldecomp/brawl), cloned into `extras\brawl-decomp`.
 
+The release (`Brawl Recompiled.exe` plus a hidden `engine\` folder) is made by `tools\build-launcher.ps1` (the
+launcher, Windows and Linux, with a portable .NET SDK) and `tools\package-brawl.ps1 -Zip`; `tools\build-linux.sh`
+and `tools\package-linux.sh` make the Linux download in WSL from the same translation.
+
 | Folder | What it is |
 |---|---|
 | `wiicompiled/translator` | PowerPC to C++ static recompiler (C#) |
 | `wiicompiled/runtime` | Runtime and Wii SDK HLE (OS, DVD, NAND, SD, WPAD/KPAD, AX audio, VI, GX) |
 | `wiicompiled/aurora-main` | Aurora: Wii GX on WebGPU (Dawn / Direct3D 12) |
 | `wiicompiled/projects/brawl` | This game's project: function map, module layout, code handler, tools |
-| `tools` | Build scripts |
+| `launcher` | The launcher (WinForms; `linux\` is the same pages in Avalonia) |
+| `tools` | Build and packaging scripts |
 
 ## Credits
 

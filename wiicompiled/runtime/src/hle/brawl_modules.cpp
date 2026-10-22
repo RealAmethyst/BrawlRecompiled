@@ -91,6 +91,11 @@ bool LinkAtHome(uint32_t header, uint32_t gameBss) {
         return false;
     }
 
+    // Gecko codes patch modules where the game loads them (Project+ turns st_final into its custom stages): with codes
+    // active, a module loaded on demand runs in place, where they reach it, not at its translated home.
+    if (!m->resident && GuestCodePatch::Active()) {
+        return false;
+    }
     // A resident module somewhere else (a mod moved the heap) is not the translated one.
     if (m->resident && (header != m->image || gameBss != m->bss)) {
         RT_LOGF(RT_TAG_OS, "REL module %s loaded at 0x%08X (bss 0x%08X), not at 0x%08X (bss 0x%08X): linking it in "

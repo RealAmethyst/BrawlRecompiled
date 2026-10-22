@@ -867,6 +867,19 @@ bool HandleAccessViolation(void* faultAddress, bool isWrite) noexcept {
     //    answering zero would turn a missing device into a silent hang, so both are reported instead.
     if (IsMmio(guestAddress)) {
         g_countMmio.fetch_add(1, std::memory_order_relaxed);
+        // Outside the device register blocks (Flipper at 0xCC000000/0xCD000000, Hollywood at 0xCD800000) the bus has
+        // nothing; mods read through stale pointers there (Project+: an 0xCC-filled pointer plus an offset). Like
+        // the console and Dolphin, such reads give 0: the page becomes zeroed scratch memory.
+        const uint32_t block = guestAddress & 0xFFFF0000u;
+        if (block != 0xCC000000u && block != 0xCD000000u && block != 0xCD800000u) {
+            std::lock_guard<std::mutex> lock(StateMutex());
+            if (ProtectRange(g_base + (guestAddress & ~(kHostPageSize - 1)), kHostPageSize, kProtReadWrite)) {
+                RT_LOG(RT_TAG_MEMORY) << "WARNING " << (isWrite ? "write" : "read") << " of 0x" << std::hex
+                                      << std::uppercase << guestAddress << std::dec << std::nouppercase
+                                      << ", where no hardware register is: reads there give 0" << std::endl;
+                return true;
+            }
+        }
         if (IsGpuFifo(guestAddress)) {
             if (isWrite) {
                 ReportFatalGuestFault(

@@ -98,9 +98,19 @@ inline std::string NormalizeLookupPath(const std::string& input) {
 
 namespace Detail {
 
+// Children are keyed by their lowercased name but ordered as a disc's FST is: compared in uppercase, so "toonlink"
+// comes before "toon_sheik" ('L' < '_'), and entry numbers match the disc's.
+struct DiscNameOrder {
+    bool operator()(const std::string& a, const std::string& b) const {
+        return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](unsigned char x, unsigned char y) {
+            return std::toupper(x) < std::toupper(y);
+        });
+    }
+};
+
 struct TreeNode {
     std::string name;
-    std::map<std::string, std::unique_ptr<TreeNode>> children;
+    std::map<std::string, std::unique_ptr<TreeNode>, DiscNameOrder> children;
     std::optional<RegisteredFile> file;
 };
 

@@ -242,7 +242,7 @@ public static partial class TranslatedBuildShardEmitter
         var baseRegistration = WriteRegistrationShards(
             outputRoot, "base", activeBase, baseTraits, options.RegistrationShardCount).ToList();
         baseRegistration.Add(WriteIndirectDispatchTable(outputRoot, "base", baseTraits));
-        baseRegistration.Add(WriteGuestCodeGuardTable(outputRoot, guardIndex));
+        baseRegistration.Add(WriteGuestCodeGuardTable(outputRoot, guardIndex, activeBase));
         var rrRegistrationRecords = activeBase.Concat(modRecords).OrderBy(static record => record.Address).ThenBy(static record => record.RegistrationKind, StringComparer.Ordinal).ToArray();
         var rrRegistration = WriteRegistrationShards(
             outputRoot, "retro_rewind", rrRegistrationRecords, rrTraits, options.RegistrationShardCount).ToList();
@@ -689,9 +689,27 @@ public static partial class TranslatedBuildShardEmitter
     [GeneratedRegex(@"extern ""C"" void func_(?<address>[0-9A-F]{8})\(CpuContext\* MKW_RESTRICT ctx\)\s*\{", RegexOptions.CultureInvariant)]
     private static partial Regex GuardedEntryRegex();
 
-    private static string WriteGuestCodeGuardTable(string outputRoot, IReadOnlyDictionary<uint, int> guardIndex)
+    [GeneratedRegex(@"// inline leaf 0x(?<address>[0-9A-F]{8})", RegexOptions.CultureInvariant)]
+    private static partial Regex InlinedLeafRegex();
+
+    private static string WriteGuestCodeGuardTable(
+        string outputRoot, IReadOnlyDictionary<uint, int> guardIndex, IReadOnlyList<FunctionRecord> functions)
     {
         var addresses = guardIndex.OrderBy(static pair => pair.Value).Select(static pair => pair.Key).ToArray();
+        // A leaf the translator inlined into a caller also runs as the caller's own code: when a mod patches the leaf,
+        // those callers go to the interpreter with it. Pairs of (leaf, caller) guard indices, by leaf.
+        var inlined = functions
+            .Where(function => guardIndex.ContainsKey(function.Address))
+            .AsParallel()
+            .SelectMany(function => InlinedLeafRegex()
+                .Matches(function.SourceText ?? File.ReadAllText(function.SourcePath))
+                .Select(match => ParseHexUInt32(match.Groups["address"].Value))
+                .Where(guardIndex.ContainsKey)
+                .Distinct()
+                .Select(leaf => (Leaf: guardIndex[leaf], Caller: guardIndex[function.Address])))
+            .Distinct()
+            .OrderBy(static pair => pair.Leaf).ThenBy(static pair => pair.Caller)
+            .ToArray();
         var source = new StringBuilder();
         source.AppendLine("// Translator-owned guest code guard table (see MKW_GUEST_CODE_GUARD in abi_bridge.h); do not edit.");
         source.AppendLine("#include <cstdint>");
@@ -702,6 +720,14 @@ public static partial class TranslatedBuildShardEmitter
         {
             source.AppendLine("    " + string.Join(", ", addresses.Skip(i).Take(8).Select(static a => $"0x{a:X8}u")) + ",");
         }
+        source.AppendLine("};");
+        source.AppendLine($"extern \"C\" const uint32_t g_mkwInlinedLeafCount = {inlined.Length}u;");
+        source.AppendLine("extern \"C\" const uint32_t g_mkwInlinedLeaves[] = {");
+        for (var i = 0; i < inlined.Length; i += 8)
+        {
+            source.AppendLine("    " + string.Join(" ", inlined.Skip(i).Take(8).Select(static p => $"{p.Leaf}u, {p.Caller}u,")));
+        }
+        source.AppendLine(inlined.Length == 0 ? "    0u, 0u," : string.Empty);
         source.AppendLine("};");
         var hash = ChecksumUtilities.Sha256Hex(Encoding.UTF8.GetBytes(source.ToString()));
         var directory = Path.Combine(outputRoot, "base_dispatch");

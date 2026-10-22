@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace NewSuperPaperBros;
+namespace BrawlRecompiled;
 
 // Connected gamepads, through the SDL3.dll the game ships in Play\ (the same library and type detection the game
 // uses, so the launcher lists exactly what the game will see). Empty when SDL can't be loaded.

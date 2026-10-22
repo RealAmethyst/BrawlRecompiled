@@ -11,11 +11,17 @@
 // other form, the same PPC_PsFromScalarInline / PPC_PsToScalarInline conversions translated code makes.
 #include "ppc_interpreter.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <mutex>
+#include <string>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "abi_bridge.h"
 #include "memory.h"
@@ -33,6 +39,43 @@ constexpr uint32_t kXerCa = 0x20000000u;
 
 std::atomic<bool> g_enabled{true};
 std::atomic<uint64_t> g_instructions{0};
+
+// The last addresses interpreted code jumped to on this thread (taken branches, calls, returns), oldest first
+// once wrapped: the trail behind a fault in a mod's code.
+constexpr uint32_t kRecentBranches = 64;
+thread_local uint32_t t_recentBranches[kRecentBranches];
+thread_local uint32_t t_recentBranchCount = 0;
+thread_local uint32_t t_lastPc = 0;
+
+// BRAWL_TRACE_PC=<hex>,<hex>...: a debugging aid for mods; the registers whenever interpreted code reaches one of
+// those addresses (the first 20 times each).
+const std::vector<uint32_t>& TracePcs() {
+    static const std::vector<uint32_t> pcs = [] {
+        std::vector<uint32_t> out;
+        for (const char* p = std::getenv("BRAWL_TRACE_PC"); p != nullptr && *p;) {
+            char* end = nullptr;
+            out.push_back(static_cast<uint32_t>(std::strtoul(p, &end, 16)));
+            if (end == p) break;
+            p = *end ? end + 1 : end;
+        }
+        return out;
+    }();
+    return pcs;
+}
+
+void TracePc(const CpuContext* c, uint32_t pc) {
+    static std::unordered_map<uint32_t, int> hits;
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
+    if (hits[pc]++ >= 20) return;
+    std::string regs;
+    char item[24];
+    for (int r = 0; r < 32; ++r) {
+        std::snprintf(item, sizeof(item), " r%d=%08X", r, c->gpr[r]);
+        regs += item;
+    }
+    RT_LOGF(RT_TAG_RUNTIME, "[trace] 0x%08X lr=%08X ctr=%08X%s\n", pc, c->lr, c->ctr, regs.c_str());
+}
 
 enum class Form : uint8_t { Unknown, Scalar, Paired };
 
@@ -100,6 +143,7 @@ uint32_t AddCarry(uint32_t a, uint32_t b, uint32_t carryIn, bool& carry, bool& o
 }
 
 [[noreturn]] void Undefined(CpuContext* c, uint32_t pc, uint32_t w, const char* what) {
+    DumpRecentBranches();
     SystemBridge::DumpCpuState(c);  // where the interpreted code came from: lr, the stack's return addresses
     PPC_Undefined(pc, w, what);
 }
@@ -164,6 +208,17 @@ bool Call(Frame& f, uint32_t target, uint32_t returnTo) {
 
 }  // namespace
 
+void DumpRecentBranches() {
+    const uint32_t count = std::min(t_recentBranchCount, kRecentBranches);
+    std::string trail;
+    char item[12];
+    for (uint32_t i = 0; i < count; ++i) {
+        std::snprintf(item, sizeof(item), " %08X", t_recentBranches[(t_recentBranchCount - count + i) % kRecentBranches]);
+        trail += item;
+    }
+    RT_LOGF(RT_TAG_RUNTIME, "interpreter: last %u branch targets on this thread, oldest first:%s\n", count, trail.c_str());
+}
+
 bool Enabled() { return g_enabled.load(std::memory_order_relaxed); }
 void SetEnabled(bool enabled) { g_enabled.store(enabled, std::memory_order_relaxed); }
 uint64_t InstructionCount() { return g_instructions.load(std::memory_order_relaxed); }
@@ -187,11 +242,15 @@ void Run(CpuContext* ctx, uint32_t entry) {
     Frame f{ctx, {}, entry};
     const uint32_t returnAddress = ctx->lr;
     uint64_t executed = 0;
+    const auto& tracePcs = TracePcs();
     for (;;) {
         const uint32_t pc = f.pc;
         const uint32_t w = MemoryInline::FlatRead32(pc);
         ctx->pc = pc;
         ++executed;
+        if (pc != t_lastPc + 4) t_recentBranches[t_recentBranchCount++ % kRecentBranches] = pc;
+        t_lastPc = pc;
+        if (!tracePcs.empty() && std::find(tracePcs.begin(), tracePcs.end(), pc) != tracePcs.end()) TracePc(ctx, pc);
         uint32_t next = pc + 4;
         CpuContext* const c = ctx;
         switch (w >> 26) {

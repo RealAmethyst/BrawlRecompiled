@@ -1,4 +1,4 @@
-namespace NewSuperPaperBros;
+namespace BrawlRecompiled;
 
 // Play\UserData\Config.toml, edited the way the runtime's WriteSetting does: line by line, inside the key's
 // section, comments and unknown keys kept. shortcut: '#' inside a quoted value counts as a comment start;

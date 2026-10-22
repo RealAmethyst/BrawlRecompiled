@@ -21,5 +21,9 @@ void Sync();
 void ResetPristine(uint32_t start, uint32_t end);
 bool Active();
 void RunPatched(uint32_t address, CpuContext* ctx);
+// BRAWL_INTERPRET=<hex start>-<hex end>: every translated function starting in that range runs in the interpreter, a
+// check of the interpreter against the translation on the unmodded game (same behaviour, only slower). Once the
+// function registry is final.
+void InterpretFromEnvironment();
 
 } // namespace GuestCodePatch

@@ -3,7 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Themes.Fluent;
 
-namespace NewSuperPaperBros;
+namespace BrawlRecompiled;
 
 static class Program
 {

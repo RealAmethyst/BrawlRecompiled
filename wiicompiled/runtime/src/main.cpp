@@ -60,6 +60,7 @@
 #endif
 
 #include "hle/gecko.h"
+#include "guest_code_patch.h"
 #include "hle/storage/sd_card.h"
 #include "netplay_ui.h"
 #include "netplay_start.h"
@@ -802,7 +803,8 @@ void ShowRuntimeFatalPopup(std::string_view category, std::string_view details) 
     if (g_fatalPopupShown.exchange(true, std::memory_order_acq_rel)) {
         return;
     }
-    if (std::getenv("SPM_MAP_SWEEP_FILE")) {
+    // Unattended runs (map sweeps, test scripts): the log has it; a dialog would only block the exit.
+    if (std::getenv("SPM_MAP_SWEEP_FILE") || std::getenv("WIICOMPILED_NO_POPUP")) {
         RT_LOGF(RT_TAG_RUNTIME, "[spmsweep] fatal %.*s: %.*s\n", static_cast<int>(category.size()), category.data(),
                 static_cast<int>(details.size()), details.data());
         return;
@@ -853,6 +855,7 @@ void WriteCrashArtifacts(std::string_view reason, std::string_view extraDetails,
               << " not translated (missing function)" << std::dec << std::endl;
     RT_LOG(RT_TAG_RUNTIME) << "Caller LR = 0x" << std::hex << (cpu ? cpu->lr : 0u)
               << std::dec << std::endl;
+    PpcInterpreter::DumpRecentBranches();  // a mod's interpreted code is the usual way here
     try {
         SystemBridge::DumpCrashHeuristics(std::cerr, cpu, &target);
         SystemBridge::DumpCpuState(cpu);
@@ -1612,6 +1615,7 @@ int RuntimeMain(int argc, char** argv) {
 
         auto entry = ResolveEntry();
         Gecko::Install();  // mods' Gecko codes (UserData/SD/<mod>/RSBE01.GCT), before the game's first instruction
+        GuestCodePatch::InterpretFromEnvironment();
         InitializePersistentCpuContext();
         auto& cpu = GetPersistentCpuContext();
         SeedCpuContext(cpu);

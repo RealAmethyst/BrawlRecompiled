@@ -1,19 +1,19 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 
-namespace NewSuperPaperBros;
+namespace BrawlRecompiled;
 
-// Imports Super Paper Mario saves into the game's NAND: a Dolphin save folder (title\00010000\52385045\data, the
-// same files the game keeps) or a data.bin a real Wii exported to SD (Wii Menu > Data Management), which is
-// decrypted here the way Dolphin's WiiSave.cpp does it.
+// Imports Super Smash Bros. Brawl saves into the game's NAND: a Dolphin save folder (title\00010000\52534245\data,
+// the same files the game keeps) or a data.bin exported from a Wii (Brawl marks its save no-copy, so that takes a
+// homebrew save manager), decrypted here the way Dolphin's WiiSave.cpp does it.
 static class WiiSave
 {
-    public const ulong TitleId = 0x0001000052385045;  // R8PE (the USA disc; the European disc is R8PP = ...52385050)
+    public const ulong TitleId = 0x0001000052534245;  // RSBE (the USA disc)
     static readonly byte[] SdKey = Convert.FromHexString("AB01B9D8E1622B08AFBAD84DBFC2A55D");
     static readonly byte[] SdIv = Convert.FromHexString("216712E6AA1F689F95C5A22324DC6A98");
     const int HeaderSize = 0xF0C0, BkHeaderSize = 0x80, FileHeaderSize = 0x80;
 
-    // The game's title id from its disc id ("R8PE01" -> 0001000052385045): saves live under it, per region.
+    // The game's title id from its disc id ("RSBE01" -> 0001000052534245): saves live under it.
     public static ulong TitleIdOf(string gameId) => 0x0001000000000000UL | BinaryPrimitives.ReadUInt32BigEndian(System.Text.Encoding.ASCII.GetBytes(gameId.PadRight(4)[..4]));
 
     // The save folder the game uses for this disc. Like the runtime (nand_path.h ManagedNandRootPath): UserData\NAND
@@ -55,8 +55,8 @@ static class WiiSave
         var files = Path.GetFileName(source).Equals("data.bin", StringComparison.OrdinalIgnoreCase)
             ? ReadDataBin(File.ReadAllBytes(source))
             : ReadDolphinFolder(Path.GetDirectoryName(Path.GetFullPath(source))!);
-        if (!files.Keys.Any(n => n.StartsWith("wiimario", StringComparison.Ordinal)))
-            throw new InvalidDataException("No Super Paper Mario save files (wiimario00..03) were found there.");
+        if (!files.Keys.Any(n => n.StartsWith("autosv", StringComparison.Ordinal) || n == "collect.vff"))
+            throw new InvalidDataException("No Super Smash Bros. Brawl save files (autosv0.bin, collect.vff) were found there.");
 
         if (Directory.Exists(dataDir) && Directory.EnumerateFileSystemEntries(dataDir).Any())
             Directory.Move(dataDir, dataDir + ".backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
@@ -71,7 +71,7 @@ static class WiiSave
         foreach (var path in Directory.GetFiles(dir))
         {
             var name = Path.GetFileName(path);
-            if (name == "banner.bin" || name.StartsWith("wiimario", StringComparison.Ordinal)) files[name] = File.ReadAllBytes(path);
+            if (!name.StartsWith('.')) files[name] = File.ReadAllBytes(path);  // autosv*.bin, net*.bin, collect.vff, banner.bin
         }
         return files;
     }
@@ -81,8 +81,8 @@ static class WiiSave
         if (bin.Length < HeaderSize + BkHeaderSize) throw new InvalidDataException("This data.bin is too small to be a Wii save.");
         var header = Decrypt(bin.AsSpan(0, HeaderSize), SdIv);
         ulong tid = BinaryPrimitives.ReadUInt64BigEndian(header);
-        if (tid != TitleId && tid != TitleIdOf("R8PP01"))
-            throw new InvalidDataException($"This data.bin is not a Super Paper Mario (USA or Europe) save (title {tid:X16}).");
+        if (tid != TitleId)
+            throw new InvalidDataException($"This data.bin is not a Super Smash Bros. Brawl (USA) save (title {tid:X16}).");
         int bannerSize = (int)BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(8));
 
         var bk = bin.AsSpan(HeaderSize, BkHeaderSize);

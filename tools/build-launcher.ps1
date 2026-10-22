@@ -1,6 +1,6 @@
-# Builds the New Super Paper Bros. launcher (launcher\) with a portable .NET 8 SDK kept in toolchain\dotnet
-# (downloaded once with Microsoft's dotnet-install script, like build-spm.ps1 fetches llvm-mingw).
-# Output: launcher\publish\New Super Paper Bros.exe (self-contained single file, no .NET install needed).
+# Builds the Brawl Recompiled. launcher (launcher\) with a portable .NET 8 SDK kept in toolchain\dotnet
+# (downloaded once with Microsoft's dotnet-install script, like build-brawl.ps1 fetches llvm-mingw).
+# Output: launcher\publish\Brawl Recompiled.exe (self-contained single file, no .NET install needed).
 [CmdletBinding()] param([switch]$SkipPublish)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -17,11 +17,11 @@ $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $env:DOTNET_NOLOGO = '1'
 $env:DOTNET_ROOT = $sdk
 if ($SkipPublish) { exit 0 }
-$proj = Join-Path $root 'launcher\NewSuperPaperBros.Launcher.csproj'
+$proj = Join-Path $root 'launcher\BrawlRecompiled.Launcher.csproj'
 & $dotnet publish $proj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o (Join-Path $root 'launcher\publish')
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed ($LASTEXITCODE)" }
-Write-Host "DONE: $root\launcher\publish\New Super Paper Bros.exe"
+Write-Host "DONE: $root\launcher\publish\Brawl Recompiled.exe"
 # The Linux launcher (launcher\linux: the same pages in Avalonia), packed by tools/package-linux.sh.
-& $dotnet publish (Join-Path $root 'launcher\linux\NewSuperPaperBros.Linux.csproj') -c Release -o (Join-Path $root 'launcher\linux\publish')
+& $dotnet publish (Join-Path $root 'launcher\linux\BrawlRecompiled.Linux.csproj') -c Release -o (Join-Path $root 'launcher\linux\publish')
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish (Linux launcher) failed ($LASTEXITCODE)" }
-Write-Host "DONE: $root\launcher\linux\publish\New Super Paper Bros"
+Write-Host "DONE: $root\launcher\linux\publish\Brawl Recompiled"

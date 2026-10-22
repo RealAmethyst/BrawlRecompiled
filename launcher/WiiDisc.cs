@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 
-namespace NewSuperPaperBros;
+namespace BrawlRecompiled;
 
 // A Wii disc image (.iso, .ciso or .wbfs): decodes the container, decrypts the data partition and extracts it
 // to the Dolphin layout the game reads (sys/ and files/). Port of tools/extract_wbfs.py.
@@ -60,13 +60,17 @@ sealed class WiiDisc : IDisposable
             throw new InvalidDataException("The partition did not decrypt correctly; the image is damaged or not a plain Wii disc.");
     }
 
+    // The one disc the translation was made from: Super Smash Bros. Brawl, USA, revision 1 (the common print).
+    public const string Game = "RSBE01";
+    public const int GameRevision = 1;
+
     // "" when this is the disc the game runs, else why not.
     public string Problem()
     {
-        if (GameId is not ("R8PE01" or "R8PP01"))
-            return $"That is {GameId} ({Title}), not Super Paper Mario for the USA (R8PE01) or Europe (R8PP01). Only those two discs work.";
-        if (GameId == "R8PE01" && Revision != 0)
-            return $"That is Super Paper Mario USA revision {Revision}; only revision 0 (the first print) works.";
+        if (GameId != Game)
+            return $"That is {GameId} ({Title}), not Super Smash Bros. Brawl for the USA (RSBE01). Only that disc works.";
+        if (Revision != GameRevision)
+            return $"That is Super Smash Bros. Brawl USA revision {Revision}; only revision {GameRevision} works.";
         return "";
     }
 
