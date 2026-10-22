@@ -4,12 +4,24 @@ A native PC port of **Super Smash Bros. Brawl** (Wii, 2008), made by statically 
 (main.dol and all 126 `.rel` modules) to C++ with [WiiCompiled](https://github.com/patchzyy/Wiicompiled). No
 emulator: the game runs as a Windows program.
 
-![Donkey Kong on Mario Circuit](screenshots/07_vs_dk_mario_circuit.png)
+![Donkey Kong vs the Ice Climbers on Castle Siege, rendered at 4K](screenshots/05_castle_siege.jpg)
 
 **Work in progress.** What works today: boot, saves, every menu tested so far, VS battles, the attract demos,
 Classic mode's start, and the Subspace Emissary's opening (cutscenes and the first battle). Project+ and
 Project+Ex load from the virtual SD card and play matches with their own characters and stages; REX, Brawl
 Minus and Legacy XP load the same way (see Mods).
+
+## Screenshots
+
+Rendered at 4K (shown here at 1080p).
+
+| | |
+|---|---|
+| ![Opening](screenshots/01_opening.jpg) | ![Main menu](screenshots/02_main_menu.jpg) |
+| ![Character select](screenshots/03_character_select.jpg) | ![Stage select](screenshots/04_stage_select.jpg) |
+| ![Castle Siege](screenshots/06_castle_siege_2.jpg) | ![The Subspace Emissary: Kirby](screenshots/07_subspace_kirby.jpg) |
+| ![The Subspace Emissary: Kirby vs Mario](screenshots/08_subspace_vs.jpg) | ![The Subspace Emissary's first battle](screenshots/09_subspace_battle.jpg) |
+| ![REX's roster](screenshots/10_rex_roster.jpg) | ![A REX match: Ivysaur vs Incineroar](screenshots/11_rex_match.jpg) |
 
 ## Features
 
