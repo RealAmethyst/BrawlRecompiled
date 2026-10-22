@@ -4,6 +4,7 @@
 #include "system_bridge.h"
 #include "game_graphics_options.h"
 #include "runtime_log.h"
+#include "ppc_interpreter.h"
 
 #include <array>
 #include <atomic>
@@ -495,6 +496,16 @@ inline void DispatchKnownTranslatedCpuTargetStatic(CpuContext* cpu) {
     RuntimeCrash::FatalMissingGuestTarget(target, cpu);
 }
 
+// Guest code without a translation (code a mod placed in memory, or an address the translation missed) runs in
+// the interpreter; only a target that is not guest memory at all is fatal.
+inline void RunUntranslatedOrFail(uint32_t target, CpuContext* cpu) {
+    if (PpcInterpreter::Enabled() && PpcInterpreter::CanRun(target)) {
+        PpcInterpreter::Run(cpu, target);
+        return;
+    }
+    ReportMissingCpuTarget(target, cpu);
+}
+
 template <uint32_t Target>
 inline const TranslatedFunctionInfo* ResolveDirectCpuTargetInfo() {
     return TranslatedFunctionRegistry::FindByAddressPtr(Target);
@@ -591,7 +602,7 @@ inline void InvokeDirectCpu(CpuContext* ctx) {
         return;
     }
 
-    ReportMissingCpuTarget(Target, cpu);
+    RunUntranslatedOrFail(Target, cpu);
 }
 
 // Indirect jump (bctr without link) - used for switch tables.
@@ -612,6 +623,12 @@ inline void InvokeIndirectJump(uint32_t target, CpuContext* ctx) {
         }
     }
     
+    // A tail jump into untranslated code (a mod's) runs in the interpreter like a call would.
+    if (PpcInterpreter::Enabled() && PpcInterpreter::CanRun(target) &&
+        TranslatedFunctionRegistry::FindByAddressPtr(target & ~3u) == nullptr) {
+        PpcInterpreter::Run(cpu, target);
+        return;
+    }
     // If not registered, this is likely a switch table jump to an intra-function label.
     // The translator should have recognized this pattern and generated proper switch code.
     RT_LOG(RT_TAG_RUNTIME) << "InvokeIndirectJump: target 0x"
@@ -654,7 +671,7 @@ inline void InvokeIndirectCpu(uint32_t target, CpuContext* ctx) {
     if (TryDispatchResolvedCpuTarget(TranslatedFunctionRegistry::FindByAddressPtr(target), cpu)) {
         return;
     }
-    ReportMissingCpuTarget(target, cpu);
+    RunUntranslatedOrFail(target, cpu);
 }
 
 template <typename Signature>
