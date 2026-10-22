@@ -32,6 +32,7 @@
 #include <cstdio>
 #include <iostream>
 #include <mutex>
+#include <unordered_map>
 #include <thread>
 
 #if defined(_WIN32)
@@ -58,6 +59,8 @@ extern "C" int32_t OS__RestoreInterrupts_801a65d4(int32_t level);
 // aurora_begin_frame() before GX commands and aurora_end_frame() after.
 std::atomic_bool g_auroraFrameActive{false};
 std::atomic_bool g_auroraFrameHadWork{false};
+
+int32_t SpmDumpTarget();  // gx_vertex.cpp: drawdump.txt's frame
 
 namespace {
 
@@ -797,18 +800,38 @@ uint32_t DvdReadCount();
 
 // Test captures: shots.txt beside the executable lists seconds after the first presented frame; at each, the next
 // rendered frame is saved as shot_<n>.bmp (Aurora reads it back from the GPU, so it works with the window covered).
+// shots.txt: capture times, each "<seconds>" after launch or "<scene>+<seconds>" after the game first enters <scene>.
+static std::mutex s_shotSceneMutex;
+static std::unordered_map<std::string, Clock::time_point> s_shotSceneStart;
+void NoteSceneForCaptures(const std::string& scene) {
+    std::lock_guard<std::mutex> lock(s_shotSceneMutex);
+    s_shotSceneStart.emplace(scene, Clock::now());
+}
+
 void RequestScheduledCaptures() {
-    static const std::vector<double> times = [] {
-        std::vector<double> out;
+    struct Shot { std::string scene; double seconds; };
+    static const std::vector<Shot> shots = [] {
+        std::vector<Shot> out;
         std::ifstream in("shots.txt");
-        for (double t; in >> t;) out.push_back(t);
+        for (std::string token; in >> token;) {
+            const size_t plus = token.find('+');
+            if (plus == std::string::npos) out.push_back({{}, std::atof(token.c_str())});
+            else out.push_back({token.substr(0, plus), std::atof(token.c_str() + plus + 1)});
+        }
         return out;
     }();
-    if (times.empty()) return;
     static const Clock::time_point start = Clock::now();
     static size_t next = 0;
     static std::string path;
-    if (next < times.size() && std::chrono::duration<double>(Clock::now() - start).count() >= times[next]) {
+    if (next >= shots.size()) return;
+    Clock::time_point base = start;
+    if (!shots[next].scene.empty()) {
+        std::lock_guard<std::mutex> lock(s_shotSceneMutex);
+        const auto it = s_shotSceneStart.find(shots[next].scene);
+        if (it == s_shotSceneStart.end()) return;
+        base = it->second;
+    }
+    if (std::chrono::duration<double>(Clock::now() - base).count() >= shots[next].seconds) {
         path = "shot_" + std::to_string(next) + ".bmp";
         aurora_request_frame_capture(0, path.c_str());
         ++next;
@@ -830,7 +853,7 @@ void VI_HLE_PresentFrame(bool presentedXfb, bool paceToRetrace) {
     if (presentedXfb) {
         {
             const uint32_t pf = s_presentedXfbFrames.fetch_add(1, std::memory_order_relaxed) + 1;
-            static const int32_t dumpTarget = [] { std::ifstream in("drawdump.txt"); int32_t f = -1; in >> f; return f; }();
+            const int32_t dumpTarget = SpmDumpTarget();
             static const bool cullTest = std::ifstream("depth_test.txt").good();
             g_spmDrawDump = ((dumpTarget >= 0 && pf == static_cast<uint32_t>(dumpTarget)) || g_spmSweepDump) ? 1 : 0;
             static const int envTest = [] { const char* e = std::getenv("SPM_CULL_TEST"); return e ? std::atoi(e) : 0; }();  // 1 = no culling, 2 = no depth test (diagnostic)

@@ -28,6 +28,10 @@
 #include <cstdlib>
 #include <vector>
 
+void NoteDrawDumpScene(const std::string& scene);  // gx_vertex.cpp: scene-relative drawdump.txt
+void NoteSceneForCaptures(const std::string& scene);  // vi.cpp: scene-relative shots.txt
+uint32_t SpmPresentedFrames();                     // vi.cpp
+
 namespace WiiRemoteInput {
 
 // The real Wii controller on `chan` (live, or remembered through an extension swap), leaving out the
@@ -780,13 +784,17 @@ bool IsRemoteChannel(uint32_t chan) {
 // Marks ports served by a real remote as "no controller" in the GameCube pad statuses.
 void NoteGameReport(const std::string& line) {
     const size_t arrow = line.find("-> ");
-    if (arrow == std::string::npos || !Script().active) return;
+    if (arrow == std::string::npos) return;
     size_t end = arrow + 3;
     while (end < line.size() && (std::isalnum(static_cast<unsigned char>(line[end])) || line[end] == '_')) ++end;
     const std::string scene = line.substr(arrow + 3, end - arrow - 3);
+    NoteDrawDumpScene(scene);
+    NoteSceneForCaptures(scene);
+    if (!Script().active) return;
     std::lock_guard<std::mutex> lock(g_sceneMutex);
     if (!scene.empty() && g_sceneStartMs.emplace(scene, ScriptNowMs()).second) {
-        RT_LOGF(RT_TAG_RUNTIME, "script: scene %s at %llu ms\n", scene.c_str(), static_cast<unsigned long long>(ScriptNowMs()));
+        RT_LOGF(RT_TAG_RUNTIME, "script: scene %s at %llu ms (frame %u)\n", scene.c_str(),
+                static_cast<unsigned long long>(ScriptNowMs()), SpmPresentedFrames());
     }
 }
 

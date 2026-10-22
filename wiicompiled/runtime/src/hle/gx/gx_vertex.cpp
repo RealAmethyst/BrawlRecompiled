@@ -7,8 +7,11 @@
 #include "guest_interrupt_context.h"
 #include "runtime_log.h"
 
+#include <atomic>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 
 namespace {
 uint32_t CanonicalVtxAttr(uint32_t attr) {
@@ -283,9 +286,24 @@ void ServiceDeferredTimingDuringGxWork() {
 }
 
 uint32_t SpmPresentedFrames();
-static int32_t SpmDumpTarget() {
-    static int32_t target = [] { std::ifstream in("drawdump.txt"); int32_t f = -1; in >> f; return f; }();
-    return target;
+// drawdump.txt beside the exe: a presented-frame number, or "<scene> <frames>" for that many frames after the game
+// first reports entering <scene> (NoteDrawDumpScene, fed from OSReport's "a -> b" scene lines).
+static std::string g_drawDumpScene;
+static int32_t g_drawDumpSceneOffset = 0;
+static std::atomic<int32_t> g_drawDumpTarget{[] {
+    std::ifstream in("drawdump.txt"); std::string first; in >> first;
+    if (first.empty()) return -1;
+    if (std::isdigit(static_cast<unsigned char>(first[0]))) return std::atoi(first.c_str());
+    g_drawDumpScene = first; in >> g_drawDumpSceneOffset;
+    return -1;
+}()};
+int32_t SpmDumpTarget() { return g_drawDumpTarget.load(std::memory_order_relaxed); }
+void NoteDrawDumpScene(const std::string& scene) {
+    static std::atomic<bool> fired{false};
+    if (!g_drawDumpScene.empty() && scene == g_drawDumpScene && !fired.exchange(true)) {
+        g_drawDumpTarget.store(static_cast<int32_t>(SpmPresentedFrames()) + g_drawDumpSceneOffset, std::memory_order_relaxed);
+        RT_LOGF(RT_TAG_GX, "[drawdump] %s entered: dumping frame %d\n", scene.c_str(), SpmDumpTarget());
+    }
 }
 bool SpmDumpFrame() {
     const int32_t t = SpmDumpTarget();
@@ -295,9 +313,7 @@ bool SpmDumpFrame() {
 }
 // SPM bring-up: drawdump.txt beside the exe holds a frame number; that frame's GXBegin calls are logged.
 static void SpmDumpBegin(uint32_t t, uint32_t vf, uint32_t nv) {
-    static int32_t target = [] {
-        std::ifstream in("drawdump.txt"); int32_t f = -1; in >> f; return f;
-    }();
+    const int32_t target = SpmDumpTarget();
     if (target < 0) return;
     const uint32_t frame = SpmPresentedFrames();
     if (frame < static_cast<uint32_t>(target) || frame > static_cast<uint32_t>(target) + 1) return;
