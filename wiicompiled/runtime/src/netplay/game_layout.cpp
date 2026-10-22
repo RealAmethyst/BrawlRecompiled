@@ -465,7 +465,9 @@ std::shared_ptr<Font> LoadFont(const std::string& name) {
         g_fonts[name] = font;
         return font;
     }
-    if (ReadDiscFile("/US/EngUS/Font/" + name, data) && data.size() > 0x30 && BE32(data.data()) == 0x52464E54u) {
+    // A name starting with '/' is a disc path (Brawl: "/system/font/font_hira.brfnt"); else NSMBW's font folder.
+    const std::string brfntPath = !name.empty() && name[0] == '/' ? name : "/US/EngUS/Font/" + name;
+    if (ReadDiscFile(brfntPath, data) && data.size() > 0x30 && BE32(data.data()) == 0x52464E54u) {
         const uint16_t headerSize = BE16(&data[12]);
         const uint8_t* finf = &data[headerSize];
         if (BE32(finf) == 0x46494E46u) {  // FINF

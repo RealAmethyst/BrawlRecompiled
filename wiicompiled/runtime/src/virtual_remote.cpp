@@ -517,7 +517,9 @@ void UpdatePointer(WiiRemoteInput::KpadSample& sample) {
 }
 
 bool Sample(uint32_t chan, WiiRemoteInput::KpadSample& sample) {
-    if (chan >= PAD_MAX_CONTROLLERS) {
+    // No stand-in remote on this port (Brawl: gamepads and the keyboard are GameCube controllers): reading one here
+    // would hand the game the same gamepad again as Wii Remote 1, so one pad drove both P1 and P2.
+    if (chan >= PAD_MAX_CONTROLLERS || !Present(chan)) {
         return false;
     }
     std::lock_guard<std::mutex> lock(g_mutex);

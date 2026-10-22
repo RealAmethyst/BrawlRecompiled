@@ -41,6 +41,9 @@ foreach ($f in '*.dll', 'dsp_coef.bin', 'portable.txt') { Copy-Item "$root\Play\
 # Microsoft's redistributable) so a PC without the VC++ Redistributable still starts the game.
 foreach ($f in 'msvcp140.dll', 'msvcp140_atomic_wait.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') { Copy-Item "$env:SystemRoot\System32\$f" $engine }
 Mirror "$root\Play\wii_bootstrap" "$engine\wii_bootstrap"
+# The title card's Smash Ball (tools/make_icon.py, from the game's own Smash Ball textures).
+New-Item -ItemType Directory -Force "$engine\startup" | Out-Null
+Copy-Item "$root\launcher\art\smash_ball.png" "$engine\startup"
 # Credits and licenses: GPLv3 for the engine, the bundled libraries' own license files.
 Copy-Item -LiteralPath "$PSScriptRoot\CREDITS.txt" -Destination "$stage\CREDITS.txt"
 Copy-Item -LiteralPath "$root\wiicompiled\LICENSE" -Destination "$stage\LICENSE.txt"

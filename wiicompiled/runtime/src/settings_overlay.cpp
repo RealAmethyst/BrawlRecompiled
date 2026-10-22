@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <string>
 #include <cstdlib>
+#include <filesystem>
 extern "C" uint8_t* aurora_load_png_rgba(const char* path, uint32_t* width, uint32_t* height);
 #include "netplay/game_layout.h"
 #include "netplay_lobby.h"
@@ -1354,6 +1355,8 @@ void DrawShaderCompilationStatus() {
     ImGui::PopStyleVar();
 }
 
+std::string StartButtonName();
+
 void DrawStartupScreen() {
     if (!StartupScreenVisible()) {
         return;
@@ -1380,8 +1383,9 @@ void DrawStartupScreen() {
             "A Super Smash Bros. Brawl PC recomp. Built on WiiCompiled's code.";
         // At the bottom of the screen.
         constexpr const char* kReport = "";
-        // Super Smash Bros. Brawl's own font, read from the game folder (font/papermarioset_US.bfn).
-        static const std::shared_ptr<GameLayout::Font> pmFont = GameLayout::LoadFont("papermarioset_US.bfn");
+        // Super Smash Bros. Brawl's title font and its menu font, read from the disc.
+        static const std::shared_ptr<GameLayout::Font> pmFont = GameLayout::LoadFont("/system/font/font_hira.brfnt");
+        static const std::shared_ptr<GameLayout::Font> menuFont = GameLayout::LoadFont("/system/font/font_melee.brfnt");
         float startY = 0.0f;
         float titleHeight = ImGui::GetTextLineHeight();
         const bool gameFonts = GameLayout::FontReady(pmFont.get());
@@ -1391,8 +1395,9 @@ void DrawStartupScreen() {
                           aurora_get_queued_pipeline_count());
         }
         if (gameFonts) {
-            // A chapter-card style cover: storybook sky, paper hills, the heroes around a tilted
-            // paper card, Tippi fluttering past. Sprites come from Play/startup/*.png.
+            // A Brawl title card: a night sky with rising embers and light rays, a dark card with the credits, and the
+            // Smash Ball turning in the top-left corner (<game folder>/startup/smash_ball.png, from tools/make_icon.py).
+            const GameLayout::Font& small = GameLayout::FontReady(menuFont.get()) ? *menuFont : *pmFont;
             struct Sprite { ImTextureID id{}; float w = 0, h = 0; };
             static std::unordered_map<std::string, Sprite> sprites;
             auto Spr = [&](const char* name) -> const Sprite& {
@@ -1426,150 +1431,112 @@ void DrawStartupScreen() {
                 list->AddImageQuad(sp.id, P(-hw, hh), P(hw, hh), P(hw, -hh), P(-hw, -hh), ImVec2(u0, 0), ImVec2(u1, 0),
                                    ImVec2(u1, 1), ImVec2(u0, 1), col);
             };
-            auto Shadow = [&](float x, float y, float w) {
-                const ImVec2 c = S(x, y);
-                ImVec2 pts[24];
-                for (int j = 0; j < 24; ++j)
-                    pts[j] = ImVec2(c.x + std::cos(j * 0.2618f) * w * k, c.y + std::sin(j * 0.2618f) * w * 0.18f * k);
-                list->AddConvexPolyFilled(pts, 24, IM_COL32(20, 50, 20, 90));
+            // A four-point sparkle of radius r at (x, y).
+            auto Sparkle = [&](float x, float y, float r, float spin, uint32_t col) {
+                ImVec2 pts[8];
+                for (int j = 0; j < 8; ++j) {
+                    const float a = spin + j * 0.7854f, rr = (j % 2 == 0) ? r : r * 0.3f;
+                    pts[j] = S(x + std::cos(a) * rr, y + std::sin(a) * rr);
+                }
+                list->AddConvexPolyFilled(pts, 8, col);
             };
-            // Sky, halftone dots, drifting paper clouds.
-            list->AddRectFilledMultiColor(o, ImVec2(o.x + sz.x, o.y + sz.y), IM_COL32(64, 150, 230, 255),
-                                          IM_COL32(64, 150, 230, 255), IM_COL32(170, 222, 255, 255),
-                                          IM_COL32(170, 222, 255, 255));
-            const float dot = std::max(6.0f, 14.0f * k);
-            for (float y = o.y + sz.y * 0.3f; y < o.y + sz.y; y += dot * 1.6f)
-                for (float x = o.x + std::fmod(y, dot * 1.6f); x < o.x + sz.x; x += dot * 1.6f)
-                    list->AddCircleFilled(ImVec2(x, y), dot * 0.2f * (y - o.y) / sz.y, IM_COL32(255, 255, 255, 55), 8);
-            for (int i = 0; i < 5; ++i) {
-                const float span = sz.x + 400.0f * k;
-                const float cx = o.x + std::fmod(i * span / 5.0f + t * (12.0f + i * 4.0f) * k, span) - 200.0f * k;
-                const float cy = o.y + sz.y * (0.08f + 0.06f * (i % 3));
-                const float r = (26.0f + 7.0f * (i % 2)) * k;
-                for (int j = 0; j < 3; ++j)
-                    list->AddCircleFilled(ImVec2(cx + (j - 1) * r * 1.1f + 3 * k, cy + (j == 1 ? -r * 0.35f : 0.f) + 3 * k), r, IM_COL32(40, 80, 140, 60), 24);
-                for (int j = 0; j < 3; ++j)
-                    list->AddCircleFilled(ImVec2(cx + (j - 1) * r * 1.1f, cy + (j == 1 ? -r * 0.35f : 0.f)), r, IM_COL32(255, 255, 255, 240), 24);
+            // Night sky, and light rays turning slowly from behind the card.
+            list->AddRectFilledMultiColor(o, ImVec2(o.x + sz.x, o.y + sz.y), IM_COL32(12, 14, 30, 255),
+                                          IM_COL32(12, 14, 30, 255), IM_COL32(52, 26, 40, 255), IM_COL32(52, 26, 40, 255));
+            for (int j = 0; j < 12; ++j) {
+                const float a = t * 0.08f + j * 0.5236f, w = 0.11f;
+                const ImVec2 c = S(0.0f, 30.0f);
+                const float r = std::max(sz.x, sz.y);
+                list->AddTriangleFilled(c, ImVec2(c.x + std::cos(a - w) * r, c.y + std::sin(a - w) * r),
+                                        ImVec2(c.x + std::cos(a + w) * r, c.y + std::sin(a + w) * r), IM_COL32(255, 196, 80, 14));
             }
-            for (int i = 0; i < 9; ++i) {
-                const float r = (110.0f + 40.0f * (i % 3)) * k;
-                const ImVec2 c(o.x + sz.x * i / 8.0f, o.y + sz.y + r * 0.35f);
-                list->AddCircleFilled(c, r + 4 * k, IM_COL32(20, 40, 20, 255), 48);
-                list->AddCircleFilled(c, r, (i % 2) ? IM_COL32(86, 178, 74, 255) : IM_COL32(64, 150, 64, 255), 48);
+            // Embers rise from the bottom and fade, each on its own lane.
+            for (int i = 0; i < 48; ++i) {
+                const float life = std::fmod(t * (0.10f + 0.035f * (i % 5)) + i * 0.37f, 1.0f);
+                const float x = o.x + std::fmod(i * 97.0f, 100.0f) / 100.0f * sz.x + std::sin(t * 1.3f + i) * 10.0f * k;
+                const float y = o.y + sz.y - life * sz.y;
+                list->AddCircleFilled(ImVec2(x, y), (2.0f + i % 3) * k, (i % 2) ? IM_COL32(255, 140, 40, int(180 * (1 - life)))
+                                                                               : IM_COL32(255, 196, 58, int(180 * (1 - life))), 8);
             }
             // The card.
             const float bob = std::sin(t * 1.6f) * 3.0f;
-            const float ang = -0.025f + std::sin(t * 0.9f) * 0.006f;
+            const float ang = -0.02f + std::sin(t * 0.9f) * 0.005f;
             auto R = [&](float x, float y, float dx, float dy) {
                 const float c = std::cos(ang), sn = std::sin(ang);
                 return S(dx + x * c - y * sn, dy + bob + x * sn + y * c);
             };
-            const float hw = 270.0f, hh = 140.0f, cardY = 20.0f;
-            auto Q = [&](float dx, float dy, uint32_t col) {
-                list->AddQuadFilled(R(-hw, cardY + hh, dx, dy), R(hw, cardY + hh, dx, dy), R(hw, cardY - hh, dx, dy), R(-hw, cardY - hh, dx, dy), col);
+            const float hw = 280.0f, hh = 140.0f, cardY = 20.0f;
+            auto Q = [&](float dx, float dy, float grow, uint32_t col) {
+                list->AddQuadFilled(R(-hw - grow, cardY + hh + grow, dx, dy), R(hw + grow, cardY + hh + grow, dx, dy),
+                                    R(hw + grow, cardY - hh - grow, dx, dy), R(-hw - grow, cardY - hh - grow, dx, dy), col);
             };
-            Q(12, -12, IM_COL32(0, 0, 0, 80));
-            Q(0, 0, IM_COL32(255, 252, 240, 255));
-            // Ruled lines, like a page from the Light Prognosticus.
-            for (int i = 0; i < 6; ++i) {
-                const float ly = cardY + hh - 50.0f - i * 40.0f;
-                list->AddLine(R(-hw + 20, ly, 0, 0), R(hw - 20, ly, 0, 0), IM_COL32(170, 200, 230, 110), 2.0f * k);
-            }
-            list->AddQuad(R(-hw, cardY + hh, 0, 0), R(hw, cardY + hh, 0, 0), R(hw, cardY - hh, 0, 0), R(-hw, cardY - hh, 0, 0), IM_COL32(24, 18, 12, 255), 6.0f * k);
-            list->AddTriangleFilled(R(hw - 40, cardY - hh, 0, 0), R(hw, cardY - hh + 40, 0, 0), R(hw - 40, cardY - hh + 40, 0, 0), IM_COL32(214, 206, 186, 255));
-            list->AddTriangle(R(hw - 40, cardY - hh, 0, 0), R(hw, cardY - hh + 40, 0, 0), R(hw - 40, cardY - hh + 40, 0, 0), IM_COL32(24, 18, 12, 255), 3.0f * k);
+            Q(12, -12, 0, IM_COL32(0, 0, 0, 120));
+            Q(0, 0, 6, IM_COL32(255, 140, 40, 255));   // orange frame
+            Q(0, 0, 0, IM_COL32(26, 30, 48, 245));
+            list->AddLine(R(-hw + 30, cardY + 36, 0, 0), R(hw - 30, cardY + 36, 0, 0), IM_COL32(255, 196, 58, 120), 2.0f * k);
+            list->AddLine(R(-hw + 30, cardY - 2, 0, 0), R(hw - 30, cardY - 2, 0, 0), IM_COL32(255, 196, 58, 120), 2.0f * k);
             // Text, shrunk to fit inside the card.
             const float maxW = 2 * hw - 70.0f;
-            auto Fit = [&](const std::u16string& u, float size) {
-                const float w = GameLayout::MeasureText(*pmFont, u, size);
+            auto Fit = [&](const GameLayout::Font& font, const std::u16string& u, float size) {
+                const float w = GameLayout::MeasureText(font, u, size);
                 return w > maxW ? size * maxW / w : size;
             };
-            auto Outlined = [&](const char* text, float y, float size, uint32_t top, uint32_t bottom, float ink) {
+            auto Outlined = [&](const char* text, float y, float size, uint32_t top, uint32_t bottom, float ink, uint32_t inkCol = 0x0B0D16FFu) {
                 const auto u = GameLayout::Utf16(text);
-                const float fs = Fit(u, size);
+                const float fs = Fit(*pmFont, u, size);
                 for (int j = 0; j < 12; ++j) {
                     const float a = j * 0.5236f;
                     GameLayout::DrawText(list, view, *pmFont, u, std::cos(a) * ink, y + bob + std::sin(a) * ink, fs,
-                                         0x18120CFFu, 0x18120CFFu, 1.0f, 1, 1);
+                                         inkCol, inkCol, 1.0f, 1, 1);
                 }
                 GameLayout::DrawText(list, view, *pmFont, u, 0.0f, y + bob, fs, top, bottom, 1.0f, 1, 1);
             };
-            Outlined("NEW SUPER PAPER BROS.", cardY + 88.0f, 40.0f, 0xFFF26BFFu, 0xFF9A1EFFu, 3.0f);
-            Outlined("Made by JosiahG", cardY + 32.0f, 48.0f, 0xFF5A4AFFu, 0xC81E1EFFu, 3.0f);
+            Outlined("SUPER SMASH BROS. BRAWL", cardY + 108.0f, 22.0f, 0xF2F2F6FFu, 0xB8BCCBFFu, 2.0f);
+            Outlined("RECOMPILED", cardY + 70.0f, 46.0f, 0xFFF3B0FFu, 0xFF8C28FFu, 3.5f);
+            Outlined("Made by JosiahG", cardY + 16.0f, 44.0f, 0xFFFFFFFFu, 0xFFC86AFFu, 3.5f, 0x7A1A10FFu);
             {
                 const auto u = GameLayout::Utf16(kCredit);
-                GameLayout::DrawText(list, view, *pmFont, u, 0.0f, cardY - 22.0f + bob, Fit(u, 17.0f), 0x3A2A18FFu,
-                                     0x3A2A18FFu, 1.0f, 1, 1);
+                GameLayout::DrawText(list, view, small, u, 0.0f, cardY - 30.0f + bob, Fit(small, u, 17.0f), 0xD6D9E4FFu,
+                                     0xB8BCCBFFu, 1.0f, 1, 1);
                 // How to reach the settings, along the card's bottom edge.
                 const auto hint = GameLayout::Utf16("F10 = settings menu   F11 = fullscreen / window");
-                GameLayout::DrawText(list, view, *pmFont, hint, 0.0f, cardY - hh + 16.0f + bob, Fit(hint, 12.0f),
-                                     0x6A5A48FFu, 0x6A5A48FFu, 1.0f, 1, 1);
+                GameLayout::DrawText(list, view, small, hint, 0.0f, cardY - hh + 16.0f + bob, Fit(small, hint, 12.0f),
+                                     0x8E93A6FFu, 0x8E93A6FFu, 1.0f, 1, 1);
             }
             if (shaderLine[0] != '\0') {
                 const float bw = 180.0f, by = cardY - 70.0f;
-                list->AddRectFilled(R(-bw, by + 10, 0, 0), R(bw, by - 10, 0, 0), IM_COL32(24, 18, 12, 255), 5.0f * k);
-                list->AddRectFilled(R(-bw + 4, by + 6, 0, 0), R(bw - 4, by - 6, 0, 0), IM_COL32(250, 240, 210, 255), 3.0f * k);
+                list->AddRectFilled(R(-bw, by + 10, 0, 0), R(bw, by - 10, 0, 0), IM_COL32(8, 10, 18, 255), 5.0f * k);
+                list->AddRectFilled(R(-bw + 4, by + 6, 0, 0), R(bw - 4, by - 6, 0, 0), IM_COL32(52, 58, 80, 255), 3.0f * k);
                 const float p = std::fmod(t * 0.6f, 1.0f);
                 const float sx = -bw + 4 + p * (2 * bw - 58);
-                list->AddRectFilled(R(sx, by + 6, 0, 0), R(sx + 50, by - 6, 0, 0), IM_COL32(255, 196, 40, 255), 3.0f * k);
+                list->AddRectFilled(R(sx, by + 6, 0, 0), R(sx + 50, by - 6, 0, 0), IM_COL32(255, 140, 40, 255), 3.0f * k);
                 const auto u = GameLayout::Utf16(shaderLine);
-                GameLayout::DrawText(list, view, *pmFont, u, 0.0f, by - 26.0f + bob, Fit(u, 15.0f), 0x3A2A18FFu, 0x3A2A18FFu,
-                                     1.0f, 1, 1);
+                GameLayout::DrawText(list, view, small, u, 0.0f, by - 26.0f + bob, Fit(small, u, 15.0f), 0xD6D9E4FFu,
+                                     0xD6D9E4FFu, 1.0f, 1, 1);
             } else {
-                const float pop = 1.0f + 0.06f * std::sin(t * 5.0f), py = cardY - 80.0f + bob;
-                // The start button of what the player is holding: the controller's own jump button (its icon), else
-                // the keyboard's jump key. Both are 2 on the Wii Remote, which the cover waits for (frame_input.cpp).
-                const int padStyle = aurora_button_icon_style();
-                static const char* const kStyleDirs[3] = {"xbox", "playstation", "nintendo"};
-                const std::string icon = padStyle >= 0 && padStyle < 3
-                    ? "@" + RuntimeConfigFile::PathToUtf8(RuntimeConfigFile::ApplicationDataDirectory() / "button_icons" /
-                                                          kStyleDirs[padStyle] / "ui" / "jump.png")
-                    : std::string();
-                const auto press = GameLayout::Utf16(icon.empty() ? "Press " + Keybinds::KeyLabel(Keybinds::kJump) + " to start!" : "Press");
-                const auto rest = GameLayout::Utf16("to start!");
-                const float fs = Fit(icon.empty() ? press : GameLayout::Utf16("Press A or 2 to start!"), 26.0f) * pop;
-                const float iconSize = 34.0f * pop, gap = 8.0f;
-                const float wPress = GameLayout::MeasureText(*pmFont, press, fs);
-                const float wRest = icon.empty() ? 0.0f : GameLayout::MeasureText(*pmFont, rest, fs);
-                float x = -(wPress + (icon.empty() ? 0.0f : gap + iconSize + gap + wRest)) * 0.5f;
-                const auto outlined = [&](const std::u16string& u, float at) {  // white outline, blue fill, like the title
-                    for (int j = 0; j < 12; ++j) {
-                        const float a = j * 0.5236f;
-                        GameLayout::DrawText(list, view, *pmFont, u, at + std::cos(a) * 2.5f, py + std::sin(a) * 2.5f, fs,
-                                             0xFFFFFFFFu, 0xFFFFFFFFu, 1.0f, 0, 1);
-                    }
-                    GameLayout::DrawText(list, view, *pmFont, u, at, py, fs, 0x3D8BFFFFu, 0x1A3FA0FFu, 1.0f, 0, 1);
-                };
-                outlined(press, x);
-                if (!icon.empty()) {
-                    x += wPress + gap;
-                    Draw(icon.c_str(), x + iconSize * 0.5f, py, iconSize, 0.0f, false);
-                    outlined(rest, x + iconSize + gap);
+                // Press start: A on a GameCube controller (any gamepad's bottom face button), Enter on the keyboard
+                // pad, A or 2 on a Wii Remote (frame_input.cpp lifts the cover).
+                const float pop = 1.0f + 0.06f * std::sin(t * 5.0f), py = cardY - 82.0f + bob;
+                const auto press = GameLayout::Utf16("Press " + StartButtonName() + " to start!");
+                const float fs = Fit(*pmFont, press, 26.0f) * pop;
+                for (int j = 0; j < 12; ++j) {
+                    const float a = j * 0.5236f;
+                    GameLayout::DrawText(list, view, *pmFont, press, std::cos(a) * 2.5f, py + std::sin(a) * 2.5f, fs,
+                                         0x0B0D16FFu, 0x0B0D16FFu, 1.0f, 1, 1);
                 }
+                GameLayout::DrawText(list, view, *pmFont, press, 0.0f, py, fs, 0xFFFFFFFFu, 0xFF8C28FFu, 1.0f, 1, 1);
             }
-            // The heroes flank the card; Peach waves from the hills.
-            Shadow(-345.0f, -118.0f, 62.0f);
-            Draw("mario", -345.0f, -32.0f + std::abs(std::sin(t * 2.2f)) * 10.0f, 170.0f, -0.06f + std::sin(t * 2.2f) * 0.03f, false);
-            Shadow(345.0f, -118.0f, 58.0f);
-            Draw("luigi", 345.0f, -36.0f + std::abs(std::sin(t * 2.2f + 1.3f)) * 12.0f, 160.0f, 0.06f + std::sin(t * 2.2f + 1.3f) * 0.03f, false);
-            Draw("peach", -150.0f, -175.0f + std::sin(t * 1.4f) * 4.0f, 110.0f, std::sin(t * 1.4f) * 0.04f, false);
-            // Bowser stomps in from the bottom right, in front of the card.
-            Shadow(200.0f, -232.0f, 70.0f);
-            Draw("bowser", 200.0f, -160.0f + std::abs(std::sin(t * 1.3f)) * 6.0f, 150.0f, -0.04f + std::sin(t * 1.3f) * 0.03f, false);
-            Draw("pixl", 40.0f, -185.0f + std::sin(t * 2.6f) * 8.0f, 60.0f, std::sin(t * 1.9f) * 0.15f, false);
-            // Tippi loops around the card, trailing sparkles.
-            const float tx = std::sin(t * 0.7f) * 330.0f, ty = 200.0f + std::sin(t * 1.4f) * 30.0f;
-            for (int j = 1; j <= 5; ++j) {
-                const float tt = t - j * 0.12f;
-                Draw("sparkle", std::sin(tt * 0.7f) * 330.0f, 200.0f + std::sin(tt * 1.4f) * 30.0f, 34.0f - j * 4.0f, tt * 2.0f, false,
-                     IM_COL32(255, 255, 255, 220 - j * 35));
+            // The Smash Ball in the top-left corner, turning slowly.
+            {
+                const float size = std::min(sz.x, sz.y) * 0.16f;
+                const ImVec2 at(o.x + size * 0.75f, o.y + size * 0.75f);
+                Draw("smash_ball", (at.x - view.centerX) / k, (view.centerY - at.y) / k, size / k, t * 0.35f, false);
             }
-            Draw("tippi", tx, ty + std::sin(t * 9.0f) * 3.0f, 64.0f, std::cos(t * 0.7f) * 0.25f, std::cos(t * 0.7f) < 0.0f);
             // Twinkles scattered over the sky.
-            const float tw[6][2] = {{-330, 165}, {-210, 230}, {250, 235}, {360, 150}, {-60, 245}, {110, 175}};
+            const float tw[6][2] = {{-420, 120}, {-230, 245}, {250, 240}, {430, 120}, {-60, 255}, {120, 260}};
             for (int j = 0; j < 6; ++j) {
                 const float s2 = 0.5f + 0.5f * std::sin(t * 2.4f + j * 1.7f);
-                Draw("sparkle", tw[j][0], tw[j][1], 26.0f * s2 + 6.0f, t + j, false, IM_COL32(255, 255, 255, int(120 + 135 * s2)));
+                Sparkle(tw[j][0], tw[j][1], 12.0f * s2 + 3.0f, t + j, IM_COL32(255, 255, 255, int(120 + 135 * s2)));
             }
             startY = view.centerY + 200.0f * k;
             titleHeight = 0.0f;
@@ -1617,9 +1584,52 @@ void UpdateBootShaderState() {
     g_bootShaderNotice |= queued > kBootShaderNoticeThreshold;
     if (queued == 0 || now - g_bootShaderWaitStart > kBootShaderWaitLimit) {
         g_bootShadersReady.store(true, std::memory_order_release);
-        // Brawl asks for A on its own strap screen, so the cover lifts by itself once the boot shaders are ready.
-        NotifyStrapInputAccepted();
+        // The title card then waits for a press (UpdateStartupPress); scripted test runs go straight on.
+        if (std::getenv("NSMBW_INPUT_SCRIPT") != nullptr || std::filesystem::exists("input_script.txt")) {
+            NotifyStrapInputAccepted();
+        }
     }
+}
+
+// The button that starts, as printed on the first connected gamepad (its bottom face button: A on Xbox and GameCube
+// style pads, B on Nintendo's, Cross on PlayStation's), or Enter without one.
+std::string StartButtonName() {
+    int count = 0;
+    SDL_JoystickID* ids = SDL_GetGamepads(&count);
+    std::string name = "Enter";
+    if (ids != nullptr && count > 0) {
+        SDL_Gamepad* pad = SDL_GetGamepadFromID(ids[0]);
+        switch (pad != nullptr ? SDL_GetGamepadButtonLabel(pad, SDL_GAMEPAD_BUTTON_SOUTH) : SDL_GAMEPAD_BUTTON_LABEL_A) {
+        case SDL_GAMEPAD_BUTTON_LABEL_B: name = "B"; break;
+        case SDL_GAMEPAD_BUTTON_LABEL_CROSS: name = "Cross"; break;
+        default: name = "A"; break;
+        }
+    }
+    SDL_free(ids);
+    return name;
+}
+
+// The title card lifts on the start button (any gamepad's bottom face button or Start), Enter or Space, or a click,
+// once it has been up for a moment so the credits are seen. Wii Remotes lift it from frame_input.cpp.
+void UpdateStartupPress() {
+    static int shownFrames = 0;
+    if (!g_bootShadersReady.load(std::memory_order_acquire) || g_strapInputAccepted.load(std::memory_order_acquire)) return;
+    if (++shownFrames < 90) return;
+    bool pressed = false;
+    int count = 0;
+    SDL_JoystickID* ids = SDL_GetGamepads(&count);
+    for (int i = 0; ids != nullptr && i < count; ++i) {
+        if (SDL_Gamepad* pad = SDL_GetGamepadFromID(ids[i])) {
+            pressed = pressed || SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_SOUTH) || SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_START);
+        }
+    }
+    SDL_free(ids);
+    // Keys and clicks count only while the game window has them (typing or clicking in another program does not).
+    const bool* keys = SDL_GetKeyboardState(nullptr);
+    pressed = pressed || (SDL_GetKeyboardFocus() != nullptr && keys != nullptr &&
+                          (keys[SDL_SCANCODE_RETURN] || keys[SDL_SCANCODE_SPACE] || keys[SDL_SCANCODE_KP_ENTER]));
+    pressed = pressed || (SDL_GetMouseFocus() != nullptr && (SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON_LMASK) != 0);
+    if (pressed) NotifyStrapInputAccepted();
 }
 
 void DrawExitPrompt() {
@@ -2177,6 +2187,7 @@ void Draw() noexcept {
     PersistDisplayModeIfChanged();
     UpdateCursorAutoHide();
     UpdateBootShaderState();
+    UpdateStartupPress();
     if (!StartupScreenVisible()) {
         DrawShaderCompilationStatus();
     }
