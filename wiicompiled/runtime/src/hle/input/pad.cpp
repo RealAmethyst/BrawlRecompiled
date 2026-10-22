@@ -121,13 +121,16 @@ extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
     InputBindings::Apply(statuses);
     // Test scripts last, and alone: a key or mouse button pressed at the PC during a scripted run must not reach
     // the game (the keyboard pad maps the mouse buttons to A and B).
-    if (uint16_t scripted = 0; WiiRemoteInput::ScriptedPadButtons(0, scripted, statuses[0].stickX, statuses[0].stickY)) {
-        const int8_t stickX = statuses[0].stickX, stickY = statuses[0].stickY;
-        statuses[0] = {};
-        statuses[0].err = PAD_ERR_NONE;
-        statuses[0].button = scripted;
-        statuses[0].stickX = stickX;
-        statuses[0].stickY = stickY;
+    // A script's channel field drives that port (a second player's picks in a scripted match).
+    for (uint32_t port = 0; port < PAD_CHANMAX; ++port) {
+        uint16_t scripted = 0;
+        int8_t stickX = 0, stickY = 0;
+        if (!WiiRemoteInput::ScriptedPadButtons(port, scripted, stickX, stickY)) continue;
+        statuses[port] = {};
+        statuses[port].err = PAD_ERR_NONE;
+        statuses[port].button = scripted;
+        statuses[port].stickX = stickX;
+        statuses[port].stickY = stickY;
     }
 
     try {
