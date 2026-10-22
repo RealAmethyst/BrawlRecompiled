@@ -26,7 +26,7 @@ Rendered at 4K (shown here at 1080p).
 ## Features
 
 - Up to 4K, and the game's own 16:9 mode (plus fill-the-window for ultrawide)
-- 120 fps frame interpolation (experimental on Brawl; needs a display faster than 60 Hz)
+- 120 fps frame interpolation, on by default (it shows on displays faster than 60 Hz; game speed is unchanged)
 - Every gamepad is a GameCube controller (Xbox, PlayStation and Nintendo layouts), the keyboard too; real Wii
   Remotes over Bluetooth
 - A launcher that installs the game from your own disc image (.iso, .ciso, .wbfs), with the display, controller

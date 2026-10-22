@@ -207,6 +207,9 @@ uint64_t ScriptNowMs() {
 std::mutex g_sceneMutex;
 std::unordered_map<std::string, uint64_t> g_sceneStartMs;  // first "-> scene" report of each scene
 std::unordered_map<std::string, uint64_t> g_sceneStartFrame;  // the same, in game frames (pad polls)
+// The scene showing now and the sequence it belongs to (Brawl reports both: "sqVsMelee", then "scSelctCharacter"). A
+// scene's events fire only while it is current, so a slow run cannot spill one screen's presses onto the next.
+std::string g_currentScene, g_currentSequence;
 // PADRead calls: the game polls once per logic frame, so unlike presented frames the count is the same every run.
 std::atomic<uint64_t> g_padPolls{0};
 
@@ -233,7 +236,7 @@ bool ScriptedSample(uint32_t chan, KpadSample& sample) {
             std::lock_guard<std::mutex> lock(g_sceneMutex);
             const auto& starts = event.frames ? g_sceneStartFrame : g_sceneStartMs;
             const auto it = starts.find(event.scene);
-            if (it == starts.end()) continue;
+            if (it == starts.end() || (event.scene != g_currentScene && event.scene != g_currentSequence)) continue;
             base = it->second;
         }
         const uint64_t at = event.frames ? g_padPolls.load(std::memory_order_relaxed) : now;
@@ -810,6 +813,7 @@ void NoteGameReport(const std::string& line) {
     NoteSceneForCaptures(scene);
     if (!Script().active) return;
     std::lock_guard<std::mutex> lock(g_sceneMutex);
+    if (!scene.empty()) (scene.rfind("sq", 0) == 0 ? g_currentSequence : g_currentScene) = scene;
     if (!scene.empty() && g_sceneStartMs.emplace(scene, ScriptNowMs()).second) {
         const uint64_t frame = g_padPolls.load(std::memory_order_relaxed);
         g_sceneStartFrame.emplace(scene, frame);
