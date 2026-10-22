@@ -44,5 +44,7 @@ private:
     float m_masterVolume = 1.0f;
     bool m_muted = false;
     bool m_reportedDroppedBlock = false;
+    uint64_t m_lastOpenFailureMs = 0;  // no output device: when opening last failed (retries are spaced out)
+    bool m_reportedOpenFailure = false;
     std::vector<int16_t> m_convertBuffer;
 };

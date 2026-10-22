@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include <SDL3/SDL_init.h>
+#include <SDL3/SDL_timer.h>
 
 AudioBackend& AudioBackend::Instance() {
     static AudioBackend instance;
@@ -46,6 +47,12 @@ bool AudioBackend::EnsureInitializedLocked(uint32_t sampleRate, uint32_t channel
         m_stream = nullptr;
     }
 
+    // Without an output device (none plugged in or all disabled) every audio block would retry the open; try again
+    // every 2 s instead so a device plugged in later is still picked up.
+    if (m_lastOpenFailureMs != 0 && SDL_GetTicks() - m_lastOpenFailureMs < 2000) {
+        return false;
+    }
+
     if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
         RT_LOG(RT_TAG_AUDIO) << "SDL_InitSubSystem(SDL_INIT_AUDIO) failed: " << SDL_GetError() << std::endl;
         return false;
@@ -58,9 +65,15 @@ bool AudioBackend::EnsureInitializedLocked(uint32_t sampleRate, uint32_t channel
 
     SDL_AudioStream* stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
     if (!stream) {
-        RT_LOG(RT_TAG_AUDIO) << "SDL_OpenAudioDeviceStream failed: " << SDL_GetError() << std::endl;
+        if (!m_reportedOpenFailure) {
+            RT_LOG(RT_TAG_AUDIO) << "SDL_OpenAudioDeviceStream failed: " << SDL_GetError() << " (retrying every 2 s)" << std::endl;
+            m_reportedOpenFailure = true;
+        }
+        m_lastOpenFailureMs = SDL_GetTicks();
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);  // balance this attempt's InitSubSystem
         return false;
     }
+    m_lastOpenFailureMs = 0;
 
     if (!SDL_ResumeAudioStreamDevice(stream)) {
         RT_LOG(RT_TAG_AUDIO) << "SDL_ResumeAudioStreamDevice failed: " << SDL_GetError() << std::endl;
