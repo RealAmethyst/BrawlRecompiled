@@ -18,13 +18,17 @@ Minus and Legacy XP load the same way (see Mods).
 - Every gamepad is a GameCube controller (Xbox, PlayStation and Nintendo layouts), the keyboard too; real Wii
   Remotes over Bluetooth
 - A launcher that installs the game from your own disc image (.iso, .ciso, .wbfs), with the display, controller
-  and mod settings, and Wii / Dolphin save import
+  and mod settings, and Wii / Dolphin save import; it uses the game's own title font, fighters and Smash Ball, taken from your
+  disc when the release is built (`tools/make_launcher_art.py`)
+- Keyboard and mouse controls for player 1, set up in the launcher or the game's F10 menu
 - Saves in `UserData\NAND`, compatible in layout with a Wii's
 - A virtual SD card (`UserData\SD`), so the game's own SD features and SD-based mods work
 - Gecko codes and Project+-style mods (in progress, see below)
 - Windows and Linux
 
 **No game data is included**: the game's files are read from your own copy of the game.
+
+![The launcher](screenshots/launcher.png)
 
 ## Mods
 
