@@ -7,8 +7,9 @@ emulator: the game runs as a Windows program.
 ![Donkey Kong on Mario Circuit](screenshots/07_vs_dk_mario_circuit.png)
 
 **Work in progress.** What works today: boot, saves, every menu tested so far, VS battles, the attract demos,
-Classic mode's start, and the Subspace Emissary's opening (cutscenes and the first battle). Project+ loads from the
-virtual SD card up to its character and stage select; its matches still crash while loading (being worked on).
+Classic mode's start, and the Subspace Emissary's opening (cutscenes and the first battle). Project+ and
+Project+Ex load from the virtual SD card and play matches with their own characters and stages; REX, Brawl
+Minus and Legacy XP load the same way (see Mods).
 
 ## Features
 
@@ -38,11 +39,27 @@ Brawl mods are installed the way they are on a Wii's SD card:
 - **Gecko codes**: the `RSBE01.GCT` of the card folder chosen on the launcher's Mods page ("Codes to load",
   `[mods] sd_codes` in `Config.toml`), else the first folder with one (`UserData\SD\Project+\RSBE01.GCT`), else
   `UserData\Codes\RSBE01.gct`, is installed with USB Loader GX's code handler, honouring a `gc.txt` beside it
-  (code list address, hook type, pokes) exactly as Project+'s loader does. Builds that share the card this way:
-  Project+ and [Project+Ex](https://github.com/KingJigglypuff/project-plus-ex) (its `P+Ex`, `apps` and `private`
-  folders).
-- Code the codes patch runs in a built-in PowerPC interpreter; everything else stays native. Mods that replace
-  `.rel` modules (Project+ replaces every fighter) currently run those modules in the interpreter as well.
+  (code list address, hook type, pokes) exactly as the mods' own loaders do: the handler runs once before the
+  game's first instruction and then at every frame.
+- Code the codes patch runs in a built-in PowerPC interpreter; everything else stays native. Modules a mod
+  replaces (every fighter in Project+, the character select and the whole melee engine in Project+Ex and REX)
+  run in the interpreter too, at full speed.
+
+Several builds can share one card; "Codes to load" picks the one that runs. The builds tried, each copied from
+its Wii (console / "hackless") download into `UserData\SD` as the folder named here:
+
+| Build | Card folder | Get it from |
+|---|---|---|
+| Project+ 3.2.1 (Knuckles, Mewtwo, Roy, …) | `Project+` | [projectplusgame.com](https://projectplusgame.com) (Wii "Lite") |
+| Project+Ex 1.7 (BrawlEx: Ridley, Waluigi, Sceptile, Dark Samus, …) | `P+Ex` | [KingJigglypuff/project-plus-ex](https://github.com/KingJigglypuff/project-plus-ex/releases) (Wii zip) |
+| Super Smash REX Release 0½ (PMEX Remix's successor, 100+ fighters) | `rex_` | [rexbuild.site/downloads](https://www.rexbuild.site/downloads) (Wii .rar) |
+| Brawl Minus 5.1.5 | `Minusery` | [brawlminus.net](https://brawlminus.net/) (Console zip) |
+| Legacy XP 2.11 | `LegacyXP` | [unofficialsmashlegacy.weebly.com](https://unofficialsmashlegacy.weebly.com/legacy-xp.html) (Wii) |
+
+Only that folder is needed (the downloads' `apps`, `private`, `codes` and loader files are for a real Wii). The
+card image grows with what is in the folder (REX alone is 8 GB), so the first start after adding a build takes a
+few minutes while it is built. Costumes, stages and movesets from [Brawl Vault](https://forums.kc-mm.com/Gallery/)
+install into a build's `pf` folder exactly as on a Wii.
 
 ## Building from source
 

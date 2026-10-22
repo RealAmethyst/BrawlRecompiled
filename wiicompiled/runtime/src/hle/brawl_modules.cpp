@@ -88,6 +88,9 @@ bool LinkAtHome(uint32_t header, uint32_t gameBss) {
     if (Crc32(header + 0x4Cu, m->fixSize - 0x4Cu) != m->crc32) {
         RT_LOGF(RT_TAG_OS, "REL module %s at 0x%08X is not the disc's (a mod): linking it in place, untranslated\n",
                 m->name, header);
+        // At its retail address the disc's translated functions stay registered over the mod's code (Project+Ex
+        // ships its own sora_menu_sel_char): calls into them must run the mod's bytes.
+        if (m->resident && header == m->image) GuestCodePatch::InterpretReplacedModule(m->image, m->image + m->fixSize, m->name);
         return false;
     }
 

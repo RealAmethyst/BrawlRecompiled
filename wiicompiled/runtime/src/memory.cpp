@@ -634,6 +634,7 @@ namespace {
 
 uint8_t MemoryInline::Read8Slow(uint32_t addr) {
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return 0;  // nothing on the bus there: reads 0, writes dropped
         ThrowMmioReadBlocked(addr, sizeof(uint8_t));
     }
     ResolveDeferredReads(addr, sizeof(uint8_t));
@@ -642,6 +643,7 @@ uint8_t MemoryInline::Read8Slow(uint32_t addr) {
 
 uint16_t MemoryInline::Read16Slow(uint32_t addr) {
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return 0;  // nothing on the bus there: reads 0, writes dropped
         ThrowMmioReadBlocked(addr, sizeof(uint16_t));
     }
     ResolveDeferredReads(addr, sizeof(uint16_t));
@@ -650,6 +652,7 @@ uint16_t MemoryInline::Read16Slow(uint32_t addr) {
 
 uint32_t MemoryInline::Read32Slow(uint32_t addr) {
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return 0;  // nothing on the bus there: reads 0, writes dropped
         ThrowMmioReadBlocked(addr, sizeof(uint32_t));
     }
     ResolveDeferredReads(addr, sizeof(uint32_t));
@@ -659,6 +662,7 @@ uint32_t MemoryInline::Read32Slow(uint32_t addr) {
 
 uint64_t MemoryInline::Read64Slow(uint32_t addr) {
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return 0;  // nothing on the bus there: reads 0, writes dropped
         ThrowMmioReadBlocked(addr, sizeof(uint64_t));
     }
     ResolveDeferredReads(addr, sizeof(uint64_t));
@@ -667,6 +671,7 @@ uint64_t MemoryInline::Read64Slow(uint32_t addr) {
 
 float MemoryInline::ReadFloat32Slow(uint32_t addr) {
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return 0;  // nothing on the bus there: reads 0, writes dropped
         ThrowMmioReadBlocked(addr, sizeof(float));
     }
     ResolveDeferredReads(addr, sizeof(uint32_t));
@@ -678,6 +683,7 @@ float MemoryInline::ReadFloat32Slow(uint32_t addr) {
 
 double MemoryInline::ReadFloat64Slow(uint32_t addr) {
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return 0;  // nothing on the bus there: reads 0, writes dropped
         ThrowMmioReadBlocked(addr, sizeof(double));
     }
     ResolveDeferredReads(addr, sizeof(uint64_t));
@@ -693,6 +699,7 @@ void MemoryInline::Write8Slow(uint32_t addr, uint8_t val) {
         return;
     }
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return;  // nothing on the bus there: reads 0, writes dropped
         throw Memory::AccessViolation(addr, sizeof(val), "MMIO write blocked (non-GPU)");
     }
     WriteScalar(addr, val);
@@ -704,6 +711,7 @@ void MemoryInline::Write16Slow(uint32_t addr, uint16_t val) {
         return;
     }
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return;  // nothing on the bus there: reads 0, writes dropped
         throw Memory::AccessViolation(addr, sizeof(val), "MMIO write blocked (non-GPU)");
     }
     WriteScalar(addr, val);
@@ -715,6 +723,7 @@ void MemoryInline::Write32Slow(uint32_t addr, uint32_t val) {
         return;
     }
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return;  // nothing on the bus there: reads 0, writes dropped
         throw Memory::AccessViolation(addr, sizeof(val), "MMIO write blocked (non-GPU)");
     }
     WriteScalar(addr, val);
@@ -731,6 +740,7 @@ void MemoryInline::Write64Slow(uint32_t addr, uint64_t val) {
         return;
     }
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return;  // nothing on the bus there: reads 0, writes dropped
         throw Memory::AccessViolation(addr, sizeof(val), "MMIO write blocked (non-GPU)");
     }
     WriteScalar(addr, val);
@@ -745,6 +755,7 @@ void MemoryInline::WriteFloat32Slow(uint32_t addr, double val) {
         return;
     }
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return;  // nothing on the bus there: reads 0, writes dropped
         throw Memory::AccessViolation(addr, sizeof(float), "MMIO write blocked (non-GPU)");
     }
 
@@ -762,6 +773,7 @@ void MemoryInline::WriteFloat64Slow(uint32_t addr, double val) {
         return;
     }
     if (IsMmioAddress(addr)) {
+        if (!IsDeviceMmioAddress(addr)) return;  // nothing on the bus there: reads 0, writes dropped
         throw Memory::AccessViolation(addr, sizeof(double), "MMIO write blocked (non-GPU)");
     }
 

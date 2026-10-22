@@ -1291,15 +1291,27 @@ PPC_NATIVE_OVERRIDE(801FEA54, DVDLowClearCoverInterrupt_80166964, int32_t, (uint
 extern "C" int32_t DVDGetDriveStatus_HLE() { return 0; }
 PPC_NATIVE_OVERRIDE(801FAC98, DVDGetDriveStatus_HLE, int32_t, (), ());
 
-// DVDCompareDiskID as the SDK: game name, company, disk number and version must match (0 / 0xFF / zero
-// in the expected ID are wildcards). Logs the first mismatch: Brawl shows "insert the disc" while they differ.
+// DVDCompareDiskID as the SDK (dvdidutils.c): the game names are compared only when both start with a non-zero
+// byte (Legacy XP zeroes the first byte of the ID at 0x80000000), the company must be set and equal, and 0xFF disk
+// numbers and versions match any. Logs the first mismatch: Brawl shows "insert the disc" while they differ.
 extern "C" int32_t DVDCompareDiskID_HLE(uint32_t id1, uint32_t id2) {
     const uint32_t name1 = Memory::Read32(id1), name2 = Memory::Read32(id2);
     const uint16_t maker1 = Memory::Read16(id1 + 4), maker2 = Memory::Read16(id2 + 4);
     const uint8_t disk1 = Memory::Read8(id1 + 6), disk2 = Memory::Read8(id2 + 6);
     const uint8_t ver1 = Memory::Read8(id1 + 7), ver2 = Memory::Read8(id2 + 7);
-    const bool same = (name2 == 0 || name1 == name2) && (maker2 == 0 || maker1 == maker2) &&
-                      (disk2 == 0xFF || disk1 == disk2) && (ver2 == 0xFF || ver1 == ver2);
+    // strncmp over 4 bytes stops at the first NUL: bytes after it do not count.
+    const auto namesEqual = [](uint32_t a, uint32_t b) {
+        for (int shift = 24; shift >= 0; shift -= 8) {
+            const uint8_t x = static_cast<uint8_t>(a >> shift), y = static_cast<uint8_t>(b >> shift);
+            if (x != y) return false;
+            if (x == 0) return true;
+        }
+        return true;
+    };
+    const bool nameOk = (name1 >> 24) == 0 || (name2 >> 24) == 0 || namesEqual(name1, name2);
+    const bool makerOk = (maker1 >> 8) != 0 && (maker2 >> 8) != 0 && maker1 == maker2;
+    const bool same = nameOk && makerOk && (disk1 == 0xFF || disk2 == 0xFF || disk1 == disk2) &&
+                      (ver1 == 0xFF || ver2 == 0xFF || ver1 == ver2);
     static bool s_logged = false;
     if (!same && !s_logged) {
         s_logged = true;

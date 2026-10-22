@@ -25,5 +25,8 @@ void RunPatched(uint32_t address, CpuContext* ctx);
 // check of the interpreter against the translation on the unmodded game (same behaviour, only slower). Once the
 // function registry is final.
 void InterpretFromEnvironment();
+// A mod's replacement of a resident module links where the disc's translated functions are registered: every
+// translated function in [start, end) runs the bytes there in the interpreter from now on.
+void InterpretReplacedModule(uint32_t start, uint32_t end, const char* name);
 
 } // namespace GuestCodePatch

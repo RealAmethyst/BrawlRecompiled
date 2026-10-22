@@ -31,6 +31,7 @@ namespace {
 namespace fs = std::filesystem;
 
 constexpr uint32_t kHandlerEntry = 0x800018A8u;
+constexpr uint32_t kBootStack = 0x805B5100u;  // the main thread's stack (its top is 0x805B5150), unused before __start
 constexpr uint32_t kCodeListSlot = 0x80001804u;  // where the shipped handler reads the code list address
 constexpr uint32_t kVbiHookSite = 0x801E9A2Cu;   // VISetNextFrameBuffer's blr
 constexpr uint32_t kAxHookSite = 0x80200984u;    // __AXOutNewFrame's blr (hooktype 7, AXNextFrame)
@@ -179,6 +180,13 @@ void Install() {
     GuestCodePatch::Sync();
     RT_LOGF(RT_TAG_MOD, "[gecko] %zu code lines from '%s' at 0x%08X, hooktype %d, %zu poke(s)\n", codes.size() / 8 - 2,
             reinterpret_cast<const char*>(codesPath->u8string().c_str()), config.codeListStart, config.hookType, config.pokes.size());
+    // The loaders (Gecko OS, Project+'s, REX's) run the handler once before the game's first instruction, so every
+    // hook is in place from the start: REX creates its Syriinge heap from a hook inside the heap set-up loop, which
+    // the first hooked frame comes too late for.
+    CpuContext boot{};
+    boot.gpr[1] = kBootStack;
+    InvokeIndirectCpu(kHandlerEntry, &boot);
+    GuestCodePatch::Sync();
 }
 
 void RunVbiHook(CpuContext* ctx) {

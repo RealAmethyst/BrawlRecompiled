@@ -88,12 +88,8 @@ namespace GuestCodePatch {
 
 bool Active() { return g_active.load(std::memory_order_acquire); }
 
-void InterpretFromEnvironment() {
-    const char* text = std::getenv("BRAWL_INTERPRET");
-    if (text == nullptr) return;
-    char* dash = nullptr;
-    const uint32_t start = static_cast<uint32_t>(std::strtoul(text, &dash, 16));
-    const uint32_t end = *dash == '-' ? static_cast<uint32_t>(std::strtoul(dash + 1, nullptr, 16)) : 0;
+// Every translated function starting in [start, end) runs in the interpreter from now on, through module relinks.
+uint32_t InterpretRangeLocked(uint32_t start, uint32_t end) {
     uint32_t count = 0;
     for (uint32_t i = 0; i < g_mkwGuardedFunctionCount; ++i) {
         const uint32_t function = g_mkwGuardedFunctionStarts[i];
@@ -103,10 +99,29 @@ void InterpretFromEnvironment() {
         if (info != nullptr && info->name != nullptr && std::strstr(info->name, "_veneer_") != nullptr) continue;
         g_mkwGuestCodePatched[i] = 1;
         g_forced.push_back(i);
+        MarkInliningCallers(i);
         ++count;
     }
+    return count;
+}
+
+void InterpretFromEnvironment() {
+    const char* text = std::getenv("BRAWL_INTERPRET");
+    if (text == nullptr) return;
+    char* dash = nullptr;
+    const uint32_t start = static_cast<uint32_t>(std::strtoul(text, &dash, 16));
+    const uint32_t end = *dash == '-' ? static_cast<uint32_t>(std::strtoul(dash + 1, nullptr, 16)) : 0;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const uint32_t count = InterpretRangeLocked(start, end);
     RT_LOGF(RT_TAG_MOD, "[mods] BRAWL_INTERPRET: %u translated function(s) in 0x%08X-0x%08X run in the interpreter\n",
             count, start, end);
+}
+
+void InterpretReplacedModule(uint32_t start, uint32_t end, const char* name) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const uint32_t count = InterpretRangeLocked(start, end);
+    RT_LOGF(RT_TAG_MOD, "[mods] module %s replaced by a mod at 0x%08X-0x%08X: its %u translated function(s) now run "
+            "the mod's code in the interpreter\n", name, start, end, count);
 }
 
 void Protect(uint32_t start, uint32_t end, const char* name) {
