@@ -786,6 +786,10 @@ PPC_NATIVE_OVERRIDE_VOID(801c7260, GX__GetTexObjLODAll_80170cbc, (uint32_t oa, u
 extern "C" void GX__InitTlutObj_80170f80(uint32_t oa, uint32_t da, uint32_t f, uint32_t e) {
     std::lock_guard<std::mutex> guard(g_tlutObjMutex); GXTlutObj* obj = CreateHostTlutObj(oa); TlutObjMeta& meta = GetTlutObjMeta(oa);
     meta.dataAddr=CanonicalizeGxMainRamAddress(da); meta.format=f; meta.entries=(u16)e; meta.dirty=false;
+    // Fill the guest struct's hardware layout like the SDK does, so GXLoadTlut's inline-object path below reads this
+    // object as current instead of stale stack bytes (Brawl's HUD reuses one stack object for every portrait).
+    WriteGuest32(oa, (f & 3u) << 10, "GXInitTlutObj"); WriteGuest32(oa + 4, 0x64000000u | ((CanonicalizeGxMainRamAddress(da) >> 5) & 0xFFFFFFu), "GXInitTlutObj");
+    try { Memory::Write16(oa + 8, static_cast<uint16_t>(e)); } catch (const Memory::AccessViolation&) {}
     // Leave the object unconstructed on a bad descriptor. A later GXLoadTlut
     // then takes GetHostTlutObj's soft-fail path and gets a fresh empty object
     // instead of aurora reading entries*2 bytes off an unvalidated pointer.
@@ -795,6 +799,25 @@ extern "C" void GX__InitTlutObj_80170f80(uint32_t oa, uint32_t da, uint32_t f, u
 PPC_NATIVE_OVERRIDE_VOID(801f3004, GX__InitTlutObj_80170f80, (uint32_t oa, uint32_t da, uint32_t f, uint32_t e), (oa, da, f, e));
 
 extern "C" void GX__LoadTlut_80170fa8(uint32_t oa, uint32_t tl) {
+    // A TLUT object the game built without GXInitTlutObj (Brawl's NW4R G3D fills it inline): read the hardware
+    // layout {u32 tlut (format in bits 10-11), u32 loadTlut0 (address >> 5), u16 numEntries}.
+    // The hardware layout carries the LOADTLUT0 register id (0x64) in loadTlut0's top byte (GXInitTlutObj above
+    // writes the same layout). A reused object is rebuilt when its contents change.
+    if (oa != 0 && (Memory::Read32(oa + 4) >> 24) == 0x64u) {
+        const uint32_t format = (Memory::Read32(oa) >> 10) & 3u;
+        const uint32_t data = (Memory::Read32(oa + 4) & 0xFFFFFFu) << 5;
+        const uint32_t entries = Memory::Read16(oa + 8);
+        bool current = false;
+        {
+            std::lock_guard<std::mutex> guard(g_tlutObjMutex);
+            const auto it = g_TlutObjMeta.find(oa);
+            current = it != g_TlutObjMeta.end() && it->second.dataAddr == CanonicalizeGxMainRamAddress(data) &&
+                      it->second.format == format && it->second.entries == entries;
+        }
+        if (!current && data != 0 && entries != 0) {
+            GX__InitTlutObj_80170f80(oa, data, format, entries);
+        }
+    }
     if (SpmDumpFrame()) {
         auto it = g_TlutObjMeta.find(oa);
         RT_LOGF(RT_TAG_GX, "[drawdump] loadtlut oa 0x%08X slot %u known %d data 0x%08X n %u fmt %u\n", oa, tl, it != g_TlutObjMeta.end() ? 1 : 0,
