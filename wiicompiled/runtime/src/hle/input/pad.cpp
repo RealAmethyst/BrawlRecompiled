@@ -192,6 +192,22 @@ extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
         statuses[port].stickY = stickY;
     }
 
+    // Which ports report a controller, and the device behind each: logged whenever that changes.
+    static std::string lastPorts;
+    std::string ports;
+    for (uint32_t port = 0; port < PAD_CHANMAX; ++port) {
+        if (statuses[port].err != PAD_ERR_NONE) continue;
+        const s32 index = PADGetIndexForPort(port);
+        SDL_Gamepad* gamepad = index >= 0 ? PADGetSDLGamepadForIndex(static_cast<u32>(index)) : nullptr;
+        const char* name = gamepad != nullptr ? SDL_GetGamepadName(gamepad) : nullptr;
+        ports += " P" + std::to_string(port + 1) + "=" + (name != nullptr ? name : index >= 0 ? "pad" : "keyboard/script");
+    }
+    if (ports != lastPorts) {
+        lastPorts = ports;
+        std::printf("[pad] controllers:%s\n", ports.empty() ? " none" : ports.c_str());
+        std::fflush(stdout);
+    }
+
     try {
         for (uint32_t i = 0; i < PAD_CHANMAX; ++i) {
             WritePadStatus(statusPtr + static_cast<uint32_t>(i * PadStatusContract::kGuestStatusSize),

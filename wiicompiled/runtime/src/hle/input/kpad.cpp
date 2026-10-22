@@ -10,6 +10,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 
 // KPAD HLE fed by a real Bluetooth Wii Remote. The game calls KPADRead once per
 // frame with room for 16 KPADStatus entries and only looks at entry 0; with a
@@ -311,6 +312,13 @@ extern "C" int32_t KPAD__Read_HLE(uint32_t chan, uint32_t statusPtr, uint32_t co
     }
     WiiRemoteInput::KpadSample sample;
     const bool have = ReadSample(chan, sample);
+    // A Wii Remote channel starting or stopping to deliver input, logged (a gamepad must never show up here).
+    static bool delivering[4] = {};
+    if (chan < 4 && delivering[chan] != have) {
+        delivering[chan] = have;
+        std::printf("[kpad] Wii Remote %u %s\n", chan + 1, have ? "delivers input" : "has no input");
+        std::fflush(stdout);
+    }
     try {
         return WriteStatus(chan, statusPtr, have ? &sample : nullptr);
     } catch (const Memory::AccessViolation&) {

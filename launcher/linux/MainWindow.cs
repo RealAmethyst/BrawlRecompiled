@@ -55,6 +55,9 @@ sealed class MainWindow : Window
         Gamepads.Init(play);
 
         Title = "Brawl Recompiled  v" + AppVersion;
+        BallCursor = MakeBallCursor(clickable: false);
+        BallHand = MakeBallCursor(clickable: true);
+        Cursor = BallCursor;
         using (var icon = typeof(MainWindow).Assembly.GetManifestResourceStream("smash.ico")) if (icon != null) Icon = new WindowIcon(icon);
         Width = 1100;
         Height = 760;
@@ -73,12 +76,15 @@ sealed class MainWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
         var header = new HeaderView(this) { Height = 150 };
+        var fighter = new NavFighterView(this);
         var grid = new Grid { RowDefinitions = new RowDefinitions("150,*"), ColumnDefinitions = new ColumnDefinitions("220,*") };
         Grid.SetColumnSpan(header, 2);
+        Grid.SetRow(fighter, 1);
         Grid.SetRow(navButtons, 1);
         Grid.SetRow(content, 1);
         Grid.SetColumn(content, 1);
         grid.Children.Add(header);
+        grid.Children.Add(fighter);  // under the menu buttons, which sit on top of it
         grid.Children.Add(navButtons);
         grid.Children.Add(content);
         Content = grid;
@@ -88,6 +94,7 @@ sealed class MainWindow : Window
         {
             if (WindowState == WindowState.Minimized) return;
             header.InvalidateVisual();
+            fighter.InvalidateVisual();
             float glow = (float)(Math.Sin(T * 3) + 1) / 2;  // PLAY breathes between two reds
             playButton.Back = Color.FromRgb((byte)Lerp(Red.R, 255, glow), (byte)Lerp(Red.G, 100, glow), (byte)Lerp(Red.B, 70, glow));
         };
@@ -157,6 +164,7 @@ sealed class MainWindow : Window
             Width = 188, Height = 50, Padding = new Thickness(12, 0, 0, 0), Margin = new Thickness(0, 0, 0, 10), HoverColor = Hover,
         };
         button.Click += () => ShowPage(button);
+        button.ShowImage(Art($"text_nav_{title.ToLowerInvariant()}"));  // the title in the game's font
         page.IsVisible = false;
         content.Children.Add(page);
         navButtons.Children.Add(button);
@@ -170,6 +178,7 @@ sealed class MainWindow : Window
             bool on = b == button;
             b.Back = on ? Orange : Card;
             b.TextBrush = on ? new SolidColorBrush(Night) : SnowBrush;
+            b.ShowImage(Art($"text_nav_{b.Text.ToLowerInvariant()}{(on ? "_on" : "")}"));
             page.IsVisible = on;
         }
         RefreshStatus();
@@ -206,33 +215,199 @@ sealed class MainWindow : Window
                 g.DrawEllipse(new SolidColorBrush(i % 2 == 0 ? Orange : Gold, 0.67 * (1 - life)), null, new Rect(x, y, size, size));
             }
             g.DrawLine(new Pen(new SolidColorBrush(Orange), 4), new Point(0, r.Height - 2), new Point(r.Width, r.Height - 2));
-            // Shrink the title if the window is narrow.
-            double em = Math.Min(50, (r.Width - 80) / 9.5);
-            var title = new FormattedText("BRAWL RECOMPILED", CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-                new Typeface(Font, FontStyle.Normal, FontWeight.Bold), em, new SolidColorBrush(Color.Parse("#0C0E16")));
-            var at = new Point(r.Width / 2 - title.Width / 2, 22);
-            // The dark outline: the title stamped around a 3.5 px circle, then the gold-to-orange face on top.
-            for (int a = 0; a < 16; a++)
-                g.DrawText(title, at + new Point(Math.Cos(a * Math.PI / 8) * 3.5, Math.Sin(a * Math.PI / 8) * 3.5));
-            title.SetForegroundBrush(new LinearGradientBrush
+            // The title in the game's own title font, shrunk if the window is narrow so it stays clear of the fighters.
+            double titleBottom = 22 + 50;
+            if (Art("text_title") is { } title)
             {
-                StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative), EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
-                GradientStops = { new GradientStop(Gold, 0), new GradientStop(Orange, 1) },
-            });
-            g.DrawText(title, at);
+                double h = Math.Min(title.PixelSize.Height / 2.0, (r.Width - 2 * 200) / 9.0 * title.PixelSize.Height / 116.0);
+                double tw = title.PixelSize.Width * h / title.PixelSize.Height;
+                g.DrawImage(title, new Rect(r.Width / 2 - tw / 2, 14, tw, h));
+                titleBottom = 14 + h;
+            }
             var sub = new FormattedText("Super Smash Bros. Brawl (Wii) on PC  -  made by JosiahG  -  v" + AppVersion, CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, new Typeface(Font, FontStyle.Normal, FontWeight.Bold), Body, SnowBrush);
-            var tag = new Rect(r.Width / 2 - sub.Width / 2 - 10, 22 + em * 1.3, sub.Width + 20, sub.Height + 4);
+            var tag = new Rect(r.Width / 2 - sub.Width / 2 - 10, titleBottom + 2, sub.Width + 20, sub.Height + 4);
             g.DrawRectangle(new SolidColorBrush(Card), new Pen(EdgeBrush, 2), tag, 8, 8);
             g.DrawText(sub, new Point(r.Width / 2 - sub.Width / 2, tag.Y + 2));
+
+            // The Smash Ball drifts across the sky, turning, trailing sparkles; a click on it shows another tip.
+            double half = r.Width / 2.0 - 230;
+            Point At(double when) => new(r.Width / 2.0 + Math.Sin(when * 0.42) * half, 42 + Math.Sin(when * 1.2) * 18);
+            for (int k = 7; k >= 1; k--)
+            {
+                var p = At(t - k * 0.08);
+                Sparkle(g, p.X + Math.Sin(t * 7 + k) * 4, p.Y + Math.Cos(t * 5 + k) * 4, 12 - k, k % 2 == 0 ? Color.FromArgb((byte)(230 - k * 28), Gold.R, Gold.G, Gold.B)
+                                                                                                         : Color.FromArgb((byte)(230 - k * 28), 255, 255, 255));
+            }
+            var bp = At(t);
+            const double ball = 46;
+            BallRect = new Rect(bp.X - ball / 2, bp.Y - ball / 2, ball, ball);
+            if (Art("smash_ball") is { } ballImage)
+                using (g.PushTransform(Matrix.CreateTranslation(-bp.X, -bp.Y) * Matrix.CreateRotation(Math.Sin(t * 0.9) * 0.44) * Matrix.CreateTranslation(bp.X, bp.Y)))
+                    g.DrawImage(ballImage, BallRect);
+
+            // Mario and Sonic bounce at the sides; a click makes one hop.
+            double Lift(string name, double phase)
+            {
+                double hop = w.Hop(name, 0.7);
+                return Math.Abs(Math.Sin(t * 2.2 + phase)) * 5 + (hop < 0 ? 0 : Math.Sin(hop * Math.PI) * 30);
+            }
+            const double fw = 104, fh = 130;
+            LeftRect = new Rect(18, r.Height - fh + 10 - Lift("left", 0), fw, fh);
+            RightRect = new Rect(r.Width - fw - 18, r.Height - fh + 10 - Lift("right", 1.3), fw, fh);
+            using (g.PushClip(new Rect(0, 0, r.Width, r.Height - 4)))
+            {
+                if (Art("fighter_mario") is { } mario) g.DrawImage(mario, LeftRect);
+                if (Art("fighter_sonic") is { } sonic)
+                    using (g.PushTransform(Matrix.CreateScale(-1, 1) * Matrix.CreateTranslation(RightRect.X * 2 + fw, 0)))
+                        g.DrawImage(sonic, RightRect);
+            }
+        }
+
+        public Rect LeftRect, RightRect, BallRect;
+
+        protected override void OnPointerPressed(PointerPressedEventArgs e)
+        {
+            var at = e.GetPosition(this);
+            if (LeftRect.Contains(at)) w.jumpAt["left"] = w.T;
+            else if (RightRect.Contains(at)) w.jumpAt["right"] = w.T;
+            else if (BallRect.Contains(at)) w.NextTip();
+        }
+
+        protected override void OnPointerMoved(PointerEventArgs e)
+        {
+            var at = e.GetPosition(this);
+            Cursor = LeftRect.Contains(at) || RightRect.Contains(at) || BallRect.Contains(at) ? BallHand : BallCursor;
         }
     }
 
+    // A four-point sparkle, as the Smash Ball's trail.
+    static void Sparkle(DrawingContext g, double cx, double cy, double r, Color color)
+    {
+        double n = r * 0.3;
+        var star = new StreamGeometry();
+        using (var c = star.Open())
+        {
+            c.BeginFigure(new Point(cx, cy - r), true);
+            foreach (var p in new[] { new Point(cx + n, cy - n), new Point(cx + r, cy), new Point(cx + n, cy + n), new Point(cx, cy + r),
+                                      new Point(cx - n, cy + n), new Point(cx - r, cy), new Point(cx - n, cy - n) })
+                c.LineTo(p);
+            c.EndFigure(true);
+        }
+        g.DrawGeometry(new SolidColorBrush(color), null, star);
+    }
+
+    // ----- Art (tools/make_launcher_art.py, from the game's files), clicks and the pointer -----
+    static readonly Dictionary<string, Bitmap?> art = new();
+
+    public static Bitmap? Art(string name)
+    {
+        if (art.TryGetValue(name, out var cached)) return cached;
+        using var stream = typeof(MainWindow).Assembly.GetManifestResourceStream("art." + name + ".png");
+        return art[name] = stream == null ? null : new Bitmap(stream);
+    }
+
+    readonly Dictionary<string, double> jumpAt = new();
+
+    // How far into a click-triggered move (0..1), or -1 when none is playing.
+    double Hop(string name, double seconds) => jumpAt.TryGetValue(name, out var at) && T - at < seconds ? (T - at) / seconds : -1;
+
+    // The pointer: the Smash Ball (a little smaller with a sparkle over anything clickable).
+    public static Cursor BallCursor = new(StandardCursorType.Arrow), BallHand = new(StandardCursorType.Hand);
+
+    static Cursor MakeBallCursor(bool clickable)
+    {
+        if (Art("smash_ball") is not { } ball) return new Cursor(clickable ? StandardCursorType.Hand : StandardCursorType.Arrow);
+        var bitmap = new RenderTargetBitmap(new PixelSize(32, 32));
+        using (var g = bitmap.CreateDrawingContext())
+        {
+            double size = clickable ? 24 : 28;
+            g.DrawImage(ball, new Rect(0, 0, size, size));
+            if (clickable) Sparkle(g, 25.6, 25.6, 6.4, Gold);
+        }
+        return new Cursor(bitmap, new PixelPoint(4, 4));  // the ball's upper-left edge points
+    }
+
+    // A fighter stands under the menu buttons when there is room; a click spins them round and the next one turns in.
+    static readonly string[] NavFighters = { "kirby", "pikachu", "fox", "samus", "pit", "metaknight", "ike", "snake" };
+    int navFighter;
+    bool navTurned;
+
+    sealed class NavFighterView : Control
+    {
+        readonly MainWindow w;
+        Rect fighterRect;
+        public NavFighterView(MainWindow window) { w = window; }
+
+        public override void Render(DrawingContext g)
+        {
+            double t = w.T;
+            double top = w.navButtons.Bounds.Bottom + 10, bottom = Bounds.Height - 10;
+            double room = bottom - top - 12;
+            if (room < 110) { fighterRect = default; return; }
+            double h = Math.Min(200, room), wd = h * 4 / 5;
+            double spin = w.Hop("nav", 0.9);
+            if (spin >= 0.5 && !w.navTurned) { w.navFighter = (w.navFighter + 1) % NavFighters.Length; w.navTurned = true; }
+            if (spin < 0) w.navTurned = false;
+            // The spin squeezes them to a sliver (a turn), the next fighter coming round from the halfway point.
+            double turn = spin < 0 ? 1 : Math.Cos(spin * Math.PI * 2);
+            double sw = Math.Max(1, wd * Math.Abs(turn));
+            double y = bottom - h - 12 - (Math.Sin(t * 1.6) + 1) * 5;
+            double cx = (Bounds.Width + 16) / 2;
+            fighterRect = new Rect(cx - wd / 2, y, wd, h);
+            double shadowW = wd * 2 / 3 - (Math.Sin(t * 1.6) + 1) * 8;
+            g.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, 0, 0, 0)), null, new Rect(cx - shadowW / 2, bottom - 10, shadowW, 12));
+            if (Art("fighter_" + NavFighters[w.navFighter]) is { } image)
+            {
+                var place = new Rect(cx - sw / 2, y, sw, h);
+                if (turn < 0)
+                    using (g.PushTransform(Matrix.CreateScale(-1, 1) * Matrix.CreateTranslation(place.X * 2 + sw, 0)))
+                        g.DrawImage(image, place);
+                else g.DrawImage(image, place);
+            }
+        }
+
+        // Only the fighter takes clicks; the rest of the column passes them on.
+        protected override void OnPointerPressed(PointerPressedEventArgs e)
+        {
+            if (fighterRect.Contains(e.GetPosition(this)) && w.Hop("nav", 0.9) < 0) w.jumpAt["nav"] = w.T;
+        }
+
+        protected override void OnPointerMoved(PointerEventArgs e) => Cursor = fighterRect.Contains(e.GetPosition(this)) ? BallHand : BallCursor;
+    }
+
+    static readonly string[] Tips =
+    {
+        "Press F10 during the game to change the resolution, aspect ratio or controls without quitting.",
+        "F11 flips the game between fullscreen and a window.",
+        "Any controller works as a GameCube controller. Remap it on the Controls page.",
+        "No controller? Turn on the keyboard on the Controls page and pick your own keys.",
+        "Want more fighters? Put REX, Project+Ex or another Wii build on the SD card (Mods page).",
+        "Several builds can share the SD card. \"Codes to load\" on the Mods page picks the one that runs.",
+        "The first start after adding a build makes the SD card image. Big builds take a few minutes, once.",
+        "Click Mario or Sonic up there. Go on.",
+        "The fighter under the menu takes a bow when clicked.",
+        "Open saves folder takes you straight to your saves. A backup now and then never hurts.",
+    };
+    TextBlock? tipLabel;
+    int tipIndex;
+
+    void NextTip()
+    {
+        tipIndex = (tipIndex + 1) % Tips.Length;
+        if (tipLabel != null) tipLabel.Text = "Tip: " + Tips[tipIndex];
+    }
+
     // A card holding one page's controls, top to bottom; it scrolls when they are taller than the window.
-    static (Control card, StackPanel body) NewCard(string heading)
+    // `art`: the heading drawn in the game's title font (text_head_<art>.png).
+    static (Control card, StackPanel body) NewCard(string heading, string art)
     {
         var body = new StackPanel();
-        body.Children.Add(new TextBlock { Text = heading, FontSize = Heading, FontWeight = FontWeight.Bold, Margin = new Thickness(0, 0, 0, 10) });
+        Control title = Art("text_head_" + art) is { } image
+            ? new Image { Source = image, Width = image.PixelSize.Width / 2.0, Height = image.PixelSize.Height / 2.0, HorizontalAlignment = HorizontalAlignment.Left }
+            : new TextBlock { Text = heading, FontSize = Heading, FontWeight = FontWeight.Bold };
+        title.Margin = new Thickness(0, 0, 0, 8);
+        body.Children.Add(title);
         var card = new Border
         {
             Background = new SolidColorBrush(Card), BorderBrush = EdgeBrush, BorderThickness = new Thickness(3), CornerRadius = new CornerRadius(14),
@@ -267,9 +442,11 @@ sealed class MainWindow : Window
     // ----- Play -----
     Control BuildPlayPage()
     {
-        var (card, body) = NewCard("Ready to brawl?");
+        var (card, body) = NewCard("Ready to brawl?", "play");
         playButton = new PaperButton("PLAY", Red, PlaySize) { TextBrush = Brushes.White, Padding = new Thickness(60, 8, 60, 8), Margin = new Thickness(0, 6, 10, 6) };
         playButton.Click += Launch;
+        playButton.ShowImage(Art("text_play"));
+        playButton.Padding = new Thickness(60, 6, 60, 6);
         body.Children.Add(playButton);
         playStatus = Note("");
         playStatus.FontWeight = FontWeight.Bold;
@@ -278,6 +455,19 @@ sealed class MainWindow : Window
         AddDiscSetup(body);
         body.Children.Add(gameNote = Note("The game starts borderless at 1080p in its own 16:9 mode. " +
                                "In the game, F10 opens the settings menu (resolution, aspect, controllers, audio) and F11 switches between fullscreen and a window."));
+        // Tips: click the bubble (or the Smash Ball in the sky) for another one.
+        tipLabel = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 600, Foreground = SnowBrush };
+        var bubble = new Border
+        {
+            Child = tipLabel, Background = new SolidColorBrush(Night), BorderBrush = EdgeBrush, BorderThickness = new Thickness(1),
+            Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(0, 4, 0, 0), Cursor = BallHand, VerticalAlignment = VerticalAlignment.Center,
+        };
+        bubble.PointerPressed += (_, _) => NextTip();
+        var tipRow = Row(new Image { Source = Art("smash_ball"), Width = 44, Height = 44, Margin = new Thickness(0, 0, 8, 0) }, bubble);
+        tipRow.Margin = new Thickness(0, 10, 0, 6);
+        tipIndex = Random.Shared.Next(Tips.Length) - 1;
+        NextTip();
+        body.Children.Add(tipRow);
         body.Children.Add(Row(
             Btn("Open game folder", () => Open(play), Card),
             Btn("Open saves folder", () => Open(Directory.CreateDirectory(SaveDataDir()).FullName), Card),
@@ -408,7 +598,7 @@ sealed class MainWindow : Window
     // ----- Display -----
     Control BuildDisplayPage()
     {
-        var (card, body) = NewCard("Display");
+        var (card, body) = NewCard("Display", "display");
         body.Children.Add(Choice("Display mode", "display_mode", new[] { ("Borderless fullscreen", "\"borderless\""), ("Windowed", "\"windowed\""), ("Exclusive fullscreen", "\"exclusive\"") }));
         body.Children.Add(Choice("Resolution", "resolution_multiplier", new[] { ("1080p", "2.25"), ("4K (2160p)", "4.5"), ("Match the screen", "0"), ("1440p", "3"), ("720p", "1.5"), ("480p (original)", "1") }));
         // The game's own 16:9 mode (its widescreen switch) or 4:3; "fill" stretches the 16:9 camera to wider screens.
@@ -444,7 +634,7 @@ sealed class MainWindow : Window
     // ----- Controls -----
     // Every gamepad is a GameCube controller on its port (runtime hle/input/pad.cpp), laid out automatically for its
     // type. The Gamepad view changes one port's buttons through the game's [controller] expr_<port>_<control>
-    // expressions (runtime input_bindings.cpp, Dolphin's input names). The keyboard is set up in the game's own F10 menu.
+    // expressions (runtime input_bindings.cpp, Dolphin's input names). The Keyboard view maps keys to player 1's controller.
     static readonly (string key, string label)[] GcControls =
     {
         ("buttons_a", "A"), ("buttons_b", "B"), ("buttons_x", "X"), ("buttons_y", "Y"), ("buttons_z", "Z"), ("buttons_start", "Start"),
@@ -491,7 +681,7 @@ sealed class MainWindow : Window
 
     Control BuildControlsPage()
     {
-        var (card, body) = NewCard("Controls");
+        var (card, body) = NewCard("Controls", "controls");
         var inputCombo = new ComboBox { Width = 460, Margin = new Thickness(3, 4, 3, 4) };
         var inputRow = Row(new TextBlock { Text = "Input", Width = 110, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center }, inputCombo);
         inputRow.Margin = new Thickness(0, 0, 0, 6);
@@ -564,9 +754,57 @@ sealed class MainWindow : Window
             FillPadTable();
         }, Card)));
 
-        // Keyboard: the game's own keyboard controller.
-        keyboard.Children.Add(Note("The keyboard can be a GameCube controller too. Turn it on in the game: press F10, open the Controller tab, " +
-                                   "tick \"Keyboard and mouse\" and take the WASD + mouse preset or set each key yourself. It replaces the gamepad on that port."));
+        // Keyboard: player 1's GameCube controller (Config.toml [gc_keyboard], applied by the runtime's pad start).
+        var useKeyboard = new CheckBox
+        {
+            Content = "Use the keyboard and mouse as player 1's controller", FontWeight = FontWeight.Bold, Margin = new Thickness(0, 4, 0, 4),
+            IsChecked = config.Get("gc_keyboard", "enabled") == "true",
+        };
+        keyboard.Children.Add(useKeyboard);
+        keyboard.Children.Add(Note("Click a control, then press the key for it, or click the control again with the mouse button you want " +
+                                   "(Escape cancels, Delete clears). It replaces the gamepad on port 1; the game's F10 menu has the same settings."));
+        var keyTable = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,Auto"), RowDefinitions = new RowDefinitions(string.Join(",", Enumerable.Repeat("Auto", 10))),
+            Margin = new Thickness(0, 4, 0, 4), HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        var keyButtons = new List<PaperButton>();
+        for (int i = 0; i < KeyboardControls.Length; i++)
+        {
+            var (key, label, defaults) = KeyboardControls[i];
+            Place(keyTable, new TextBlock { Text = label, FontWeight = FontWeight.Bold, Margin = new Thickness(0, 12, 12, 0) }, (i / 10) * 2, i % 10);
+            var b = Btn(config.Get("gc_keyboard", key) is { } bound ? KeyText(bound) : defaults, null, Card);
+            b.Width = 200;
+            b.Height = 38;
+            b.Margin = new Thickness(0, 3, 24, 3);
+            b.Tag = key;
+            b.Click += () => { if (capturingKey == null) BeginKeyCapture(b); };
+            // A mouse button pressed on the control being set binds that mouse button (the click that started it does not).
+            b.AddHandler(PointerPressedEvent, (_, e) =>
+            {
+                if (capturingKey != b || keyCaptureStarted.ElapsedMilliseconds < 300) return;
+                var props = e.GetCurrentPoint(b).Properties;
+                EndKeyCapture(props.IsLeftButtonPressed ? "Mouse Left" : props.IsRightButtonPressed ? "Mouse Right" : props.IsMiddleButtonPressed ? "Mouse Middle" : null);
+                e.Handled = true;
+            }, RoutingStrategies.Tunnel);
+            keyButtons.Add(b);
+            Place(keyTable, b, (i / 10) * 2 + 1, i % 10);
+        }
+        keyboard.Children.Add(keyTable);
+        useKeyboard.IsCheckedChanged += (_, _) =>
+        {
+            bool on = useKeyboard.IsChecked == true;
+            config.Set("gc_keyboard", "enabled", on ? "true" : "false");
+            // The whole layout goes to Config.toml once the keyboard is turned on, so the game applies exactly what is shown.
+            if (on) foreach (var (key, _, defaults) in KeyboardControls) if (config.Get("gc_keyboard", key) == null) config.SetString("gc_keyboard", key, defaults);
+            config.Save();
+        };
+        keyboard.Children.Add(Row(Btn("Reset to the WASD + mouse layout", () =>
+        {
+            foreach (var (key, _, defaults) in KeyboardControls) config.SetString("gc_keyboard", key, defaults);
+            config.Save();
+            foreach (var b in keyButtons) b.Text = KeyboardControls.First(c => c.key == (string)b.Tag!).defaults;
+        }, Card)));
 
         // The input list: connected pads first (in port order), then the keyboard.
         var shown = new List<(uint id, string name, int style)>();
@@ -607,10 +845,78 @@ sealed class MainWindow : Window
         return card;
     }
 
+    // The keyboard's GameCube controls (runtime pad.cpp ApplyKeyboardConfig reads the same keys), with the in-game
+    // menu's WASD + mouse preset as defaults. Same table as the Windows launcher.
+    static readonly (string key, string label, string defaults)[] KeyboardControls =
+    {
+        ("a", "A", "Mouse Left"), ("b", "B", "Space"), ("x", "X", "E"), ("y", "Y", "Q"), ("z", "Z", "Mouse Middle"),
+        ("l", "L (shield)", "Left Shift"), ("r", "R (shield)", "Mouse Right"), ("start", "Start", "Return"),
+        ("dpad_up", "D-pad up", "Up"), ("dpad_down", "D-pad down", "Down"), ("dpad_left", "D-pad left", "Left"), ("dpad_right", "D-pad right", "Right"),
+        ("stick_up", "Stick up", "W"), ("stick_down", "Stick down", "S"), ("stick_left", "Stick left", "A"), ("stick_right", "Stick right", "D"),
+        ("cstick_up", "C-stick up", "I"), ("cstick_down", "C-stick down", "K"), ("cstick_left", "C-stick left", "J"), ("cstick_right", "C-stick right", "L"),
+    };
+
+    PaperButton? capturingKey;
+    string? captureText;
+    readonly Stopwatch keyCaptureStarted = new();
+
+    static string KeyText(string key) => key.Length == 0 ? "None" : key;
+
+    void BeginKeyCapture(PaperButton button)
+    {
+        capturingKey = button;
+        captureText = button.Text;
+        keyCaptureStarted.Restart();
+        button.Text = "Press a key...";
+        button.Back = Orange;
+        button.TextBrush = new SolidColorBrush(Night);
+    }
+
+    // name: the binding (an SDL key name or "Mouse ..."), "" to clear it, null to cancel.
+    void EndKeyCapture(string? name)
+    {
+        if (capturingKey == null) return;
+        if (name != null)
+        {
+            config.SetString("gc_keyboard", (string)capturingKey.Tag!, name);
+            config.Save();
+            captureText = KeyText(name);
+        }
+        capturingKey.Text = captureText!;
+        capturingKey.Back = Card;
+        capturingKey.TextBrush = SnowBrush;
+        capturingKey = null;
+    }
+
     void OnKey(object? sender, KeyEventArgs e)
     {
+        if (capturingKey != null)
+        {
+            e.Handled = true;
+            if (e.Key == Key.Escape) EndKeyCapture(null);
+            else if (e.Key == Key.Delete) EndKeyCapture("");
+            else if (SdlName(e.Key) is { } name) EndKeyCapture(name);
+            return;  // a key SDL has no name for here: keep waiting
+        }
         if (e.Key == Key.Escape && cancelPadCapture?.Invoke() == true) e.Handled = true;
     }
+
+    // SDL scancode names, as the runtime reads them (SDL_GetScancodeFromName).
+    static string? SdlName(Key k) => k switch
+    {
+        >= Key.A and <= Key.Z => k.ToString(),
+        >= Key.D0 and <= Key.D9 => ((char)('0' + (k - Key.D0))).ToString(),
+        >= Key.NumPad0 and <= Key.NumPad9 => "Keypad " + (k - Key.NumPad0),
+        >= Key.F1 and <= Key.F9 => k.ToString(),
+        Key.Up => "Up", Key.Down => "Down", Key.Left => "Left", Key.Right => "Right",
+        Key.Space => "Space", Key.Return => "Return", Key.Tab => "Tab", Key.Back => "Backspace", Key.Insert => "Insert",
+        Key.Home => "Home", Key.End => "End", Key.PageUp => "PageUp", Key.PageDown => "PageDown", Key.CapsLock => "CapsLock",
+        Key.LeftShift => "Left Shift", Key.RightShift => "Right Shift", Key.LeftCtrl => "Left Ctrl", Key.RightCtrl => "Right Ctrl",
+        Key.LeftAlt => "Left Alt", Key.RightAlt => "Right Alt",
+        Key.OemMinus => "-", Key.OemPlus => "=", Key.OemOpenBrackets => "[", Key.OemCloseBrackets => "]", Key.OemComma => ",",
+        Key.OemPeriod => ".", Key.OemQuestion => "/", Key.OemSemicolon => ";", Key.OemQuotes => "'", Key.OemTilde => "`",
+        _ => null,
+    };
 
     // ----- Game disc (part of the Play page) -----
     // One button sets the disc up (or changes it later); extraction progress shows under it, and the dump
@@ -730,11 +1036,12 @@ sealed class MainWindow : Window
     // ----- Mods -----
     Control BuildModsPage()
     {
-        var (card, body) = NewCard("Mods");
-        body.Children.Add(Subheading("SD card mods (Project+ and the like)"));
-        body.Children.Add(Note("The SD card folder is the game's SD card, the way a Wii sees one. Copy a mod's SD card contents into it: for Project+, " +
-                               "the Project+, private and apps folders from its Wii download. Its Gecko codes (RSBE01.GCT and gc.txt) load with it, " +
-                               "and the game's own SD features (snapshots, replays, custom stages) use the card too. The card is rebuilt when the folder changes."));
+        var (card, body) = NewCard("Mods", "mods");
+        body.Children.Add(Subheading("SD card mods (REX, Project+Ex, Project+, Brawl Minus, Legacy XP)"));
+        body.Children.Add(Note("The SD card folder is the game's SD card, the way a Wii sees one. Copy a build's card folder from its Wii (console) " +
+                               "download into it: rex_ for REX (the biggest roster), P+Ex, Project+, Minusery (Brawl Minus) or LegacyXP. Its Gecko codes " +
+                               "(RSBE01.GCT and gc.txt) load with it, and the game's own SD features (snapshots, replays, custom stages) use the card too. " +
+                               "The card image is rebuilt when the folder changes; a big build takes a few minutes the first time."));
         sdStatus = Note("");
         sdStatus.Foreground = SnowBrush;
         body.Children.Add(sdStatus);
@@ -822,7 +1129,7 @@ sealed class PaperButton : Border
         BorderThickness = new Thickness(2);
         Padding = new Thickness(10, 4, 10, 4);
         Margin = new Thickness(0, 6, 10, 6);
-        Cursor = new Cursor(StandardCursorType.Hand);
+        Cursor = MainWindow.BallHand;
         HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;  // sized to the label, like the Windows AutoSize buttons
         Back = back;
         PointerEntered += (_, _) => { hover = true; Paint(); };
@@ -836,7 +1143,18 @@ sealed class PaperButton : Border
         PropertyChanged += (_, e) => { if (e.Property == IsEnabledProperty) Opacity = IsEnabled ? 1 : 0.55; };
     }
 
-    public string Text { get => label.Text ?? ""; set => label.Text = value; }
+    public string Text { get => label.Text ?? ""; set { label.Text = value; Child = label; } }
+
+    // Shows a label image (twice its display size) in place of the text; Text keeps the name.
+    public void ShowImage(Bitmap? image)
+    {
+        if (image == null) { Child = label; return; }
+        Child = new Image
+        {
+            Source = image, Width = image.PixelSize.Width / 2.0, Height = image.PixelSize.Height / 2.0,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+        };
+    }
     public Color Back { get => back; set { back = value; Paint(); } }
     public IBrush? TextBrush { set => label.Foreground = value; }
 
