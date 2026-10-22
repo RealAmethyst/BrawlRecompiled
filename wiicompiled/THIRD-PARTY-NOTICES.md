@@ -78,6 +78,19 @@ The Riivolution XML reader uses pugixml 1.15, vendored in
 `runtime/third_party/pugixml` from commit `ee86beb30e4973f5feffe3ce63bfa4fbadf72f38`.
 Source and license: <https://github.com/zeux/pugixml>
 
+### FatFs R0.16 - 1-clause BSD
+
+Copyright (C) 2025, ChaN, all rights reserved.
+The virtual SD card image (`runtime/src/hle/storage/sd_card.cpp`) is built and read with FatFs, vendored in
+`runtime/third_party/fatfs` (only `ffconf.h` changed). Source and license: <http://elm-chan.org/fsw/ff/>,
+`runtime/third_party/fatfs/LICENSE.txt`.
+
+### Gecko code handler (USB Loader GX `codehandleronly`) - GPL
+
+`projects/brawl/gecko/codehandler.bin` is the Gecko OS code handler as shipped in USB Loader GX
+(`source/patches/codehandleronly.h`, <https://github.com/wiidev/usbloadergx>), with the six words listed in
+`projects/brawl/gecko/README.md` changed.
+
 ### Crypto++ 8.9.0 - Boost Software License 1.0 / public domain
 
 Copyright (c) 1995-2019 Wei Dai and contributors.

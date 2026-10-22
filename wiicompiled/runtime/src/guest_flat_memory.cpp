@@ -420,8 +420,73 @@ void ZeroMappedStorage() {
 }
 
 #if defined(_WIN32)
+// BRAWL_WATCH_WRITE=<hex guest address>[:<hex value>]: a debugging aid for mods. Each write to that word (that leaves
+// it holding <value>, when one is given) is logged with the guest state: its page stays read-only, and each write to
+// the page is single-stepped, checked, and the page protected again.
+uint32_t g_watchAddress = 0;
+bool g_watchHasValue = false;
+uint32_t g_watchValue = 0;
+thread_local bool t_watchRearm = false;
+thread_local bool t_watchHit = false;
+thread_local uint32_t t_watchBefore = 0;
+
+uint32_t WatchedWord() {
+    uint32_t value = 0;
+    std::memcpy(&value, g_base + g_watchAddress, 4);
+    return __builtin_bswap32(value);
+}
+
+void ArmWriteWatch() {
+    const char* text = std::getenv("BRAWL_WATCH_WRITE");
+    if (text == nullptr) return;
+    char* end = nullptr;
+    g_watchAddress = static_cast<uint32_t>(std::strtoul(text, &end, 16)) & ~3u;
+    if (g_watchAddress == 0) return;
+    if (*end == ':') {
+        g_watchHasValue = true;
+        g_watchValue = static_cast<uint32_t>(std::strtoul(end + 1, nullptr, 16));
+    }
+    ProtectRange(g_base + (g_watchAddress & ~(kHostPageSize - 1)), kHostPageSize, kProtRead);
+    RT_LOGF(RT_TAG_MEMORY, "watching writes to 0x%08X\n", g_watchAddress);
+}
+
+bool HandleWriteWatch(EXCEPTION_POINTERS* info) {
+    const auto* record = info->ExceptionRecord;
+    uint8_t* const page = g_base + (g_watchAddress & ~(kHostPageSize - 1));
+    if (record->ExceptionCode == EXCEPTION_SINGLE_STEP && t_watchRearm) {
+        t_watchRearm = false;
+        static int logged = 0;
+        if (t_watchHit && (!g_watchHasValue || WatchedWord() == g_watchValue) && logged++ < 40) {
+            RT_LOGF(RT_TAG_MEMORY, "[watch] 0x%08X: 0x%08X -> 0x%08X, guest state:\n", g_watchAddress, t_watchBefore,
+                    WatchedWord());
+            SystemBridge::DumpCpuState(TryGetCpuContext());
+        }
+        t_watchHit = false;
+        ProtectRange(page, kHostPageSize, kProtRead);
+        return true;
+    }
+    if (record->ExceptionCode != EXCEPTION_ACCESS_VIOLATION || record->NumberParameters < 2 ||
+        record->ExceptionInformation[0] == 0) {
+        return false;
+    }
+    const uintptr_t fault = static_cast<uintptr_t>(record->ExceptionInformation[1]);
+    if (fault < reinterpret_cast<uintptr_t>(page) || fault >= reinterpret_cast<uintptr_t>(page) + kHostPageSize) {
+        return false;
+    }
+    const uint32_t guestAddress = static_cast<uint32_t>(fault - reinterpret_cast<uintptr_t>(g_base));
+    t_watchHit = guestAddress + 8 > g_watchAddress && guestAddress < g_watchAddress + 4;
+    if (t_watchHit) t_watchBefore = WatchedWord();
+    ProtectRange(page, kHostPageSize, kProtReadWrite);
+    t_watchRearm = true;
+    info->ContextRecord->EFlags |= 0x100;  // trap after this one instruction
+    return true;
+}
+
 LONG CALLBACK FlatGuestVectoredHandler(EXCEPTION_POINTERS* info) {
     const auto* record = info->ExceptionRecord;
+    if (g_watchAddress != 0 && record != nullptr && HandleWriteWatch(info)) {
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
     if (record == nullptr || record->ExceptionCode != EXCEPTION_ACCESS_VIOLATION ||
         record->NumberParameters < 2) {
         return EXCEPTION_CONTINUE_SEARCH;
@@ -608,6 +673,7 @@ void Initialize(const std::vector<RegionRequest>& regions) {
     ApplyExecutableProtectionLocked();
 #if defined(_WIN32)
     InstallVectoredHandler();
+    ArmWriteWatch();
 #endif
 
     // Freshly created section objects are demand-zero, so no explicit clear is
@@ -672,6 +738,19 @@ void RegisterExecutableRange(uint32_t start, uint32_t end) {
     }
     ranges.push_back(GuardedRange{start, end});
     ApplyExecutableProtectionLocked();
+}
+
+void ReprotectExecutablePage(uint32_t address) {
+    if (RequiresCheckedAccess() || g_base == nullptr) return;
+    std::lock_guard<std::mutex> lock(StateMutex());
+    const uint64_t page = static_cast<uint64_t>(address) & ~(kHostPageSize - 1u);
+    const bool inside = std::any_of(ExecutableRanges().begin(), ExecutableRanges().end(), [&](const GuardedRange& range) {
+        return page >= RoundUp(range.start, kHostPageSize) && page + kHostPageSize <= range.end;
+    });
+    const uint32_t pageIndex = static_cast<uint32_t>(page >> 12);
+    if (inside && ExecutableProtectedPages()[pageIndex] == 0 && ProtectRange(g_base + page, kHostPageSize, kProtRead)) {
+        ExecutableProtectedPages()[pageIndex] = 1;
+    }
 }
 
 FaultCounters Counters() {

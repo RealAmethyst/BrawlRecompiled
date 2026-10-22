@@ -1,98 +1,67 @@
-# New Super Paper Bros.
+# Brawl Recompiled
 
-A native PC port of **Super Paper Mario** (Wii, 2007), made by statically recompiling the game's PowerPC code to C++
-with [WiiCompiled](https://github.com/patchzyy/Wiicompiled). No emulator: the game runs as a Windows or Linux program.
+A native PC port of **Super Smash Bros. Brawl** (Wii, 2008), made by statically recompiling the game's PowerPC code
+(main.dol and all 126 `.rel` modules) to C++ with [WiiCompiled](https://github.com/patchzyy/Wiicompiled). No
+emulator: the game runs as a Windows program.
 
-![Flipside in cinematic 2.39:1 widescreen](screenshots/mac_02_cinematic.png)
+![Donkey Kong on Mario Circuit](screenshots/07_vs_dk_mario_circuit.png)
 
-| | |
-|---|---|
-| ![Gloam Valley](screenshots/mi1_01.png) | ![Lineland Road](screenshots/he1_02.png) |
-| ![The Bitlands](screenshots/ta1_02.png) | ![Sammer's Kingdom](screenshots/wa1_02.png) |
+**Work in progress.** What works today: boot, saves, every menu tested so far, VS battles, the attract demos,
+Classic mode's start, and the Subspace Emissary's opening (cutscenes and the first battle). The launcher still has
+to be adapted from the Super Paper Mario port; for now the game is built and run from this repository.
 
 ## Features
 
-- Up to 4K, borderless 1080p by default
-- Widescreen: 16:9, fill or cinematic 2.39:1, or the original 4:3
-- 120 fps frame interpolation
-- Built-in higher-quality music and HD textures (community mods, see Credits)
-- Xbox, PlayStation and Nintendo gamepads plus keyboard, with press-to-bind remapping
-- The Wii Remote pointer (Tippi, the HOME menu) on the right stick or the mouse
-- On-screen buttons match your controller (Xbox, PlayStation or Nintendo), with a controls screen for it
-- Mods: drop-in folders that replace game files or textures
-- A launcher that installs the game from your own disc image
+- Up to 4K, and the game's own 16:9 mode (plus fill-the-window for ultrawide)
+- 120 fps frame interpolation (needs a display faster than 60 Hz)
+- GameCube-style controls on Xbox, PlayStation and Nintendo gamepads and the keyboard; real Wii Remotes too
+- Saves in `UserData\NAND`, compatible in layout with a Wii's
+- A virtual SD card (`UserData\SD`), so the game's own SD features and SD-based mods work
+- Gecko codes and Project+-style mods (in progress, see below)
 
 **No game data is included**: the game's files are read from your own copy of the game.
 
-## How to play
+## Mods
 
-You need **Windows 10/11 (64-bit)**, a graphics card with DirectX 12 or Vulkan, and your own dump of
-**Super Paper Mario, USA Wii disc (R8PE01, revision 0) or European disc (R8PP01: English, French, German, Spanish, Italian)** as `.iso`, `.ciso` or `.wbfs`.
+Brawl mods are installed the way they are on a Wii's SD card:
 
-1. Download `NewSuperPaperBros.zip` from [Releases](../../releases) and unzip it.
-2. Open `New Super Paper Bros.exe`. Windows may show "Windows protected your PC" because the exe isn't signed:
-   click **More info**, then **Run anyway**.
-3. On the **Play** page choose your disc image. The game files are copied into the `Disc` folder once; the image
-   isn't needed after that.
-4. Press **PLAY**.
-
-In the game, F10 opens the settings menu and F11 switches between fullscreen and a window.
-
-**Controls (Xbox layout):** left stick or D-pad = Wii Remote D-pad, A = 2 (jump), B or X = 1, Y = A, RB or RT = shake,
-Start = +, Back or LB = -, right stick = pointer. Keyboard and mouse work too. Change them on the launcher's
-**Controls** page.
-
-**Mods:** on the launcher's **Mods** page, click **Open mods folder** and put each mod in its own folder:
-`files\` mirrors the disc (replacing game files) and/or `textures\` holds texture replacements. Tick or untick mods
-to switch them on and off.
-
-**Saves from a Wii or Dolphin:** on the launcher's **Play** page click **Import Wii / Dolphin save...** and pick
-`data.bin` (copied to an SD card from the Wii Menu's Data Management) or `wiimario00` in Dolphin's
-`Wii\title\00010000\52385045\data` folder. Your current save is kept as a backup.
-
-**Updating:** unzip a new release over the old folder. Your disc, saves, settings and mods are kept.
-
-**Linux:** download `NewSuperPaperBros-linux.tar.gz` instead, unpack it and open `New Super Paper Bros` (the same
-launcher). You need 64-bit Linux from 2022 or newer (glibc 2.35) with Vulkan graphics drivers. Linux support is new:
-please report problems in [Issues](../../issues).
+- **The SD card** is the folder `Play\UserData\SD`. Copy a mod's SD card contents into it (for Project+: the
+  `Project+`, `private` and `apps` folders from the Wii download). At start the game gets a card image built from
+  that folder the way Dolphin builds one (FAT32, the contents plus 512 MiB to 8 GiB of free space;
+  `UserData\Cache\sd_card.raw`, rebuilt only when the folder changes); files the game writes to the card are
+  copied back into the folder when it exits. A card over 2 GiB is an SDHC card, which Brawl reads only with a
+  mod's SDHC support (Project+ has it). A Dolphin `sd.raw` placed at `UserData\sd.raw` is used directly instead.
+- **Gecko codes**: the first `RSBE01.GCT` in a folder of the SD card (`UserData\SD\Project+\RSBE01.GCT`), or
+  `UserData\Codes\RSBE01.gct`, is installed with USB Loader GX's code handler, honouring a `gc.txt` beside it
+  (code list address, hook type, pokes) exactly as Project+'s loader does.
+- Code the codes patch runs in a built-in PowerPC interpreter; everything else stays native. Mods that replace
+  `.rel` modules (Project+ replaces every fighter) currently run those modules in the interpreter as well.
 
 ## Building from source
 
-You need Windows, Python 3 and your own disc image. The toolchain (LLVM/MinGW, CMake, the .NET 8 SDK) is downloaded
-into the repository's `toolchain\` and `wiicompiled\Dependencies\` folders on the first build; nothing is installed
-system-wide.
+You need Windows, Python 3, 16 GB of RAM and your own disc image (USA, RSBE01). The toolchain is shared with the
+Super Paper Mario port's `toolchain\` folder.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\build-launcher.ps1
-# Extract your disc image to Disc\DATA (the translation reads the game's code from it):
-& "launcher\publish\New Super Paper Bros.exe" --extract "C:\path\to\Super Paper Mario.wbfs" Disc\DATA
-# The game's code inputs in game\: the disc's main.dol (with the HQ music mod's two code patches; recomp.yml pins
-# its hash) and relF.bin pre-linked at its boot address:
+# Extract your disc image to Disc\DATA, then:
 copy Disc\DATA\sys\main.dol game\main.dol
-python wiicompiled\projects\spm\tools\prelink_spm_rel.py Disc\DATA\files\rel\relF.bin game\spm_linked.rel game\spm_rel_layout.json
-powershell -ExecutionPolicy Bypass -File tools\build-spm.ps1
-powershell -ExecutionPolicy Bypass -File tools\package-spm.ps1 -Zip
+# Every module pre-linked at its home, plus main_translate.dol (main.dol with the resident modules and the
+# Gecko code handler) for the translation:
+python wiicompiled\projects\brawl\tools\build_modules.py Disc\DATA\files\module extras\brawl-decomp\config\RSBE01_02 game\brawl_modules.rel wiicompiled game\main.dol
+powershell -ExecutionPolicy Bypass -File tools\build-brawl.ps1 -SkipTools
 ```
 
-The packager also expects the HQ music mod in `Disc\DATA\files\sound` (originals in `Disc\sound_original`) and the
-HD texture pack in `Play\UserData\texture_replacements\SPM_HD_4x_BC3`.
-
-For Linux, after those steps run `bash tools/build-linux.sh` and `bash tools/build-linux.sh --pal` in WSL (Ubuntu
-22.04) or on Linux, then `bash tools/package-linux.sh` for `dist/NewSuperPaperBros-linux.tar.gz`.
-
-`build-spm.ps1` translates the game and compiles it into `Play\SuperPaperMario.exe`; `package-spm.ps1` assembles the
-release folder in `dist\` (`-Zip` also writes the zip). `tools\sweep-spm-maps.py` loads every map and screenshots it
-for regression checks.
+`build-brawl.ps1` translates the game and compiles it into `Play\SuperSmashBrosBrawl.exe` and
+`Play\engine_usa.dll` (`-SkipTranslate` recompiles only the runtime). The function map comes from the
+[Brawl decompilation](https://github.com/doldecomp/brawl), cloned into `extras\brawl-decomp`.
 
 | Folder | What it is |
 |---|---|
 | `wiicompiled/translator` | PowerPC to C++ static recompiler (C#) |
-| `wiicompiled/runtime` | Runtime and Wii SDK HLE (OS, DVD, NAND, WPAD/KPAD, AX audio, VI, GX) |
+| `wiicompiled/runtime` | Runtime and Wii SDK HLE (OS, DVD, NAND, SD, WPAD/KPAD, AX audio, VI, GX) |
 | `wiicompiled/aurora-main` | Aurora: Wii GX on WebGPU (Dawn / Direct3D 12) |
-| `wiicompiled/projects/spm` | This game's project: symbols and function map |
-| `launcher` | The launcher (C# WinForms): disc setup, display options, controls, mods |
-| `launcher/linux` | The same launcher for Linux (C# Avalonia) |
-| `tools` | Build, package and test scripts |
+| `wiicompiled/projects/brawl` | This game's project: function map, module layout, code handler, tools |
+| `tools` | Build scripts |
 
 ## Credits
 
@@ -101,20 +70,16 @@ for regression checks.
   contributors, GPLv3
 - **Aurora** by Luke Street, MIT; Dawn, SDL3 and the other components listed in
   [`wiicompiled/THIRD-PARTY-NOTICES.md`](wiicompiled/THIRD-PARTY-NOTICES.md)
-- **Higher-quality music:** the "SPM High Definition Audio" mod by Toadette Hack Fan and PaperToadette, with game
-  patches by JohnP55
-- **HD textures:** converted from the "SPM Textures v1.0" HD texture pack
-- **Controller button icons and pictures:** "Input Prompts" by [Kenney](https://kenney.nl), CC0
-- **Dolphin Emulator** data files (DSP coefficients, Wii system files), GPL-2.0-or-later
-- Symbol names from the Super Paper Mario decompilation community ([spm-decomp](https://github.com/SeekyCt/spm-decomp))
-
-Full credits and licenses ship in the release as `CREDITS.txt`, `LICENSE.txt` and `engine\licenses\`.
+- **Gecko code handler:** USB Loader GX's `codehandleronly` (Gecko OS), GPL
+- **[FatFs](http://elm-chan.org/fsw/ff/)** by ChaN (the SD card image), 1-clause BSD
+- **Dolphin Emulator** for the reference behaviour of the SD slot and data files (DSP coefficients, Wii system
+  files), GPL-2.0-or-later
+- Symbol names from the [Brawl decompilation](https://github.com/doldecomp/brawl) and Dolphin's signature database
 
 ## License
 
 GPLv3, see [`wiicompiled/LICENSE`](wiicompiled/LICENSE). Bundled third-party components keep their own licenses.
 
-Super Paper Mario and all related characters are trademarks and copyrights of Nintendo. This is an unofficial fan
-project, not affiliated with or endorsed by Nintendo. This repository contains no game code or data; the release
-contains the recompiled program, the community mods credited above and Nintendo character artwork used by the
-launcher, but none of the game's disc data, which is read from your own copy of the game.
+Super Smash Bros. Brawl and all related characters are trademarks and copyrights of Nintendo, HAL Laboratory and
+their respective owners. This is an unofficial fan project, not affiliated with or endorsed by Nintendo. This
+repository contains no game code or data; the game's disc data is read from your own copy of the game.

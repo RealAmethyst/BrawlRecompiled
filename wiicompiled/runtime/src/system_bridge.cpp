@@ -309,6 +309,8 @@ void DumpGuestCrashHints(std::ostream& os, const CpuContext* cpu) {
 
 } // namespace
 
+void BrawlModulesSnapshotImages();  // hle/brawl_modules.cpp
+
 void SystemBridge::Initialize() {
     const auto memoryConfig = Memory::Config::WiiDefaults();
     Memory::Init(memoryConfig);
@@ -319,6 +321,7 @@ void SystemBridge::Initialize() {
     // initial memory state for .data, .rodata, .sdata, etc.
     RT_LOG(RT_TAG_RUNTIME) << "Initializing data sections from embedded DOL/REL data" << std::endl;
     InitializeDataSections();
+    BrawlModulesSnapshotImages();
 
     // SPM __start -> __init_user -> __init_cpp runs its own .ctors at 0x80319180.
     // The inherited NSMBW host pass read SPM instructions as constructor pointers.
@@ -405,7 +408,10 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
     };
 
     std::vector<SeedEntry> entries;
-    constexpr uint32_t kMem1ArenaLoDefault = 0x805B7160u;  // Brawl __ArenaLo (OSInit, above the 64 KiB boot stack)
+    // What Brawl's OSInit picks on a retail console (BI2 without a debug monitor): the end of the 64 KiB boot stack,
+    // not __ArenaLo (0x805B7160, which also keeps the 8 KiB debugger stack). Every MEM1 heap, and so every module in
+    // OverlayCommon, sits at a fixed offset from it, and Gecko codes (Project+) hard-code those addresses.
+    constexpr uint32_t kMem1ArenaLoDefault = 0x805B5160u;
     uint32_t mem1ArenaHiDefault = 0x817DA5A0u;  // MEM1 end - Brawl FST (0x25A48 bytes, 32-aligned)
     constexpr uint32_t kBusClockHz =
         static_cast<uint32_t>(TimeBaseContract::kBusClockHz);

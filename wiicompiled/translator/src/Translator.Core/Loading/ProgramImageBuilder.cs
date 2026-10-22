@@ -56,6 +56,11 @@ public sealed class ProgramImageBuilder
             }
 
             section.Data.Span.CopyTo(ram.AsSpan(offset, (int)section.Size));
+            // Text sections past .init/.text are added for translation (Brawl's resident modules) and carry veneers.
+            if (section.Kind == SectionKind.Text && section.Index >= 2)
+            {
+                Disassembly.PpcDecoder.RegisterVeneers(section.Data.Span, section.VirtualAddress);
+            }
         }
 
         var relRange = new AddressRange(0, 0);

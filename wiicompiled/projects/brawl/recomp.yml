@@ -19,8 +19,8 @@ memory:
 
 inputs:
   dol:
-    path: ../game/main.dol
-    sha256: 179574a14c484279efef84db58e55fe31bc2e3cf6c99efc0d20e7b322ec088be
+    path: ../game/main_translate.dol  # main.dol plus the resident modules (tools/build_modules.py)
+    sha256: b91ca3e670f6ac2d87050284c81404e2d3e708d1aba5a79b93e0ac9c6e4faafd
   # All 126 files/module/*.rel, each pre-linked at its own home above the game's MEM2 arena, as one synthetic REL
   # (projects/brawl/tools/build_modules.py; hle/brawl_modules.cpp links them at run time).
   rel:

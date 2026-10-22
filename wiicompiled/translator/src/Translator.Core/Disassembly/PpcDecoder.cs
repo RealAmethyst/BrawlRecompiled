@@ -17,7 +17,8 @@ public static partial class PpcDecoder
 
     public static void RegisterVeneers(ReadOnlySpan<byte> image, uint imageBase)
     {
-        var found = new Dictionary<uint, uint>();
+        // Accumulates: the REL image and extra main.dol text sections (Brawl's resident modules) each carry veneers.
+        var found = new Dictionary<uint, uint>(VeneerTargets);
         for (var offset = 0; offset + 16 <= image.Length; offset += 4)
         {
             var lis = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(image.Slice(offset));

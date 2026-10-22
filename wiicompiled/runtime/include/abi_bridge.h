@@ -39,6 +39,21 @@ inline void ApplyRuntimeCallOptions(uint32_t target, CpuContext* ctx) {
 #endif
 }
 
+// Guest code patching (Gecko codes, Syriinge hooks): every translated function opens with MKW_GUEST_CODE_GUARD,
+// one byte per function (indexed by the translator's guest_code_guard table); a function whose guest code changed at
+// run time runs in the interpreter instead (guest_code_patch.cpp).
+extern "C" uint8_t g_mkwGuestCodePatched[];
+namespace GuestCodePatch {
+void RunPatched(uint32_t address, CpuContext* ctx);
+}
+#define MKW_GUEST_CODE_GUARD(index, address)                    \
+    do {                                                        \
+        if (__builtin_expect(g_mkwGuestCodePatched[index], 0)) { \
+            GuestCodePatch::RunPatched(address, ctx);           \
+            return;                                             \
+        }                                                       \
+    } while (false)
+
 // Persistent per-thread CPU context used across translated function calls.
 CpuContext& GetPersistentCpuContext();
 void InitializePersistentCpuContext();

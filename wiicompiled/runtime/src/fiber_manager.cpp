@@ -500,6 +500,10 @@ void GuestFiberManager::DumpGuestThreads(std::ostream& os) {
         SystemBridge::DumpCpuState(os, &fiber.cpuContext);
         SystemBridge::DumpGuestStack(os, &fiber.cpuContext);
     }
+    // The boot thread runs on the persistent context, not a fiber of its own (racy read while it runs).
+    os << "[fiber] main thread context:" << std::endl;
+    SystemBridge::DumpCpuState(os, &GetPersistentCpuContext());
+    SystemBridge::DumpGuestStack(os, &GetPersistentCpuContext());
 }
 
 bool GuestFiberManager::IsTerminated(uint32_t guestThreadAddr) {

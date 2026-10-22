@@ -2,6 +2,7 @@
 //
 // Shared state and helpers live in nand_internal.h.
 
+#include "sdio.h"
 #include "nand_internal.h"
 
 #include "discord_presence.h"
@@ -385,6 +386,9 @@ extern "C" int32_t NAND_IOS_Open_HLE(uint32_t pathPtr, uint32_t mode) {
         if (std::strcmp(path, "/dev/dolphin") == 0) {
             return DOLPHIN_DEV_FD;
         }
+        if (std::strcmp(path, Sdio::kDevicePath) == 0) {
+            return Sdio::kFd;
+        }
         LogNandWarning("IOS_Open", "unknown device '%s' mode=%u", path, mode);
         return ISFS_ENOENT;
     }
@@ -448,7 +452,7 @@ extern "C" int32_t NAND_IOS_Close_HLE(uint32_t fd) {
     if (fd == ES_DEV_FD) {
         return ISFS_OK;
     }
-    if (fd == DOLPHIN_DEV_FD) {
+    if (fd == DOLPHIN_DEV_FD || fd == Sdio::kFd) {
         return ISFS_OK;
     }
     if (GetShaHandle(static_cast<int32_t>(fd))) {
@@ -575,6 +579,9 @@ extern "C" int32_t NAND_IOS_Ioctl_HLE(
     if (fd == DOLPHIN_DEV_FD) {
         LogNandWarning("IOS_Ioctl", "/dev/dolphin does not support scalar ioctl cmd=%u", cmd);
         return ISFS_EINVAL;
+    }
+    if (fd == Sdio::kFd) {
+        return Sdio::Ioctl(cmd, inBufPtr, inLen, outBufPtr, outLen);
     }
     
     // Handle /dev/fs ISFS commands
@@ -820,8 +827,12 @@ extern "C" void NAND_IOS_Ioctl_Entry_HLE(CpuContext* ctx) {
         }
     }
 
-    ctx->gpr[3] = static_cast<uint32_t>(
-        NAND_IOS_Ioctl_HLE(fd, cmd, inBufPtr, inLen, outBufPtr, outLen));
+    int32_t result = NAND_IOS_Ioctl_HLE(fd, cmd, inBufPtr, inLen, outBufPtr, outLen);
+    if (result == Sdio::kNoReply) {
+        LogNandWarning("IOS_Ioctl", "synchronous wait for an SD card event answered at once");
+        result = 0;
+    }
+    ctx->gpr[3] = static_cast<uint32_t>(result);
 }
 PPC_NATIVE_OVERRIDE_VOID(80212d40, NAND_IOS_Ioctl_Entry_HLE, (CpuContext* ctx), (ctx));
 
@@ -1023,6 +1034,9 @@ extern "C" int32_t NAND_IOS_Ioctlv_HLE(
     if (fd == DOLPHIN_DEV_FD) {
         return HandleDolphinIoctlv(cmd, numIn, numOut, vectorPtr);
     }
+    if (fd == Sdio::kFd) {
+        return Sdio::Ioctlv(cmd, numIn, numOut, vectorPtr);
+    }
 
     if (fd == ISFS_DEV_FD) {
         if (!vectorPtr || !Memory::Contains(vectorPtr, static_cast<size_t>(numIn + numOut) * 8u)) {
@@ -1126,7 +1140,11 @@ extern "C" void NAND_IOS_Ioctlv_Entry_HLE(CpuContext* ctx) {
         }
     }
 
-    ctx->gpr[3] = static_cast<uint32_t>(
-        NAND_IOS_Ioctlv_HLE(fd, cmd, numIn, numOut, vectorPtr));
+    int32_t result = NAND_IOS_Ioctlv_HLE(fd, cmd, numIn, numOut, vectorPtr);
+    if (result == Sdio::kNoReply) {
+        LogNandWarning("IOS_Ioctlv", "synchronous wait for an SD card event answered at once");
+        result = 0;
+    }
+    ctx->gpr[3] = static_cast<uint32_t>(result);
 }
 PPC_NATIVE_OVERRIDE_VOID(80213090, NAND_IOS_Ioctlv_Entry_HLE, (CpuContext* ctx), (ctx));

@@ -31,7 +31,7 @@ TEXT = [("0x52385045", "0x52534245"),  # game code R8PE -> RSBE
          '{0x80000004u, 0x30310001u, "Disc maker/id"});  // "01", disc 0, revision 1'),
         ("kDefaultEntryAddress = 0x80006124u", "kDefaultEntryAddress = 0x8000403Cu"),  # __start
         ("constexpr uint32_t kMem1ArenaLoDefault = 0x80576720u;  // NSMBW __ArenaLo (stack top, see OSInit)",
-         "constexpr uint32_t kMem1ArenaLoDefault = 0x805B7160u;  // Brawl __ArenaLo (OSInit, above the 64 KiB boot stack)"),
+         "constexpr uint32_t kMem1ArenaLoDefault = 0x805B5160u;  // Brawl OSInit on retail: boot stack end, no debugger stack"),
         ("uint32_t mem1ArenaHiDefault = 0x817EF720u;  // MEM1 end - NSMBW FST (0x8B2C bytes, 32-aligned); verified via REL load addresses at boot",
          "uint32_t mem1ArenaHiDefault = 0x817DA5A0u;  // MEM1 end - Brawl FST (0x25A48 bytes, 32-aligned)")]
 

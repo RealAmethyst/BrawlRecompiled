@@ -21,7 +21,11 @@ $workspace = $wc        # the translator's cwd: runtime\, generated\ and native-
 # Play\SuperSmashBrosBrawl.exe (the loader, runtime\src\product\engine_loader.cpp) plus the engine module engine_usa.dll.
 $module = 'engine_usa'
 $game = 'game'
-if ($Jobs -le 0) { $Jobs = [Environment]::ProcessorCount }
+if ($Jobs -le 0) {
+    # A translated shard compile can take ~2.5 GB; one job per core exhausted a 16 GB machine.
+    $ramGb = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB
+    $Jobs = [Math]::Max(1, [Math]::Min([Environment]::ProcessorCount, [int][Math]::Floor($ramGb / 2.5)))
+}
 [IO.Directory]::CreateDirectory($logs) | Out-Null
 . (Join-Path $wc 'Launcher\NativeBuildFlags.ps1')
 
@@ -87,7 +91,7 @@ if (-not $SkipTranslate) {
     Invoke-Step 'translate' $dotnet.Source @($translator, 'translate-recursive', '0x8000403C', '--project', $project,
         '--outdir', 'generated/functions', '--output-metadata', 'generated/base_translation_output.json',
         '--production-source-bundle', 'generated/base_translation_sources.bin',
-        '--no-function-files', '--prune-stale', '--threads', "$Jobs") $workspace
+        '--no-function-files', '--no-state-free-abi', '--data-in-text', 'projects/brawl/resident_data_ranges.txt', '--prune-stale', '--threads', "$Jobs") $workspace
     # emit-base-manifest (WiiCompiled's own mod manifest) needs the project's single REL; Brawl's modules come later.
     Invoke-Step 'data-init' $dotnet.Source @($translator, 'generate-data-init', '--project', $project) $workspace
     Invoke-Step 'shards' $dotnet.Source @($translator, 'emit-build-shards', '--project', $project,

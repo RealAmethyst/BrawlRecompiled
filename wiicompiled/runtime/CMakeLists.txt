@@ -90,6 +90,13 @@ target_include_directories(mkw_pugixml PUBLIC third_party/pugixml)
 target_compile_features(mkw_pugixml PUBLIC cxx_std_17)
 set_target_properties(mkw_pugixml PROPERTIES UNITY_BUILD OFF)
 
+# FatFs (ChaN, R0.16, 1-clause BSD) builds the virtual SD card image from UserData/SD and copies the game's
+# writes back (src/hle/storage/sd_card.cpp). Vendored unchanged except for ffconf.h.
+add_library(mkw_fatfs STATIC third_party/fatfs/ff.c third_party/fatfs/ffunicode.c)
+add_library(mkw::fatfs ALIAS mkw_fatfs)
+target_include_directories(mkw_fatfs PUBLIC third_party/fatfs)
+set_target_properties(mkw_fatfs PROPERTIES UNITY_BUILD OFF)
+
 # POSIX x86-64 guest-fiber scheduling (runtime/src/host_context.cpp) needs a symmetric
 # stackful-coroutine primitive to stand in for Win32 Fibers. libco's co_switch() transfers
 # directly to any other created coroutine, matching SwitchToFiber's semantics exactly (unlike

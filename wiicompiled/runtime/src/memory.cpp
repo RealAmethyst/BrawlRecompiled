@@ -487,7 +487,14 @@ Memory::AccessViolation::AccessViolation(uint32_t address, size_t length, std::s
       }()),
       address_(address),
       length_(length),
-      reason_(reason) {}
+      reason_(reason) {
+    // The handler that reports it runs after unwinding, without the guest context: record that now.
+    static std::atomic<int> reported{0};
+    if (const CpuContext* cpu = TryGetCpuContext(); cpu && reported.fetch_add(1, std::memory_order_relaxed) < 3) {
+        RT_LOG(RT_TAG_MEMORY) << what() << ", guest state where it happened:" << std::endl;
+        SystemBridge::DumpCpuState(cpu);
+    }
+}
 
 void Memory::RefreshWritableFastPathsForExecutableRanges() {
     std::lock_guard<std::mutex> lock(RegionMutex());

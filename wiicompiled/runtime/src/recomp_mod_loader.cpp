@@ -1,3 +1,4 @@
+#include "guest_code_patch.h"
 #include "recomp_mod_loader.h"
 
 #include <algorithm>
@@ -389,6 +390,10 @@ bool HandleExecutableWrite(uint32_t address, size_t length, uint64_t value) {
     if (!ExecutableWriteGuardMayHit(address, length)) {
         return false;
     }
+    // A mod patching the game's code (Gecko codes, Syriinge): allowed, and the patched functions go to the interpreter.
+    if (GuestCodePatch::NoteWrite(address)) {
+        return false;
+    }
 
     const auto hit = FindExecutableRange(address, length);
     if (!hit.has_value()) {
@@ -404,6 +409,9 @@ bool HandleExecutableWrite(uint32_t address, size_t length, uint64_t value) {
 
 void CheckExecutableWrite(uint32_t address, size_t length, uint64_t value) {
     if (!ExecutableWriteGuardMayHit(address, length)) {
+        return;
+    }
+    if (GuestCodePatch::NoteWrite(address)) {
         return;
     }
 

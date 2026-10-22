@@ -5,6 +5,7 @@
 #include "hle_stubs.h"
 #include "memory.h"
 #include "hle/net/network.h"
+#include "hle/storage/sdio.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -108,6 +109,11 @@ extern "C" void IOS_IoctlAsync_80194158(CpuContext* ctx)
     }
 
     const int32_t result = NAND_IOS_Ioctl_HLE(fd, cmd, inBuf, inLen, outBuf, outLen);
+    if (result == Sdio::kNoReply) {  // answered later (SD card event), if ever
+        Sdio::SetPendingEvent(callback, callbackArg);
+        SetIosReturn(ctx, 0);
+        return;
+    }
     CompleteAsync(ctx, callback, result, callbackArg); // Success
 }
 PPC_NATIVE_OVERRIDE_VOID(80212c08, IOS_IoctlAsync_80194158, (CpuContext* ctx), (ctx));
@@ -190,6 +196,11 @@ extern "C" void IOS_IoctlvAsync_HLE(CpuContext* ctx)
     }
 
     const int32_t result = NAND_IOS_Ioctlv_HLE(fd, cmd, numIn, numOut, vectorPtr);
+    if (result == Sdio::kNoReply) {
+        Sdio::SetPendingEvent(callback, callbackArg);
+        SetIosReturn(ctx, 0);
+        return;
+    }
     CompleteAsync(ctx, callback, result, callbackArg);
 }
 PPC_NATIVE_OVERRIDE_VOID(80212FAC, IOS_IoctlvAsync_HLE, (CpuContext* ctx), (ctx));

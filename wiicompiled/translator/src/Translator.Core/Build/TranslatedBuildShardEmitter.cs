@@ -157,6 +157,11 @@ public static partial class TranslatedBuildShardEmitter
         }
 
         var activeBase = baseRecords.Where(static record => !record.ExcludedByNativeOverride).ToArray();
+        // Every translated function gets one "guest code patched" byte, indexed by its rank among the start
+        // addresses; the generated guard at its entry hands a patched function to the interpreter.
+        var guardIndex = activeBase.Select(static record => record.Address).Distinct().Order()
+            .Select(static (address, index) => (address, index))
+            .ToDictionary(static pair => pair.address, static pair => pair.index);
         var baseTraits = activeBase.ToDictionary(
             static record => record.Address,
             record =>
@@ -219,24 +224,25 @@ public static partial class TranslatedBuildShardEmitter
             outputRoot, portableCommonBase, options.BaseShardCount);
         var baseCommonShards = WriteFunctionShards(
             outputRoot, "base_common", portableCommonBase, options.BaseShardCount, baseTraits,
-            "profile-neutral shared base", weightedSequential: true,
+            "profile-neutral shared base", weightedSequential: true, guardIndex,
             frozenBoundaries: baseCommonBoundaries?.Table);
         shards.AddRange(baseCommonShards);
         shards.AddRange(WriteFunctionShards(
             outputRoot, "base_portable_sensitive", portableSensitiveBase,
             Math.Min(24, Math.Max(1, portableSensitiveBase.Length)), baseTraits,
-            "base profile", weightedSequential: false));
+            "base profile", weightedSequential: false, guardIndex));
         shards.AddRange(WriteFunctionShards(
             outputRoot, "retro_portable_sensitive", portableSensitiveBase,
             Math.Min(24, Math.Max(1, portableSensitiveBase.Length)), rrTraits,
-            "Retro Rewind profile", weightedSequential: false));
+            "Retro Rewind profile", weightedSequential: false, guardIndex));
         shards.AddRange(WriteFunctionShards(
             outputRoot, "retro_mod", modRecords, options.ModShardCount, rrTraits,
-            "Retro Rewind mod", weightedSequential: false));
+            "Retro Rewind mod", weightedSequential: false, guardIndex));
 
         var baseRegistration = WriteRegistrationShards(
             outputRoot, "base", activeBase, baseTraits, options.RegistrationShardCount).ToList();
         baseRegistration.Add(WriteIndirectDispatchTable(outputRoot, "base", baseTraits));
+        baseRegistration.Add(WriteGuestCodeGuardTable(outputRoot, guardIndex));
         var rrRegistrationRecords = activeBase.Concat(modRecords).OrderBy(static record => record.Address).ThenBy(static record => record.RegistrationKind, StringComparer.Ordinal).ToArray();
         var rrRegistration = WriteRegistrationShards(
             outputRoot, "retro_rewind", rrRegistrationRecords, rrTraits, options.RegistrationShardCount).ToList();
@@ -588,6 +594,7 @@ public static partial class TranslatedBuildShardEmitter
         IReadOnlyDictionary<uint, Trait> traits,
         string traitsLabel,
         bool weightedSequential,
+        IReadOnlyDictionary<uint, int> guardIndex,
         ShardBoundaryTable? frozenBoundaries = null)
     {
         if (functions.Count == 0) return Array.Empty<ShardInfo>();
@@ -641,6 +648,7 @@ public static partial class TranslatedBuildShardEmitter
                 var functionSource = function.SourceText ?? File.ReadAllText(function.SourcePath);
                 functionSource = RegistrationMarkerRegex().Replace(functionSource, string.Empty);
                 functionSource = LowerStableDirectCalls(functionSource, traits);
+                functionSource = InsertGuestCodeGuard(functionSource, guardIndex);
                 // Diagnostics only; the named file no longer exists on disk (sources live in the
                 // bundle), so only the bare file name is kept, not the emitting machine's path.
                 source.Append($"#line 1 \"{Escape(Path.GetFileName(function.SourcePath))}\"{Environment.NewLine}");
@@ -663,6 +671,44 @@ public static partial class TranslatedBuildShardEmitter
             if (shard is not null) shards.Add(shard);
         }
         return shards;
+    }
+
+    /// <summary>
+    /// Opens every public translated entry with <c>MKW_GUEST_CODE_GUARD</c> (abi_bridge.h): one byte load, and a
+    /// function whose guest code a mod patched at run time (Gecko codes, Syriinge hooks) runs in the interpreter.
+    /// </summary>
+    private static string InsertGuestCodeGuard(string source, IReadOnlyDictionary<uint, int> guardIndex) =>
+        GuardedEntryRegex().Replace(source, match =>
+        {
+            var address = ParseHexUInt32(match.Groups["address"].Value);
+            return guardIndex.TryGetValue(address, out var index)
+                ? $"{match.Value}\n    MKW_GUEST_CODE_GUARD({index}u, 0x{address:X8}u);"
+                : match.Value;
+        });
+
+    [GeneratedRegex(@"extern ""C"" void func_(?<address>[0-9A-F]{8})\(CpuContext\* MKW_RESTRICT ctx\)\s*\{", RegexOptions.CultureInvariant)]
+    private static partial Regex GuardedEntryRegex();
+
+    private static string WriteGuestCodeGuardTable(string outputRoot, IReadOnlyDictionary<uint, int> guardIndex)
+    {
+        var addresses = guardIndex.OrderBy(static pair => pair.Value).Select(static pair => pair.Key).ToArray();
+        var source = new StringBuilder();
+        source.AppendLine("// Translator-owned guest code guard table (see MKW_GUEST_CODE_GUARD in abi_bridge.h); do not edit.");
+        source.AppendLine("#include <cstdint>");
+        source.AppendLine($"extern \"C\" const uint32_t g_mkwGuardedFunctionCount = {addresses.Length}u;");
+        source.AppendLine($"extern \"C\" uint8_t g_mkwGuestCodePatched[{Math.Max(1, addresses.Length)}] = {{}};");
+        source.AppendLine("extern \"C\" const uint32_t g_mkwGuardedFunctionStarts[] = {");
+        for (var i = 0; i < addresses.Length; i += 8)
+        {
+            source.AppendLine("    " + string.Join(", ", addresses.Skip(i).Take(8).Select(static a => $"0x{a:X8}u")) + ",");
+        }
+        source.AppendLine("};");
+        var hash = ChecksumUtilities.Sha256Hex(Encoding.UTF8.GetBytes(source.ToString()));
+        var directory = Path.Combine(outputRoot, "base_dispatch");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, $"guest_code_guard_{hash[..16]}.cpp");
+        WriteIfChanged(path, source.ToString());
+        return path;
     }
 
     private static string LowerStableDirectCalls(

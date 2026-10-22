@@ -1,8 +1,9 @@
 // PowerPC (Gekko/Broadway) interpreter for guest code the static translation does not have: code a mod puts in
 // memory (Gecko C0/C2 inserts, Syriinge plugins, replaced .rel modules) and any address the translation missed.
 // A call to such an address (InvokeIndirectCpu, InvokeDirectCpu, InvokeIndirectJump) runs here instead of failing:
-// the function is interpreted until it returns to its caller (blr to the link address it was entered with), and
-// every call it makes goes back through InvokeIndirectCpu, so it calls translated, native and interpreted code alike.
+// the function is interpreted until it returns to its caller (blr to the link address it was entered with). Its calls
+// into translated, native or patched code go through InvokeIndirectCpu; calls into other untranslated code continue
+// in the same loop, as on the processor.
 //
 // Floating point uses the runtime's own helpers (ppc_isa_float.h, ppc_isa_quantized.h), so results match the
 // translated code bit for bit. An FPR holds either a scalar double or a packed pair (PPC_FPR); the translator picks
@@ -21,6 +22,7 @@
 #include "memory_access.h"
 #include "ppc_runtime.h"
 #include "runtime_log.h"
+#include "system_bridge.h"
 
 namespace PpcInterpreter {
 namespace {
@@ -97,7 +99,10 @@ uint32_t AddCarry(uint32_t a, uint32_t b, uint32_t carryIn, bool& carry, bool& o
     return result;
 }
 
-[[noreturn]] void Undefined(uint32_t pc, uint32_t w, const char* what) { PPC_Undefined(pc, w, what); }
+[[noreturn]] void Undefined(CpuContext* c, uint32_t pc, uint32_t w, const char* what) {
+    SystemBridge::DumpCpuState(c);  // where the interpreted code came from: lr, the stack's return addresses
+    PPC_Undefined(pc, w, what);
+}
 
 uint32_t ReadSpr(CpuContext* c, uint32_t spr, uint32_t pc, uint32_t w) {
     switch (spr) {
@@ -144,12 +149,17 @@ bool BranchTaken(CpuContext* c, uint32_t bo, uint32_t bi) {
     return ctrOk && condOk;
 }
 
-void Call(Frame& f, uint32_t target, uint32_t returnTo) {
+// A call (bl, bcl, blrl, bctrl). Translated, native and patched code runs through the function registry; other code
+// (a mod's) returns false and is interpreted right here, as the processor would run it: code that does not return the
+// usual way (bl to read its own address, a hook that branches back) must not leave a host call frame behind.
+bool Call(Frame& f, uint32_t target, uint32_t returnTo) {
     f.ctx->lr = returnTo;
-    // Interpreted callees and translated ones both leave the FPRs in the forms their own code wrote, which the
-    // interpreter cannot see; after a call every register is read in the form its consumer expects.
+    if (TranslatedFunctionRegistry::FindByAddressPtr(target) == nullptr && CanRun(target)) return false;
+    // Translated callees leave the FPRs in the forms their own code wrote, which the interpreter cannot see; after a
+    // call every register is read in the form its consumer expects.
     InvokeIndirectCpu(target, f.ctx);
     for (auto& form : f.form) form = Form::Unknown;
+    return true;
 }
 
 }  // namespace
@@ -157,10 +167,15 @@ void Call(Frame& f, uint32_t target, uint32_t returnTo) {
 bool Enabled() { return g_enabled.load(std::memory_order_relaxed); }
 void SetEnabled(bool enabled) { g_enabled.store(enabled, std::memory_order_relaxed); }
 uint64_t InstructionCount() { return g_instructions.load(std::memory_order_relaxed); }
-bool CanRun(uint32_t address) { return address != 0 && (address & 3u) == 0 && Memory::Contains(address, 4); }
+// Code runs at virtual addresses; a call to a low one is a bad pointer (an unrelocated offset), reported as missing.
+bool CanRun(uint32_t address) {
+    return address >= 0x80000000u && (address & 3u) == 0 && Memory::Contains(address, 4);
+}
 
 void Run(CpuContext* ctx, uint32_t entry) {
-    {
+    // Each entry is logged once; the per-thread set keeps the lock off the path of every later call.
+    thread_local std::unordered_set<uint32_t> seen;
+    if (seen.insert(entry).second) {
         static std::mutex logMutex;
         static std::unordered_set<uint32_t> logged;
         std::lock_guard<std::mutex> lock(logMutex);
@@ -235,7 +250,7 @@ void Run(CpuContext* ctx, uint32_t entry) {
                 case 29: SetPaired(f, d, PPC_PsMaddInline(Paired(f, a), Paired(f, cc), Paired(f, b))); break;
                 case 30: SetPaired(f, d, PPC_PsNmsubInline(Paired(f, a), Paired(f, cc), Paired(f, b))); break;
                 case 31: SetPaired(f, d, PPC_PsNmaddInline(Paired(f, a), Paired(f, cc), Paired(f, b))); break;
-                default: Undefined(pc, w, "interpreter: paired-single opcode");
+                default: Undefined(c, pc, w, "interpreter: paired-single opcode");
                 }
             }
             if (Rc(w) && xo10 != 1014) SetCr1FromFpscr(c);
@@ -265,7 +280,7 @@ void Run(CpuContext* ctx, uint32_t entry) {
             const int32_t disp = static_cast<int16_t>(w & 0xFFFCu);
             const uint32_t target = (w & 2u) ? static_cast<uint32_t>(disp) : pc + static_cast<uint32_t>(disp);
             if (BranchTaken(c, RD(w), RA(w))) {
-                if (w & 1u) { Call(f, target, pc + 4); } else { next = target; }
+                if (!(w & 1u) || !Call(f, target, pc + 4)) next = target;
             }
             break;
         }
@@ -273,8 +288,17 @@ void Run(CpuContext* ctx, uint32_t entry) {
         case 18: {  // b
             int32_t disp = static_cast<int32_t>(w & 0x03FFFFFCu);
             if (disp & 0x02000000) disp -= 0x04000000;
-            const uint32_t target = (w & 2u) ? static_cast<uint32_t>(disp) : pc + static_cast<uint32_t>(disp);
-            if (w & 1u) { Call(f, target, pc + 4); } else { next = target; }
+            uint32_t target = (w & 2u) ? static_cast<uint32_t>(disp) : pc + static_cast<uint32_t>(disp);
+            // ba/bla to low addresses: mods (Project+) map virtual 0 onto MEM1 with an IBAT, so they reach MEM1 code.
+            if (target < 0x01800000u) target |= 0x80000000u;
+            if (w & 1u) { if (!Call(f, target, pc + 4)) next = target; break; }
+            // A branch to another function's start is a tail call (a Gecko hook ending a function with b 0x800018A8).
+            if (TranslatedFunctionRegistry::FindByAddressPtr(target) != nullptr) {
+                InvokeIndirectCpu(target, c);
+                g_instructions.fetch_add(executed, std::memory_order_relaxed);
+                return;
+            }
+            next = target;
             break;
         }
         case 19: {
@@ -284,7 +308,7 @@ void Run(CpuContext* ctx, uint32_t entry) {
             case 16: {  // bclr
                 const uint32_t target = c->lr & ~3u;
                 if (BranchTaken(c, RD(w), RA(w))) {
-                    if (w & 1u) { Call(f, target, pc + 4); break; }
+                    if (w & 1u) { if (!Call(f, target, pc + 4)) next = target; break; }
                     if (target == (returnAddress & ~3u)) {
                         g_instructions.fetch_add(executed, std::memory_order_relaxed);
                         return;
@@ -303,7 +327,7 @@ void Run(CpuContext* ctx, uint32_t entry) {
             case 528: {  // bcctr
                 const uint32_t target = c->ctr & ~3u;
                 if (BranchTaken(c, RD(w) | 0x04u, RA(w))) {
-                    if (w & 1u) { Call(f, target, pc + 4); break; }
+                    if (w & 1u) { if (!Call(f, target, pc + 4)) next = target; break; }
                     // bctr: a switch-table jump inside this function, or a tail call to another function.
                     if (TranslatedFunctionRegistry::FindByAddressPtr(target) != nullptr) {
                         InvokeIndirectCpu(target, c);
@@ -314,7 +338,7 @@ void Run(CpuContext* ctx, uint32_t entry) {
                 }
                 break;
             }
-            default: Undefined(pc, w, "interpreter: opcode 19");
+            default: Undefined(c, pc, w, "interpreter: opcode 19");
             }
             break;
         }
@@ -491,7 +515,7 @@ void Run(CpuContext* ctx, uint32_t entry) {
                 for (uint32_t k = 0; k < 32; k += 4) MemoryInline::FlatWrite32(ea + k, 0);
                 break;
             }
-            default: Undefined(pc, w, "interpreter: opcode 31");
+            default: Undefined(c, pc, w, "interpreter: opcode 31");
             }
             if (writeA) {
                 c->gpr[a] = result;
@@ -555,7 +579,7 @@ void Run(CpuContext* ctx, uint32_t entry) {
             case 29: SetScalar(f, d, PpcFmaddsInline(Scalar(f, a), Scalar(f, cc), Scalar(f, b))); break;
             case 30: SetScalar(f, d, PpcFnmsubsInline(Scalar(f, a), Scalar(f, cc), Scalar(f, b))); break;
             case 31: SetScalar(f, d, PpcFnmaddsInline(Scalar(f, a), Scalar(f, cc), Scalar(f, b))); break;
-            default: Undefined(pc, w, "interpreter: opcode 59");
+            default: Undefined(c, pc, w, "interpreter: opcode 59");
             }
             if (Rc(w)) SetCr1FromFpscr(c);
             break;
@@ -574,7 +598,7 @@ void Run(CpuContext* ctx, uint32_t entry) {
                 case 29: SetScalar(f, d, PpcFmaddInline(Scalar(f, a), Scalar(f, cc), Scalar(f, b))); break;
                 case 30: SetScalar(f, d, PpcFnmsubInline(Scalar(f, a), Scalar(f, cc), Scalar(f, b))); break;
                 case 31: SetScalar(f, d, PpcFnmaddInline(Scalar(f, a), Scalar(f, cc), Scalar(f, b))); break;
-                default: Undefined(pc, w, "interpreter: opcode 63 A-form");
+                default: Undefined(c, pc, w, "interpreter: opcode 63 A-form");
                 }
                 if (Rc(w)) SetCr1FromFpscr(c);
                 break;
@@ -616,13 +640,13 @@ void Run(CpuContext* ctx, uint32_t entry) {
                 MkwApplyHostNiMode(c->fpscr);
                 break;
             }
-            default: Undefined(pc, w, "interpreter: opcode 63");
+            default: Undefined(c, pc, w, "interpreter: opcode 63");
             }
             if (Rc(w)) SetCr1FromFpscr(c);
             break;
         }
         default:
-            Undefined(pc, w, "interpreter: primary opcode");
+            Undefined(c, pc, w, "interpreter: primary opcode");
         }
         f.pc = next;
     }

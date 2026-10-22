@@ -59,6 +59,8 @@
 #include <sys/system_properties.h>
 #endif
 
+#include "hle/gecko.h"
+#include "hle/storage/sd_card.h"
 #include "netplay_ui.h"
 #include "netplay_start.h"
 #include "netplay_session.h"
@@ -1304,6 +1306,8 @@ static void AtExitHandler() {
     // below because the counters describe the whole session and are just as
     // interesting after a crash as after a clean exit.
     GuestFlat::LogFaultSummary();
+    // Files the game saved to the SD card go back into UserData/SD.
+    SdCard::Shutdown();
 
     // Skip if already reported by another handler
     if (g_fatalErrorReported.load(std::memory_order_acquire)) {
@@ -1607,6 +1611,7 @@ int RuntimeMain(int argc, char** argv) {
         g_auroraInitialized.store(true, std::memory_order_release);
 
         auto entry = ResolveEntry();
+        Gecko::Install();  // mods' Gecko codes (UserData/SD/<mod>/RSBE01.GCT), before the game's first instruction
         InitializePersistentCpuContext();
         auto& cpu = GetPersistentCpuContext();
         SeedCpuContext(cpu);

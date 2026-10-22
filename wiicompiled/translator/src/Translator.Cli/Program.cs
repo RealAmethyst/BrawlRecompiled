@@ -143,6 +143,8 @@ TranslationOptions WithProjectFrontEndPolicy(
 string? translateModInputCacheDirectory = null;
 string? translateModPublishedOutputDirectory = null;
 List<AddressRange>? _executableRanges = null;
+// Ranges inside text sections that hold data (--data-in-text): never taken for code by pointer-based discovery.
+var dataInTextRanges = new List<AddressRange>();
 // Callback discovery now runs on the discovery worker pool, so the range cache
 // must be built by exactly one thread and published only once it is complete.
 var _executableRangesGate = new object();
@@ -400,6 +402,19 @@ int RunTranslateRecursive(string[] argsTail)
     var outputMetadataPath = OptionValue(argsTail, "--output-metadata");
     var productionSourceBundlePath = OptionValue(argsTail, "--production-source-bundle");
     var emitFunctionFiles = !HasFlag(argsTail, "--no-function-files");
+    if (OptionValue(argsTail, "--data-in-text") is { } dataInTextPath)
+    {
+        foreach (var line in File.ReadAllLines(dataInTextPath))
+        {
+            var fields = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (fields.Length < 2 || line.TrimStart().StartsWith('#')) continue;
+            var start = uint.Parse(fields[0], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            var end = uint.Parse(fields[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            dataInTextRanges.Add(AddressRange.FromStartAndSize(start, end - start));
+        }
+    }
+    // Mod support (guest code guards) needs every call to enter through func_<addr>, never a state-free variant.
+    var disableStateFreeAbi = HasFlag(argsTail, "--no-state-free-abi");
     if (!emitFunctionFiles && string.IsNullOrWhiteSpace(productionSourceBundlePath))
         throw new ArgumentException("--no-function-files requires --production-source-bundle.");
     BaseTranslationOutputMetadata? previousOutputMetadata = null;
@@ -1063,10 +1078,12 @@ int RunTranslateRecursive(string[] argsTail)
                     removedComponent = true;
                 }
             } while (removedComponent);
-            var stateFreeAbiFunctions = eligibleComponents
-                .SelectMany(index => components[index])
-                .Where(directlyCalledGuestFunctions.Contains)
-                .ToHashSet();
+            var stateFreeAbiFunctions = disableStateFreeAbi
+                ? new HashSet<uint>()
+                : eligibleComponents
+                    .SelectMany(index => components[index])
+                    .Where(directlyCalledGuestFunctions.Contains)
+                    .ToHashSet();
             Console.WriteLine(
                 $"[translator] Automatic state-free region ABI: {stateFreeAbiFunctions.Count:N0} directly called function(s) " +
                 $"across {eligibleComponents.Count:N0} closed component(s).");
@@ -3402,7 +3419,8 @@ IEnumerable<uint> DiscoverCallbackTargetsCore(
 HashSet<uint> CollectDataSectionFunctionPointerTargets()
 {
     var executableRanges = BuildExecutableRanges();
-    bool IsExecutable(uint addr) => executableRanges.Any(r => r.Contains(addr)) && (addr & 3) == 0;
+    bool IsExecutable(uint addr) => executableRanges.Any(r => r.Contains(addr)) && (addr & 3) == 0 &&
+                                    !dataInTextRanges.Any(r => r.Contains(addr));
 
     var candidates = new HashSet<uint>();
 
@@ -3509,7 +3527,8 @@ HashSet<uint> CollectDataSectionFunctionPointerTargets()
             }
         }
 
-        return ranges.Any(r => r.Contains(address)) && (address & 3) == 0;
+        return ranges.Any(r => r.Contains(address)) && (address & 3) == 0 &&
+               !dataInTextRanges.Any(r => r.Contains(address));
     }
 
 bool LooksLikeFunctionStart(uint address)
@@ -3615,6 +3634,8 @@ static (string? Positional, CommandOption[] Options)? CommandSpec(string command
         new("--production-source-bundle", "path"),
         new("--threads", "N"),
         new("--no-function-files"),
+        new("--no-state-free-abi"),
+        new("--data-in-text", "path"),
         new("--prune-stale")
     }),
     "translate-mod" => (null, new CommandOption[]

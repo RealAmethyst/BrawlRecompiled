@@ -104,6 +104,9 @@ void UnprotectDeferredRange(uint32_t address, size_t length);
 // become PAGE_READONLY in the guest view. Registration order does not matter -
 // ranges registered before the mapping exists are re-applied by Initialize.
 void RegisterExecutableRange(uint32_t start, uint32_t end);
+// Write-protects again the page holding `address` (a guarded code page the trap opened on its first write), so the
+// next write to it is noticed too. Only pages fully inside a registered range.
+void ReprotectExecutablePage(uint32_t address);
 
 FaultCounters Counters();
 

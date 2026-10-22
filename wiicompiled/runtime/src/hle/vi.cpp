@@ -1,4 +1,6 @@
 #include <vector>
+#include "guest_code_patch.h"
+#include "hle/gecko.h"
 #include "frame_input.h"
 #include "det_hash.h"
 #include "timebase_contract.h"
@@ -395,9 +397,9 @@ static std::atomic<bool> s_inAdvanceRetrace{false};
 // end the freshly pre-warmed empty frame and show it as a black frame group.
 static std::atomic<bool> s_presentSequenceActive{false};
 
-// NSMBW bring-up: frames the guest actually handed to the presenter (an XFB was ready), and a one-shot
-// watchdog that dumps every guest thread's state if none arrived after 12 s and again after 30 s, so
-// a boot that stalls in a wait loop shows where each thread is parked.
+// Frames the guest actually handed to the presenter (an XFB was ready), and a watchdog that dumps every guest
+// thread's state if none arrived after 12 s and again after 30 s, and whenever presenting stops for 10 s, so a
+// game that stalls in a wait loop shows where each thread is parked.
 static std::atomic<uint32_t> s_presentedXfbFrames{0};
 extern "C" { extern int g_spmDrawDump; extern int g_spmCullOff; extern int g_spmSweepDump; extern unsigned g_spmDrawIdx; extern unsigned g_spmDrawLimit; }  // aurora command_processor (SPM bring-up diagnostics)
 static uint32_t SpmPresentedFramesLocal() { return s_presentedXfbFrames.load(std::memory_order_relaxed); }
@@ -426,11 +428,38 @@ void StartStallWatchdogOnce() {
                 const bool black = g_vi.black;  // racy read; diagnostics only
                 RT_LOGF(RT_TAG_VI, "[watchdog] %d s: %u guest frame(s) presented, VI black=%d\n", seconds, frames,
                         black ? 1 : 0);
-                if (frames != 0 && !black && seconds != 30) {  // SPM bring-up: always dump at 30 s
+                if (frames != 0 && !black) {
                     continue;
                 }
                 RT_LOGF(RT_TAG_VI, "[watchdog] nothing visible yet; guest threads:\n");
                 Fiber::GuestFiberManager::DumpGuestThreads(std::cerr);
+            }
+            // Later, a game that stops presenting (a wait loop, or a loop in interpreted mod code): once per stall.
+            uint32_t last = s_presentedXfbFrames.load(std::memory_order_relaxed);
+            for (int still = 0;; ) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                const uint32_t now = s_presentedXfbFrames.load(std::memory_order_relaxed);
+                if (now != last) {
+                    last = now;
+                    still = 0;
+                } else if (++still == 10) {
+                    RT_LOGF(RT_TAG_VI, "[watchdog] no frame for 10 s (after %u); guest threads:\n", now);
+                    Fiber::GuestFiberManager::DumpGuestThreads(std::cerr);
+                    // The loaded .rel modules (__OSModuleInfoList), as id@header, to the first repeat.
+                    std::string list;
+                    std::vector<uint32_t> seen;
+                    for (uint32_t m = Memory::Read32(0x800030C8u); m != 0 && seen.size() < 200;
+                         m = Memory::Read32(m + 4u)) {
+                        const bool repeat = std::find(seen.begin(), seen.end(), m) != seen.end();
+                        char item[64];
+                        std::snprintf(item, sizeof(item), " %u@%08X(imp %08X+%X)%s", Memory::Read32(m), m,
+                                      Memory::Read32(m + 0x28u), Memory::Read32(m + 0x2Cu), repeat ? " (cycle)" : "");
+                        list += item;
+                        if (repeat) break;
+                        seen.push_back(m);
+                    }
+                    RT_LOGF(RT_TAG_VI, "[watchdog] modules:%s\n", list.c_str());
+                }
             }
         }).detach();
     });
@@ -838,7 +867,35 @@ void RequestScheduledCaptures() {
     }
 }
 
+// BRAWL_WATCH=805664EC,80001800: log each listed guest word whenever it changes (checked once per frame).
+static void LogWatchedWords() {
+    static const std::vector<uint32_t> addresses = [] {
+        std::vector<uint32_t> out;
+        if (const char* list = std::getenv("BRAWL_WATCH")) {
+            for (const char* p = list; *p;) {
+                char* end = nullptr;
+                const unsigned long value = std::strtoul(p, &end, 16);
+                if (end == p) break;
+                out.push_back(static_cast<uint32_t>(value));
+                p = *end ? end + 1 : end;
+            }
+        }
+        return out;
+    }();
+    static std::vector<uint32_t> last(addresses.size(), 0xFFFFFFFFu);
+    for (size_t i = 0; i < addresses.size(); ++i) {
+        uint32_t value = 0;
+        if (Memory::TryRead32(addresses[i], value) && value != last[i]) {
+            RT_LOGF(RT_TAG_VI, "[watch] %08X = %08X (frame %u)\n", addresses[i], value,
+                    s_presentedXfbFrames.load(std::memory_order_relaxed));
+            last[i] = value;
+        }
+    }
+}
+
 void VI_HLE_PresentFrame(bool presentedXfb, bool paceToRetrace) {
+    LogWatchedWords();
+    GuestCodePatch::Sync();  // code patches made outside the code handler (mod plugins)
     if (s_presentSequenceActive.exchange(true, std::memory_order_acq_rel)) {
         return;
     }
@@ -984,12 +1041,10 @@ void VI_HLE_PresentFrame(bool presentedXfb, bool paceToRetrace) {
                 s_logged = 0;
             }
             if (frame > 20.0 && frame < 2000.0 && s_logged++ < 30) {
-                uint32_t sceneWord = 0;
-                Memory::TryRead32(0x80428730u, sceneWord);
                 RT_LOGF(RT_TAG_VI,
-                        "slow frame %.1f ms (scene 0x%03X): game %.2f (gx %.2f, disc %.2f in %u reads), present %.2f, "
+                        "slow frame %.1f ms: game %.2f (gx %.2f, disc %.2f in %u reads), present %.2f, "
                         "end_frame %.2f, pace %.2f\n",
-                        frame, sceneWord & 0xFFFFu, ms(presentStart - s_lastEnd), gxMs, dvdMs, frameReads,
+                        frame, ms(presentStart - s_lastEnd), gxMs, dvdMs, frameReads,
                         ms(endFrameStart - presentStart),
                         ms(paceStart - endFrameStart), ms(now - paceStart));
             }
@@ -1283,6 +1338,7 @@ extern "C" void VISetNextFrameBuffer_HLE_801baab8(CpuContext* ctx)
         WriteGuestStateLocked();
     }
     ViSetR3(ctx, 0);
+    Gecko::RunVbiHook(ctx);  // a Gecko code handler hooked at this function's blr
 }
 PPC_NATIVE_OVERRIDE_VOID(801E99C4, VISetNextFrameBuffer_HLE_801baab8, (CpuContext* ctx), (ctx));
 
