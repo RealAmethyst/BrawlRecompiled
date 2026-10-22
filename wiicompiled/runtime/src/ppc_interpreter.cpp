@@ -206,6 +206,18 @@ bool Call(Frame& f, uint32_t target, uint32_t returnTo) {
     return true;
 }
 
+// A tail call (b or bctr to a translated function): the callee returns to lr. True when that is this frame's own
+// return address, so the frame is done; false when the tail caller was code interpreted inside this frame (a mod's
+// function called from here), which then continues at lr. Returning from the frame there would abandon the rest of
+// the function the frame was entered for.
+bool TailCall(Frame& f, uint32_t target, uint32_t returnAddress) {
+    const uint32_t back = f.ctx->lr & ~3u;
+    InvokeIndirectCpu(target, f.ctx);
+    for (auto& form : f.form) form = Form::Unknown;
+    f.ctx->lr = back;
+    return back == (returnAddress & ~3u);
+}
+
 }  // namespace
 
 void DumpRecentBranches() {
@@ -353,9 +365,9 @@ void Run(CpuContext* ctx, uint32_t entry) {
             if (w & 1u) { if (!Call(f, target, pc + 4)) next = target; break; }
             // A branch to another function's start is a tail call (a Gecko hook ending a function with b 0x800018A8).
             if (TranslatedFunctionRegistry::FindByAddressPtr(target) != nullptr) {
-                InvokeIndirectCpu(target, c);
-                g_instructions.fetch_add(executed, std::memory_order_relaxed);
-                return;
+                if (TailCall(f, target, returnAddress)) { g_instructions.fetch_add(executed, std::memory_order_relaxed); return; }
+                next = c->lr & ~3u;
+                break;
             }
             next = target;
             break;
@@ -389,9 +401,9 @@ void Run(CpuContext* ctx, uint32_t entry) {
                     if (w & 1u) { if (!Call(f, target, pc + 4)) next = target; break; }
                     // bctr: a switch-table jump inside this function, or a tail call to another function.
                     if (TranslatedFunctionRegistry::FindByAddressPtr(target) != nullptr) {
-                        InvokeIndirectCpu(target, c);
-                        g_instructions.fetch_add(executed, std::memory_order_relaxed);
-                        return;
+                        if (TailCall(f, target, returnAddress)) { g_instructions.fetch_add(executed, std::memory_order_relaxed); return; }
+                        next = c->lr & ~3u;
+                        break;
                     }
                     next = target;
                 }
@@ -523,9 +535,9 @@ void Run(CpuContext* ctx, uint32_t entry) {
             case 535: SetScalar(f, d, MemoryInline::FlatReadFloat32(EaX(c, w))); break;  // lfsx
             case 536: result = PPC_Srw(c->gpr[d], c->gpr[b]); writeA = true; break;
             case 567: { const uint32_t ea = EaX(c, w); SetScalar(f, d, MemoryInline::FlatReadFloat32(ea)); c->gpr[a] = ea; break; }
-            case 597: {  // lswi
-                uint32_t ea = a ? c->gpr[a] : 0;
-                uint32_t n = b ? b : 32, r = d - 1;
+            case 533: case 597: {  // lswx (XER bytes from rA|0 + rB: a P+ poke loop), lswi
+                uint32_t ea = xo == 533 ? EaX(c, w) : a ? c->gpr[a] : 0;
+                uint32_t n = xo == 533 ? (c->xer & 0x7Fu) : b ? b : 32, r = d - 1;
                 for (uint32_t k = 0; k < n; ++k) {
                     if (k % 4 == 0) { r = (r + 1) & 31u; c->gpr[r] = 0; }
                     c->gpr[r] |= static_cast<uint32_t>(MemoryInline::FlatRead8(ea++)) << (24 - 8 * (k % 4));
@@ -537,9 +549,9 @@ void Run(CpuContext* ctx, uint32_t entry) {
             case 662: MemoryInline::FlatWrite32(EaX(c, w), __builtin_bswap32(c->gpr[d])); break;  // stwbrx
             case 663: MemoryInline::FlatWriteFloat32(EaX(c, w), Scalar(f, d)); break;  // stfsx
             case 695: { const uint32_t ea = EaX(c, w); MemoryInline::FlatWriteFloat32(ea, Scalar(f, d)); c->gpr[a] = ea; break; }
-            case 725: {  // stswi
-                uint32_t ea = a ? c->gpr[a] : 0;
-                uint32_t n = b ? b : 32, r = d - 1;
+            case 661: case 725: {  // stswx, stswi
+                uint32_t ea = xo == 661 ? EaX(c, w) : a ? c->gpr[a] : 0;
+                uint32_t n = xo == 661 ? (c->xer & 0x7Fu) : b ? b : 32, r = d - 1;
                 for (uint32_t k = 0; k < n; ++k) {
                     if (k % 4 == 0) r = (r + 1) & 31u;
                     MemoryInline::FlatWrite8(ea++, static_cast<uint8_t>(c->gpr[r] >> (24 - 8 * (k % 4))));

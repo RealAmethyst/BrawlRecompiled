@@ -35,9 +35,12 @@ Brawl mods are installed the way they are on a Wii's SD card:
   `UserData\Cache\sd_card.raw`, rebuilt only when the folder changes); files the game writes to the card are
   copied back into the folder when it exits. A card over 2 GiB is an SDHC card, which Brawl reads only with a
   mod's SDHC support (Project+ has it). A Dolphin `sd.raw` placed at `UserData\sd.raw` is used directly instead.
-- **Gecko codes**: the first `RSBE01.GCT` in a folder of the SD card (`UserData\SD\Project+\RSBE01.GCT`), or
+- **Gecko codes**: the `RSBE01.GCT` of the card folder chosen on the launcher's Mods page ("Codes to load",
+  `[mods] sd_codes` in `Config.toml`), else the first folder with one (`UserData\SD\Project+\RSBE01.GCT`), else
   `UserData\Codes\RSBE01.gct`, is installed with USB Loader GX's code handler, honouring a `gc.txt` beside it
-  (code list address, hook type, pokes) exactly as Project+'s loader does.
+  (code list address, hook type, pokes) exactly as Project+'s loader does. Builds that share the card this way:
+  Project+ and [Project+Ex](https://github.com/KingJigglypuff/project-plus-ex) (its `P+Ex`, `apps` and `private`
+  folders).
 - Code the codes patch runs in a built-in PowerPC interpreter; everything else stays native. Mods that replace
   `.rel` modules (Project+ replaces every fighter) currently run those modules in the interpreter as well.
 

@@ -11,6 +11,7 @@ keyboard). In the game, F10 opens the settings menu and F11 switches between ful
 Mods (Mods page):
 - SD card mods, Project+ included: engine\UserData\SD is the game's SD card. Copy a mod's SD card contents into it
   (for Project+: its Project+, private and apps folders). Gecko codes go with them (sd:\<mod>\RSBE01.GCT).
+  Several builds can share the card (Project+ and Project+Ex, say): "Codes to load" on the Mods page picks the one that runs.
 - Mods that replace game files or textures: one folder per mod in engine\UserData\mods.
 
 Your saves, settings and mods live in engine\UserData. Keep this folder together; it needs nothing else.

@@ -15,6 +15,13 @@ extern "C" {
 #include "diskio.h"
 }
 
+#include <sys/stat.h>
+#ifdef _WIN32
+#include <sys/utime.h>
+#else
+#include <utime.h>
+#endif
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -102,15 +109,26 @@ std::time_t FromFatTime(WORD date, WORD time) {
     return std::mktime(&local);
 }
 
-std::time_t ToTimeT(fs::file_time_type t) {
-    const auto system = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-        t - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
-    return std::chrono::system_clock::to_time_t(system);
+// File times as whole seconds through the C runtime, the same on every scan (the manifest's 2-second FAT times must
+// not drift): std::filesystem's file_time_type has no exact conversion to time_t on this toolchain.
+std::time_t ModifiedTime(const fs::path& path) {
+#ifdef _WIN32
+    struct _stat64 st {};
+    return _wstat64(path.c_str(), &st) == 0 ? st.st_mtime : 0;
+#else
+    struct stat st {};
+    return ::stat(path.c_str(), &st) == 0 ? st.st_mtime : 0;
+#endif
 }
 
-fs::file_time_type FromTimeT(std::time_t t) {
-    return std::chrono::time_point_cast<fs::file_time_type::duration>(
-        std::chrono::system_clock::from_time_t(t) - std::chrono::system_clock::now() + fs::file_time_type::clock::now());
+void SetModifiedTime(const fs::path& path, std::time_t t) {
+#ifdef _WIN32
+    struct __utimbuf64 times { t, t };
+    _wutime64(path.c_str(), &times);
+#else
+    struct utimbuf times { t, t };
+    ::utime(path.c_str(), &times);
+#endif
 }
 
 // What the image was built from: relative path -> size and FAT time (directories have size UINT64_MAX).
@@ -133,8 +151,7 @@ Manifest ScanFolder(const fs::path& folder) {
             manifest[Utf8(relative)] = {kDirectory, 0};
         } else if (it->is_regular_file(entryEc)) {
             const auto size = it->file_size(entryEc);
-            const auto time = it->last_write_time(entryEc);
-            if (!entryEc) manifest[Utf8(relative)] = {size, FatTime(ToTimeT(time))};
+            if (!entryEc) manifest[Utf8(relative)] = {size, FatTime(ModifiedTime(it->path()))};
         }
     }
     return manifest;
@@ -268,6 +285,83 @@ bool BuildImage(const Manifest& manifest) {
     return true;
 }
 
+// Writes one folder file onto the card at its path, with the folder's FAT time.
+bool PutFile(const std::string& path, const Entry& entry) {
+    const std::string target = VolumePath(path);
+    if (entry.size == kDirectory) {
+        const FRESULT fr = f_mkdir(target.c_str());
+        return fr == FR_OK || fr == FR_EXIST;
+    }
+    FILE* source = OpenFile(g_folder / FromUtf8(path), "rb");
+    FIL file;
+    if (!source || f_open(&file, target.c_str(), FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+        if (source) std::fclose(source);
+        return false;
+    }
+    bool ok = true;
+    std::vector<char> buffer(4 * kMiB);
+    for (size_t got; ok && (got = std::fread(buffer.data(), 1, buffer.size(), source)) > 0;) {
+        UINT written = 0;
+        ok = f_write(&file, buffer.data(), static_cast<UINT>(got), &written) == FR_OK && written == got;
+    }
+    std::fclose(source);
+    ok = f_close(&file) == FR_OK && ok;
+    FILINFO info{};
+    info.fdate = static_cast<WORD>(entry.fatTime >> 16);
+    info.ftime = static_cast<WORD>(entry.fatTime);
+    f_utime(target.c_str(), &info);
+    return ok;
+}
+
+// Brings the existing card from what it was built from (`built`) to the folder as it is now (`current`): files
+// changed or added are written, files gone are removed, folders gone last. False when the card is better rebuilt
+// (too much changed, or no room).
+bool UpdateImage(const Manifest& built, const Manifest& current) {
+    std::vector<std::pair<std::string, Entry>> put;
+    std::vector<std::string> gone;
+    uint64_t bytes = 0;
+    for (const auto& [path, entry] : current) {
+        const auto was = built.find(path);
+        if (was != built.end() && was->second == entry) continue;
+        put.emplace_back(path, entry);
+        if (entry.size != kDirectory) bytes += entry.size;
+    }
+    for (const auto& [path, entry] : built) {
+        if (!current.count(path)) gone.push_back(path);
+    }
+    if (put.size() + gone.size() > 256) return false;  // a new mod: a fresh card sized for it
+    FILE* disk = OpenFile(g_imagePath, "r+b");
+    if (!disk) return false;
+    g_fatfsDisk = disk;
+    std::error_code ec;
+    g_fatfsSectors = fs::file_size(g_imagePath, ec) / kSector;
+    auto volume = std::make_unique<FATFS>();
+    bool ok = f_mount(volume.get(), "", 1) == FR_OK;
+    DWORD freeClusters = 0;
+    FATFS* mounted = nullptr;
+    if (ok && f_getfree("", &freeClusters, &mounted) == FR_OK) {
+        const uint64_t room = static_cast<uint64_t>(freeClusters) * mounted->csize * kSector;
+        ok = bytes + 16 * kMiB < room;  // the game's own writes need room too
+    }
+    // Files first, deepest folders last, so a folder is empty when removed.
+    std::sort(gone.begin(), gone.end(), [&](const std::string& a, const std::string& b) {
+        const bool da = built.at(a).size == kDirectory, db = built.at(b).size == kDirectory;
+        return da != db ? !da : a.size() > b.size();
+    });
+    for (auto it = gone.begin(); ok && it != gone.end(); ++it) ok = f_unlink(VolumePath(*it).c_str()) == FR_OK;
+    for (auto it = put.begin(); ok && it != put.end(); ++it) ok = PutFile(it->first, it->second);
+    f_mount(nullptr, "", 0);
+    std::fclose(disk);
+    g_fatfsDisk = nullptr;
+    if (!ok) {
+        RT_LOGF(RT_TAG_NAND, "[sd] the card could not be updated in place: building it again\n");
+        return false;
+    }
+    WriteManifest(current);
+    RT_LOGF(RT_TAG_NAND, "[sd] card updated: %zu file(s) written, %zu removed\n", put.size(), gone.size());
+    return true;
+}
+
 // Copies what the game created or changed on the card back into the folder. Deletions are not mirrored.
 void SyncBack(const fs::path& relative, const Manifest& built, int& copied) {
     const std::string dirPath = relative.empty() ? "/" : VolumePath(Utf8(relative));
@@ -297,7 +391,7 @@ void SyncBack(const fs::path& relative, const Manifest& built, int& copied) {
                 std::fwrite(buffer.data(), 1, got, out);
             }
             std::fclose(out);
-            fs::last_write_time(host, FromTimeT(FromFatTime(info.fdate, info.ftime)), ec);
+            SetModifiedTime(host, FromFatTime(info.fdate, info.ftime));
             ++copied;
         }
         f_close(&file);
@@ -320,7 +414,9 @@ bool OpenLocked() {
             const std::string& changed = now != current.end() ? now->first : then != built.end() ? then->first : "";
             RT_LOGF(RT_TAG_NAND, "[sd] '%s' changed since the card was built%s%s\n", Utf8(g_folder).c_str(),
                     changed.empty() ? "" : ": ", changed.c_str());
-            if (!BuildImage(current)) return false;
+            // A few files changed (the game's own writes copied back, a mod's update): change them on the card rather
+            // than build the whole card again.
+            if (!(fs::exists(g_imagePath, ec) && !built.empty() && UpdateImage(built, current)) && !BuildImage(current)) return false;
         }
     } else if (fs::exists(userData / "sd.raw", ec)) {
         g_imagePath = userData / "sd.raw";

@@ -41,6 +41,8 @@ std::vector<std::pair<uint32_t, uint32_t>> g_ranges;                            
 std::unordered_map<uint32_t, std::unique_ptr<std::array<uint8_t, kPage>>> g_pristine;  // by page address
 std::unordered_set<uint32_t> g_dirty;                                              // page addresses written since Sync
 std::unordered_set<uint32_t> g_reported;                                           // functions logged as patched
+std::unordered_set<uint32_t> g_loggedWords;                                        // BRAWL_PATCH_LOG words logged
+std::vector<uint32_t> g_forced;                                                    // BRAWL_INTERPRET guard indices
 
 // The cached (0x8/0x9) view: the trap also fires for the uncached alias of guarded code.
 uint32_t Cached(uint32_t address) { return (address & 0xE0000000u) == 0xC0000000u ? address - 0x40000000u : address; }
@@ -100,6 +102,7 @@ void InterpretFromEnvironment() {
         const auto* info = TranslatedFunctionRegistry::FindByAddressPtr(function);
         if (info != nullptr && info->name != nullptr && std::strstr(info->name, "_veneer_") != nullptr) continue;
         g_mkwGuestCodePatched[i] = 1;
+        g_forced.push_back(i);
         ++count;
     }
     RT_LOGF(RT_TAG_MOD, "[mods] BRAWL_INTERPRET: %u translated function(s) in 0x%08X-0x%08X run in the interpreter\n",
@@ -145,6 +148,15 @@ void Sync() {
                 if (std::memcmp(now + offset, was + offset, 4) == 0) continue;
                 const uint32_t address = page + offset;
                 if (!IsGuardedLocked(address)) continue;
+                // BRAWL_PATCH_LOG: every changed word, once (the pristine copy stays the disc's code).
+                static const bool logWords = std::getenv("BRAWL_PATCH_LOG") != nullptr;
+                if (logWords && g_loggedWords.insert(address).second) {
+                    uint32_t before = 0, after = 0;
+                    std::memcpy(&before, was + offset, 4);
+                    std::memcpy(&after, now + offset, 4);
+                    RT_LOGF(RT_TAG_MOD, "[mods] word 0x%08X: %08X -> %08X\n", address, __builtin_bswap32(before),
+                            __builtin_bswap32(after));
+                }
                 const int64_t index = FunctionIndex(address);
                 if (index < 0 || g_mkwGuestCodePatched[index]) continue;
                 g_mkwGuestCodePatched[index] = 1;
@@ -167,6 +179,10 @@ void ResetPristine(uint32_t start, uint32_t end) {
         const uint32_t function = g_mkwGuardedFunctionStarts[index];
         if (function >= end) break;
         if (function >= start) g_mkwGuestCodePatched[index] = 0;
+    }
+    for (const uint32_t index : g_forced) {  // the interpreter check outlives a module's relink
+        const uint32_t function = g_mkwGuardedFunctionStarts[index];
+        if (function >= start && function < end) g_mkwGuestCodePatched[index] = 1;
     }
     for (uint32_t page = start & ~(kPage - 1); page < end; page += kPage) g_dirty.erase(page);
 }

@@ -64,6 +64,19 @@ std::optional<fs::path> FindFile(const fs::path& directory, const std::string& n
 
 std::optional<fs::path> FindCodes() {
     const fs::path userData = RuntimeConfigFile::ApplicationDataDirectory();
+    // Config.toml [mods] sd_codes: the card folder whose codes load when several builds share the card (the
+    // launcher's "Codes to load"); otherwise the first folder with codes.
+    std::string chosen;
+    try {
+        std::ifstream in(RuntimeConfigFile::ResolveConfigPath(), std::ios::binary);
+        if (in) chosen = RuntimeConfigFile::FindConfigValue<std::string>(toml::parse(in, "Config.toml"), "mods", "sd_codes").value_or("");
+    } catch (const std::exception& error) {
+        RT_LOGF(RT_TAG_MOD, "[gecko] Config.toml: %s\n", error.what());
+    }
+    if (!chosen.empty()) {
+        if (auto codes = FindFile(userData / "SD" / chosen, "RSBE01.GCT")) return codes;
+        RT_LOGF(RT_TAG_MOD, "[gecko] the chosen SD folder '%s' has no RSBE01.GCT; using the first found\n", chosen.c_str());
+    }
     std::error_code ec;
     std::vector<fs::path> folders;
     for (const auto& entry : fs::directory_iterator(userData / "SD", ec)) {

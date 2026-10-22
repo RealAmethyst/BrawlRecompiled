@@ -714,6 +714,12 @@ sealed class MainWindow : Window
         return names.Length == 0 ? "none" : string.Join(", ", names);
     }
 
+    // The builds on the card: its folders holding Gecko codes (RSBE01.GCT), the ones the game can load codes from.
+    List<string> SdBuilds() => Directory.Exists(sdDir)
+        ? Directory.GetDirectories(sdDir).Where(d => Directory.EnumerateFiles(d).Any(f => Path.GetFileName(f).Equals("RSBE01.GCT", StringComparison.OrdinalIgnoreCase)))
+            .Select(d => Path.GetFileName(d)!).OrderBy(n => n, StringComparer.Ordinal).ToList()
+        : new List<string>();
+
     // The folders on the virtual SD card (a mod's SD card contents, Project+'s "Project+", "private" and "apps").
     string SdNames()
     {
@@ -733,12 +739,38 @@ sealed class MainWindow : Window
         sdStatus.Foreground = SnowBrush;
         body.Children.Add(sdStatus);
         body.Children.Add(Row(Btn("Open SD card folder", () => Open(Directory.CreateDirectory(sdDir).FullName))));
+        // Which build's Gecko codes load when several share the card (Config.toml [mods] sd_codes = the folder).
+        var codesCombo = new ComboBox { Width = 300, Margin = new Thickness(3, 4, 3, 4) };
+        var codesRow = Row(new TextBlock { Text = "Codes to load", Width = 200, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center }, codesCombo);
+        codesRow.Margin = new Thickness(0, 4, 0, 4);
+        body.Children.Add(codesRow);
+        bool fillingCodes = false;
+        var builds = new List<string>();
+        void FillCodes()
+        {
+            fillingCodes = true;
+            builds = SdBuilds();
+            var items = new List<string> { "The first build on the card" };
+            items.AddRange(builds);
+            codesCombo.ItemsSource = items;
+            int i = builds.IndexOf(config.Get("mods", "sd_codes") ?? "");
+            codesCombo.SelectedIndex = i < 0 ? 0 : i + 1;
+            fillingCodes = false;
+        }
+        codesCombo.SelectionChanged += (_, _) =>
+        {
+            if (fillingCodes || codesCombo.SelectedIndex < 0) return;
+            if (codesCombo.SelectedIndex == 0) config.Remove("mods", "sd_codes");
+            else config.SetString("mods", "sd_codes", builds[codesCombo.SelectedIndex - 1]);
+            config.Save();
+        };
+        FillCodes();
         body.Children.Add(Subheading("File and texture mods"));
         body.Children.Add(Note("How to install one:\n" +
                                "1. Click Open mods folder.\n" +
                                "2. Put the mod's folder in it (one folder per mod: files/ mirrors the disc, textures/ holds texture replacements).\n" +
                                "3. Click Refresh. Ticked mods load when the game starts; untick one to turn it off."));
-        body.Children.Add(Row(Btn("Open mods folder", () => Open(Directory.CreateDirectory(modsDir).FullName)), Btn("Refresh", () => { LoadMods(); RefreshStatus(); }, Card)));
+        body.Children.Add(Row(Btn("Open mods folder", () => Open(Directory.CreateDirectory(modsDir).FullName)), Btn("Refresh", () => { LoadMods(); FillCodes(); RefreshStatus(); }, Card)));
         modList = new StackPanel { Margin = new Thickness(8, 4, 8, 4) };
         var list = new StackPanel();
         list.Children.Add(new Border

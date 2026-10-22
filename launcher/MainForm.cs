@@ -650,6 +650,12 @@ sealed class MainForm : Form
         return names.Length == 0 ? "none" : string.Join(", ", names);
     }
 
+    // The builds on the card: its folders holding Gecko codes (RSBE01.GCT), the ones the game can load codes from.
+    List<string> SdBuilds() => Directory.Exists(sdDir)
+        ? Directory.GetDirectories(sdDir).Where(d => Directory.EnumerateFiles(d).Any(f => Path.GetFileName(f).Equals("RSBE01.GCT", StringComparison.OrdinalIgnoreCase)))
+            .Select(d => Path.GetFileName(d)!).OrderBy(n => n, StringComparer.Ordinal).ToList()
+        : new List<string>();
+
     // The folders on the virtual SD card (a mod's SD card contents, Project+'s "Project+", "private" and "apps").
     string SdNames()
     {
@@ -669,6 +675,32 @@ sealed class MainForm : Form
         sdStatus.ForeColor = Snow;
         body.Controls.Add(sdStatus);
         body.Controls.Add(Btn("Open SD card folder", (_, _) => Process.Start("explorer.exe", Directory.CreateDirectory(sdDir).FullName)));
+        // Which build's Gecko codes load when several share the card (Config.toml [mods] sd_codes = the folder).
+        var codesRow = new FlowLayoutPanel { AutoSize = true, Margin = S(0, 4, 0, 4) };
+        codesRow.Controls.Add(new Label { Text = "Codes to load", AutoSize = false, Size = S(200, 32), ForeColor = Snow, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft });
+        var codesCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = S(300), FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10.5f), Margin = S(3, 4, 3, 4), BackColor = Night, ForeColor = Snow };
+        codesRow.Controls.Add(codesCombo);
+        body.Controls.Add(codesRow);
+        bool fillingCodes = false;
+        void FillCodes()
+        {
+            fillingCodes = true;
+            codesCombo.Items.Clear();
+            codesCombo.Items.Add("The first build on the card");
+            var builds = SdBuilds();
+            foreach (var b in builds) codesCombo.Items.Add(b);
+            int i = builds.IndexOf(config.Get("mods", "sd_codes") ?? "");
+            codesCombo.SelectedIndex = i < 0 ? 0 : i + 1;
+            fillingCodes = false;
+        }
+        codesCombo.SelectedIndexChanged += (_, _) =>
+        {
+            if (fillingCodes) return;
+            if (codesCombo.SelectedIndex <= 0) config.Remove("mods", "sd_codes");
+            else config.SetString("mods", "sd_codes", (string)codesCombo.Items[codesCombo.SelectedIndex]!);
+            config.Save();
+        };
+        FillCodes();
         body.Controls.Add(new Label { Text = "File and texture mods", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Snow, AutoSize = true, Margin = S(0, 14, 0, 2) });
         body.Controls.Add(Note("How to install one:\n" +
                                "1. Click Open mods folder.\n" +
@@ -676,7 +708,7 @@ sealed class MainForm : Form
                                "3. Click Refresh. Ticked mods load when the game starts; untick one to turn it off."));
         var row = new FlowLayoutPanel { AutoSize = true, Margin = Padding.Empty };
         row.Controls.Add(Btn("Open mods folder", (_, _) => Process.Start("explorer.exe", Directory.CreateDirectory(modsDir).FullName)));
-        row.Controls.Add(Btn("Refresh", (_, _) => { LoadMods(); RefreshStatus(); }, Card));
+        row.Controls.Add(Btn("Refresh", (_, _) => { LoadMods(); FillCodes(); RefreshStatus(); }, Card));
         body.Controls.Add(row);
         modList = new ListView { View = View.Details, CheckBoxes = true, Size = S(660, 200), FullRowSelect = true, Font = new Font("Segoe UI", 10.5f), Margin = S(0, 6, 0, 6), HeaderStyle = ColumnHeaderStyle.Nonclickable, BackColor = Night, ForeColor = Snow, BorderStyle = BorderStyle.FixedSingle };
         modList.Columns.Add("Installed mods", S(630));

@@ -483,11 +483,16 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
         // Brawl: the game sees a retail console's 64 MiB of MEM2 (128 MiB reads as a development kit). The mapping
         // above it holds the translated .rel modules' homes (0x94004000 up, hle/brawl_modules.cpp) and the FST.
         const uint32_t reportedMem2Size = std::min<uint32_t>(mem2Size, 0x04000000u);
-        const uint32_t physicalMem2End = Memory::kMem2CachedBase + reportedMem2Size;
-        const uint32_t iosReservedLo = physicalMem2End - kIosReservedSize;
-        const uint32_t mem2End = iosReservedLo;
-        const uint32_t ipcBufHi = mem2End;
+        // What a retail Wii's IOS (IOS36, which Brawl runs under; Dolphin's VersionInfo.cpp presents the same)
+        // leaves the game: MEM2 up to 0x93600000, the arena ending at 0x935E0000 with the 128 KiB IPC buffer above
+        // it, and IOS's own 10 MiB to the top. Brawl lays its MEM2 heaps out from the arena's top down, and mods
+        // (Project+) hard-code the resulting addresses.
+        constexpr uint32_t kIosMem2End = 0x93600000u;
+        const uint32_t mem2End = kIosMem2End;
+        const uint32_t ipcBufHi = kIosMem2End;
         const uint32_t ipcBufLo = ipcBufHi - kIPCArenaSize;
+        const uint32_t iosReservedLo = kIosMem2End;                      // IOS's own area starts where the game's MEM2 ends
+        const uint32_t iosReservedHi = kIosMem2End + kIosReservedSize;  // 0x93620000, as Dolphin reports for IOS36
         // The FST goes at the top of the mapping, out of the game's arena.
         g_dvdFstReservedSize = kDvdFstReserveSize;
         g_dvdFstReservedBase = Memory::kMem2CachedBase + mem2Size - kIosReservedSize - kIPCArenaSize - kDvdFstReserveSize;
@@ -502,7 +507,7 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
         entries.push_back({0x80003134u, ipcBufHi, "IPC Buffer hi", true});
         entries.push_back({0x80003138u, 0x00000002u, "Hollywood revision", true});
         entries.push_back({0x80003148u, iosReservedLo, "IOS reserved lo", true});
-        entries.push_back({0x8000314Cu, physicalMem2End, "IOS reserved hi", true});
+        entries.push_back({0x8000314Cu, iosReservedHi, "IOS reserved hi", true});
     }
 
     bool patchedAny = false;

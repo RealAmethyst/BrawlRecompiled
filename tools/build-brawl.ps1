@@ -119,8 +119,18 @@ Set-Status "DONE: $build\$module.dll"
 # Only the copy running from Play\ locks the files we overwrite; sweeps run their own copy under autotest\ and must survive.
 $playExe = [IO.Path]::GetFullPath((Join-Path $root 'Play\SuperSmashBrosBrawl.exe'))
 Get-Process SuperSmashBrosBrawl -ErrorAction SilentlyContinue | Where-Object { $_.Path -and [IO.Path]::GetFullPath($_.Path) -ieq $playExe } | Stop-Process -Force; Start-Sleep -Seconds 1
-Copy-Item -LiteralPath (Join-Path $build "$module.dll") -Destination (Join-Path $root "Play\$module.dll") -Force
-Copy-Item -LiteralPath (Join-Path $build 'WiiCompiled.exe') -Destination $playExe -Force
+# A killed game can leave a zombie process (one thread stuck in a driver) holding the old files open for a long
+# time; Windows still lets them be renamed, so the copy moves such a file aside and the leftovers go once freed.
+Get-ChildItem (Join-Path $root 'Play') -Filter '*.locked-*' | ForEach-Object { Remove-Item -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
+function Copy-ReplacingLocked($from, $to) {
+    try { Copy-Item -LiteralPath $from -Destination $to -Force -ErrorAction Stop }
+    catch {
+        Move-Item -LiteralPath $to -Destination "$to.locked-$([DateTime]::Now.ToString('HHmmss'))" -Force
+        Copy-Item -LiteralPath $from -Destination $to -Force
+    }
+}
+Copy-ReplacingLocked (Join-Path $build "$module.dll") (Join-Path $root "Play\$module.dll")
+Copy-ReplacingLocked (Join-Path $build 'WiiCompiled.exe') $playExe
 Set-Status "copied to Play\$module.dll and Play\SuperSmashBrosBrawl.exe"
 # Unattended test run: autotest\autorun.txt present -> start the game (its own autoexit.txt ends it) with logs.
 if (Test-Path (Join-Path $root 'autotest\autorun.txt')) {

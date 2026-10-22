@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -89,6 +90,7 @@ constexpr uint32_t kWpadLeft = 0x0001, kWpadRight = 0x0002, kWpadDown = 0x0004, 
 // D-pad names are the remote's own, so held sideways RIGHT is screen up and DOWN is screen right.
 struct ScriptEvent {
     std::string scene;  // "scene@ms": the time counts from the game's "-> scene" report (Brawl's scene changes)
+    bool frames = false;  // "scene@540f": startMs/endMs count presented frames since the scene began, not ms
     uint64_t startMs = 0;
     uint64_t endMs = 0;
     uint32_t bits = 0;
@@ -160,9 +162,13 @@ const InputScript& Script() {
                 const std::string when = item.substr(0, c1);
                 const size_t at = when.find('@');
                 if (at != std::string::npos) event.scene = when.substr(0, at);
-                event.startMs = std::strtoull(when.substr(at == std::string::npos ? 0 : at + 1).c_str(), nullptr, 10);
+                const std::string whenAt = when.substr(at == std::string::npos ? 0 : at + 1);
+                event.frames = !whenAt.empty() && whenAt.back() == 'f';  // the hand's travel and a press are per frame
+                event.startMs = std::strtoull(whenAt.c_str(), nullptr, 10);
                 const std::string buttons = item.substr(c1 + 1, c2 == std::string::npos ? std::string::npos : c2 - c1 - 1);
-                const uint64_t duration = c2 == std::string::npos ? 150 : std::strtoull(item.substr(c2 + 1).c_str(), nullptr, 10);
+                const std::string durationText = c2 == std::string::npos ? "" : item.substr(c2 + 1, c3 == std::string::npos ? std::string::npos : c3 - c2 - 1);
+                uint64_t duration = durationText.empty() ? 150 : std::strtoull(durationText.c_str(), nullptr, 10);
+                if (event.frames && (durationText.empty() || durationText.back() != 'f')) duration = (duration * 60 + 999) / 1000;  // ms given
                 if (c3 != std::string::npos) {
                     const uint32_t chan = static_cast<uint32_t>(std::strtoul(item.substr(c3 + 1).c_str(), nullptr, 10));
                     event.chan = chan >= 1 && chan <= 4 ? chan - 1 : 0;
@@ -200,6 +206,9 @@ uint64_t ScriptNowMs() {
 
 std::mutex g_sceneMutex;
 std::unordered_map<std::string, uint64_t> g_sceneStartMs;  // first "-> scene" report of each scene
+std::unordered_map<std::string, uint64_t> g_sceneStartFrame;  // the same, in game frames (pad polls)
+// PADRead calls: the game polls once per logic frame, so unlike presented frames the count is the same every run.
+std::atomic<uint64_t> g_padPolls{0};
 
 bool ScriptedSample(uint32_t chan, KpadSample& sample) {
     const InputScript& script = Script();
@@ -215,11 +224,13 @@ bool ScriptedSample(uint32_t chan, KpadSample& sample) {
         uint64_t base = 0;
         if (!event.scene.empty()) {
             std::lock_guard<std::mutex> lock(g_sceneMutex);
-            const auto it = g_sceneStartMs.find(event.scene);
-            if (it == g_sceneStartMs.end()) continue;
+            const auto& starts = event.frames ? g_sceneStartFrame : g_sceneStartMs;
+            const auto it = starts.find(event.scene);
+            if (it == starts.end()) continue;
             base = it->second;
         }
-        if (event.chan == chan && now >= base + event.startMs && now < base + event.endMs) {
+        const uint64_t at = event.frames ? g_padPolls.load(std::memory_order_relaxed) : now;
+        if (event.chan == chan && at >= base + event.startMs && at < base + event.endMs) {
             sample.hold |= event.bits & ~kScriptPoint;  // the GameCube-only bits are dropped by the KPAD writer
             if ((event.bits & kScriptPoint) != 0) {
                 sample.pointerValid = true;
@@ -793,12 +804,15 @@ void NoteGameReport(const std::string& line) {
     if (!Script().active) return;
     std::lock_guard<std::mutex> lock(g_sceneMutex);
     if (!scene.empty() && g_sceneStartMs.emplace(scene, ScriptNowMs()).second) {
-        RT_LOGF(RT_TAG_RUNTIME, "script: scene %s at %llu ms (frame %u)\n", scene.c_str(),
-                static_cast<unsigned long long>(ScriptNowMs()), SpmPresentedFrames());
+        const uint64_t frame = g_padPolls.load(std::memory_order_relaxed);
+        g_sceneStartFrame.emplace(scene, frame);
+        RT_LOGF(RT_TAG_RUNTIME, "script: scene %s at %llu ms (frame %llu)\n", scene.c_str(),
+                static_cast<unsigned long long>(ScriptNowMs()), static_cast<unsigned long long>(frame));
     }
 }
 
 bool ScriptedPadButtons(uint32_t port, uint16_t& buttons, int8_t& stickX, int8_t& stickY) {
+    if (port == 0) g_padPolls.fetch_add(1, std::memory_order_relaxed);
     KpadSample sample;
     if (!ScriptedSample(port, sample)) {
         return false;
