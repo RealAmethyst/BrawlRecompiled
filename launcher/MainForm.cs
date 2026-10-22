@@ -58,6 +58,9 @@ sealed class MainForm : Form
 
         Text = "Brawl Recompiled  v" + AppVersion;
         Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!);  // the Smash Ball, embedded from smash.ico
+        ballCursor = MakeBallCursor(clickable: false);
+        ballHand = MakeBallCursor(clickable: true);
+        Cursor = ballCursor;  // child controls without their own cursor inherit it
         var area = Screen.PrimaryScreen?.WorkingArea.Size ?? new Size(S(1100), S(760));
         ClientSize = new Size(Math.Min(S(1100), area.Width - 40), Math.Min(S(760), area.Height - 60));
         MinimumSize = new Size(Math.Min(S(940), area.Width), Math.Min(S(640), area.Height));
@@ -71,11 +74,23 @@ sealed class MainForm : Form
         var header = new DoubleBufferedPanel { Dock = DockStyle.Top, Height = S(150) };
         header.Paint += PaintHeader;
         var nav = new BufferedFlow { Dock = DockStyle.Left, Width = S(220), FlowDirection = FlowDirection.TopDown, Padding = S(16, 18, 0, 0), WrapContents = false };
+        nav.Paint += PaintNav;
+        // Click Mario or Sonic to make them hop, the Smash Ball for another tip, the fighter under the menu to swap them in.
+        header.MouseClick += (_, e) =>
+        {
+            if (leftRect.Contains(e.Location)) jumpAt["left"] = T;
+            else if (rightRect.Contains(e.Location)) jumpAt["right"] = T;
+            else if (ballRect.Contains(e.Location)) NextTip();
+        };
+        header.MouseMove += (_, e) => header.Cursor = leftRect.Contains(e.Location) || rightRect.Contains(e.Location) || ballRect.Contains(e.Location) ? ballHand : ballCursor;
+        nav.MouseClick += (_, e) => { if (navRect.Contains(e.Location) && Hop("nav", 0.9) < 0) jumpAt["nav"] = T; };
+        nav.MouseMove += (_, e) => nav.Cursor = navRect.Contains(e.Location) ? ballHand : ballCursor;
         var frame = new System.Windows.Forms.Timer { Interval = 33 };
         frame.Tick += (_, _) =>
         {
             if (!animate || WindowState == FormWindowState.Minimized) return;
             header.Invalidate();
+            nav.Invalidate(new Rectangle(0, navSpriteTop, nav.Width, Math.Max(0, nav.Height - navSpriteTop)));
             float glow = (float)(Math.Sin(T * 3) + 1) / 2;  // PLAY breathes between two reds
             playButton.BackColor = Color.FromArgb(Lerp(Red.R, 255, glow), Lerp(Red.G, 100, glow), Lerp(Red.B, 70, glow));
         };
@@ -139,17 +154,19 @@ sealed class MainForm : Form
 
     void AddPage(FlowLayoutPanel nav, string title, Control page)
     {
+        // The title is drawn in the game's font (NavTitle); Text stays for the screenshot names and accessibility.
         var button = new Button
         {
-            Text = title, Size = S(188, 50), FlatStyle = FlatStyle.Flat, BackColor = Card, ForeColor = Snow,
-            Font = new Font("Segoe UI", 13f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = S(12, 0, 0, 0),
-            Margin = S(0, 0, 0, 10), Cursor = Cursors.Hand, UseCompatibleTextRendering = false,
+            Text = title, Size = S(188, 50), FlatStyle = FlatStyle.Flat, BackColor = Card, ForeColor = Card,
+            Font = new Font("Segoe UI", 1f), ImageAlign = ContentAlignment.MiddleLeft, Padding = S(10, 0, 0, 0),
+            Margin = S(0, 0, 0, 10), Cursor = ballHand, UseCompatibleTextRendering = false,
+            Image = NavTitle(title, false), AccessibleName = title,
         };
         button.FlatAppearance.BorderColor = Edge;
         button.FlatAppearance.BorderSize = S(2);
         button.Click += (_, _) => ShowPage(button);
-        button.MouseEnter += (_, _) => { if (button.BackColor == Card) button.BackColor = Hover; };
-        button.MouseLeave += (_, _) => { if (button.BackColor == Hover) button.BackColor = Card; };
+        button.MouseEnter += (_, _) => { if (button.BackColor == Card) button.BackColor = button.ForeColor = Hover; };
+        button.MouseLeave += (_, _) => { if (button.BackColor == Hover) button.BackColor = button.ForeColor = Card; };
         page.Dock = DockStyle.Fill;
         page.Visible = false;
         content.Controls.Add(page);
@@ -163,10 +180,23 @@ sealed class MainForm : Form
         {
             bool on = b == button;
             b.BackColor = on ? Orange : Card;
-            b.ForeColor = on ? Night : Snow;
+            b.ForeColor = b.BackColor;  // the text is the image; the button's own text stays out of sight
+            b.Image = NavTitle(b.Text, on);
             page.Visible = on;
         }
         RefreshStatus();
+    }
+
+    // A menu entry's title in the game's font: white on the dark buttons, dark on the selected orange one.
+    static Bitmap NavTitle(string title, bool selected)
+    {
+        Bitmap Draw(int height) => selected
+            ? GameArt.Text(title.ToUpperInvariant(), height, Night, ColorTranslator.FromHtml("#3A2410"), Gold)
+            : GameArt.Text(title.ToUpperInvariant(), height, Snow, Dim, ColorTranslator.FromHtml("#0B0D16"));
+        // Long titles ("CONTROLS") shrink to fit the button.
+        var image = Draw(S(26));
+        int room = S(166);
+        return image.Width <= room ? image : Draw(S(26) * room / image.Width);
     }
 
     // ----- The header: the title over a dark sky with drifting embers -----
@@ -176,8 +206,33 @@ sealed class MainForm : Form
     double T => animate ? clock.Elapsed.TotalSeconds : 1.0;
     Bitmap? headerTitle;
     Button playButton = null!;
+    readonly Dictionary<string, double> jumpAt = new();
+    readonly Dictionary<(string, int, int, bool), Bitmap> scaled = new();
+    Rectangle leftRect, rightRect, ballRect, navRect;
+    int navSpriteTop;
+    // The fighters who take turns under the menu (a click spins the current one out and the next one in).
+    static readonly string[] NavFighters = { "kirby", "pikachu", "fox", "samus", "pit", "metaknight", "ike", "snake" };
+    int navFighter;
 
     static int Lerp(int a, int b, float f) => (int)(a + (b - a) * f);
+
+    // How far into a click-triggered move (0..1), or -1 when none is playing.
+    double Hop(string name, double seconds) => jumpAt.TryGetValue(name, out var at) && T - at < seconds ? (T - at) / seconds : -1;
+
+    // A piece of art resized once and kept (drawing a pre-sized bitmap every frame is cheap).
+    Bitmap Sprite(string name, int w, int h, bool flip = false)
+    {
+        if (scaled.TryGetValue((name, w, h, flip), out var b)) return b;
+        b = new Bitmap(Math.Max(1, w), Math.Max(1, h));
+        using (var g = Graphics.FromImage(b))
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            if (GameArt.Image(name) is { } img) g.DrawImage(img, new Rectangle(0, 0, w, h));
+        }
+        if (flip) b.RotateFlip(RotateFlipType.RotateNoneFlipX);
+        return scaled[(name, w, h, flip)] = b;
+    }
 
     void BuildHeaderTitle(Size size)
     {
@@ -187,19 +242,28 @@ sealed class MainForm : Form
         using var g = Graphics.FromImage(headerTitle);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         using (var pen = new Pen(Orange, S(4))) g.DrawLine(pen, 0, r.Height - S(2), r.Width, r.Height - S(2));
-        using var path = new GraphicsPath();
-        var fmt = new StringFormat { Alignment = StringAlignment.Center };
-        // Shrink the title if the window is narrow.
-        float em = Math.Min(S(50), (r.Width - S(80)) / 9.5f);
-        path.AddString("BRAWL RECOMPILED", new FontFamily("Segoe UI"), (int)FontStyle.Bold, em, new Point(r.Width / 2, S(22)), fmt);
-        using (var outline = new Pen(Color.FromArgb(255, 12, 14, 22), S(7)) { LineJoin = LineJoin.Round }) g.DrawPath(outline, path);
-        using (var fill = new LinearGradientBrush(new Rectangle(0, S(20), 10, (int)em + S(14)), Gold, Orange, LinearGradientMode.Vertical)) g.FillPath(fill, path);
+        // The title in the game's own title font, shrunk if the window is narrow so it stays clear of the fighters.
+        int height = Math.Min(S(58), (r.Width - S(2 * 200)) / 9);
+        var title = GameArt.Text("BRAWL RECOMPILED", height, ColorTranslator.FromHtml("#FFF3B0"), Orange, Color.FromArgb(255, 12, 14, 22));
+        g.DrawImage(title, (r.Width - title.Width) / 2, S(20));
         using var sub = new Font("Segoe UI", 10.5f, FontStyle.Bold);
+        var fmt = new StringFormat { Alignment = StringAlignment.Center };
         var subText = "Super Smash Bros. Brawl (Wii) on PC  -  made by JosiahG  -  v" + AppVersion;
         var subSize = g.MeasureString(subText, sub);
-        var subRect = new RectangleF(r.Width / 2f - subSize.Width / 2 - S(10), S(22) + em * 1.3f, subSize.Width + S(20), subSize.Height + S(2));
+        var subRect = new RectangleF(r.Width / 2f - subSize.Width / 2 - S(10), S(26) + title.Height, subSize.Width + S(20), subSize.Height + S(2));
         using (var tag = Rounded(Rectangle.Round(subRect), S(8))) { g.FillPath(new SolidBrush(Card), tag); g.DrawPath(new Pen(Edge, S(2)), tag); }
         g.DrawString(subText, sub, new SolidBrush(Snow), new PointF(r.Width / 2f, subRect.Y + S(1)), fmt);
+    }
+
+    // A four-point sparkle, as the Smash Ball's trail.
+    static void Sparkle(Graphics g, float cx, float cy, float r, Color color)
+    {
+        float n = r * 0.3f;
+        using var star = new GraphicsPath();
+        star.AddPolygon(new[] { new PointF(cx, cy - r), new PointF(cx + n, cy - n), new PointF(cx + r, cy), new PointF(cx + n, cy + n),
+                                new PointF(cx, cy + r), new PointF(cx - n, cy + n), new PointF(cx - r, cy), new PointF(cx - n, cy - n) });
+        using var fill = new SolidBrush(color);
+        g.FillPath(fill, star);
     }
 
     void PaintHeader(object? sender, PaintEventArgs e)
@@ -222,6 +286,97 @@ sealed class MainForm : Form
             g.FillEllipse(ember, x, y, size, size);
         }
         g.DrawImageUnscaled(headerTitle!, 0, 0);
+        g.InterpolationMode = InterpolationMode.Bilinear;
+
+        // The Smash Ball drifts across the sky, spinning, trailing sparkles; a click on it shows another tip.
+        double half = r.Width / 2.0 - S(230);
+        PointF At(double when) => new((float)(r.Width / 2.0 + Math.Sin(when * 0.42) * half), (float)(S(42) + Math.Sin(when * 1.2) * S(18)));
+        for (int k = 7; k >= 1; k--)
+        {
+            var p = At(t - k * 0.08);
+            Sparkle(g, p.X + (float)Math.Sin(t * 7 + k) * S(4), p.Y + (float)Math.Cos(t * 5 + k) * S(4), S(12 - k), Color.FromArgb(230 - k * 28, k % 2 == 0 ? Gold : Color.White));
+        }
+        var bp = At(t);
+        int ball = S(46);
+        ballRect = new Rectangle((int)bp.X - ball / 2, (int)bp.Y - ball / 2, ball, ball);
+        var state = g.Save();
+        g.TranslateTransform(bp.X, bp.Y);
+        g.RotateTransform((float)(Math.Sin(t * 0.9) * 25));
+        g.DrawImage(Sprite("smash_ball", ball, ball), -ball / 2, -ball / 2);
+        g.Restore(state);
+
+        // Mario and Sonic bounce at the sides; a click makes one hop.
+        float Lift(string name, double phase)
+        {
+            double hop = Hop(name, 0.7);
+            return (float)(Math.Abs(Math.Sin(t * 2.2 + phase)) * S(5) + (hop < 0 ? 0 : Math.Sin(hop * Math.PI) * S(30)));
+        }
+        int w = S(104), h = S(130);
+        leftRect = new Rectangle(S(18), r.Height - h + S(10) - (int)Lift("left", 0), w, h);
+        rightRect = new Rectangle(r.Width - w - S(18), r.Height - h + S(10) - (int)Lift("right", 1.3), w, h);
+        g.SetClip(new Rectangle(0, 0, r.Width, r.Height - S(4)));
+        g.DrawImage(Sprite("fighter_mario", w, h), leftRect.Location);
+        g.DrawImage(Sprite("fighter_sonic", w, h, flip: true), rightRect.Location);
+        g.ResetClip();
+    }
+
+    // A fighter stands under the menu buttons when the window is tall enough; a click spins them round and the next
+    // fighter turns in.
+    void PaintNav(object? sender, PaintEventArgs e)
+    {
+        var nav = (Control)sender!;
+        var g = e.Graphics;
+        double t = T;
+        navSpriteTop = pages.Count > 0 ? pages[^1].button.Bottom + S(10) : 0;
+        int bottom = nav.ClientSize.Height - S(10);
+        int room = bottom - navSpriteTop - S(12);
+        if (room < S(110)) { navRect = Rectangle.Empty; return; }
+        int h = Math.Min(S(200), room), w = h * 4 / 5;
+        double spin = Hop("nav", 0.9);
+        if (spin < 0 && jumpAt.ContainsKey("nav")) { jumpAt.Remove("nav"); }
+        // The spin squeezes them to a sliver (a turn), and the next fighter comes round from the halfway point.
+        double turn = spin < 0 ? 1 : Math.Cos(spin * Math.PI * 2);
+        if (spin >= 0.5 && navTurned == false) { navFighter = (navFighter + 1) % NavFighters.Length; navTurned = true; }
+        if (spin < 0) navTurned = false;
+        int sw = Math.Max(1, (int)(w * Math.Abs(turn)));
+        int y = bottom - h - S(12) - (int)((Math.Sin(t * 1.6) + 1) * S(5));
+        int cx = (nav.Width + S(16)) / 2;
+        navRect = new Rectangle(cx - w / 2, y, w, h);
+        int shadowW = w * 2 / 3 - (int)((Math.Sin(t * 1.6) + 1) * S(8));
+        using (var shadow = new SolidBrush(Color.FromArgb(70, 0, 0, 0)))
+            g.FillEllipse(shadow, cx - shadowW / 2, bottom - S(10), shadowW, S(12));
+        g.InterpolationMode = InterpolationMode.Bilinear;
+        g.DrawImage(Sprite("fighter_" + NavFighters[navFighter], w, h, turn < 0), new Rectangle(cx - sw / 2, y, sw, h));
+    }
+    bool navTurned;
+
+    // ----- The pointer: the Smash Ball (a little smaller with a sparkle over anything clickable) -----
+    static Cursor ballCursor = Cursors.Default, ballHand = Cursors.Hand;
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    struct IconInfo { public bool fIcon; public int xHotspot, yHotspot; public IntPtr hbmMask, hbmColor; }
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr CreateIconIndirect(ref IconInfo info);
+    [System.Runtime.InteropServices.DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr obj);
+
+    Cursor MakeBallCursor(bool clickable)
+    {
+        if (GameArt.Image("smash_ball") is not { } img) return clickable ? Cursors.Hand : Cursors.Default;
+        int size = S(32);
+        using var bmp = new Bitmap(size, size);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            int ball = clickable ? size * 3 / 4 : size * 7 / 8;
+            g.DrawImage(img, new Rectangle(0, 0, ball, ball));
+            if (clickable) Sparkle(g, size * 0.8f, size * 0.8f, size * 0.2f, Gold);
+        }
+        // The hotspot is the ball's upper-left edge, where it points.
+        var info = new IconInfo { fIcon = false, xHotspot = size / 7, yHotspot = size / 7, hbmColor = bmp.GetHbitmap(Color.FromArgb(0)), hbmMask = new Bitmap(size, size).GetHbitmap() };
+        var handle = CreateIconIndirect(ref info);
+        DeleteObject(info.hbmColor);
+        DeleteObject(info.hbmMask);
+        return handle == IntPtr.Zero ? Cursors.Default : new Cursor(handle);
     }
 
     // A card holding one page's controls, top to bottom.
@@ -242,7 +397,9 @@ sealed class MainForm : Form
         // The body sizes to its content and the card scrolls only when that is taller than the card.
         var body = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.TopDown, WrapContents = false, BackColor = Card };
         card.AutoScroll = true;
-        body.Controls.Add(new Label { Text = heading, Font = new Font("Segoe UI", 18f, FontStyle.Bold), ForeColor = Snow, AutoSize = true, Margin = S(0, 0, 0, 10) });
+        // The heading in the game's title font.
+        var title = GameArt.Text(heading.ToUpperInvariant(), S(38), Color.White, ColorTranslator.FromHtml("#FFC86A"), ColorTranslator.FromHtml("#0B0D16"));
+        body.Controls.Add(new PictureBox { Image = title, Size = title.Size, Margin = S(0, 0, 0, 8), AccessibleName = heading });
         card.Controls.Add(body);
         return (card, body);
     }
@@ -270,7 +427,7 @@ sealed class MainForm : Form
         var b = new Button
         {
             Text = text, AutoSize = true, FlatStyle = FlatStyle.Flat, BackColor = fill, ForeColor = fill == Orange || fill == Gold ? Night : Snow,
-            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), Padding = S(10, 4, 10, 4), Margin = S(0, 6, 10, 6), Cursor = Cursors.Hand,
+            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), Padding = S(10, 4, 10, 4), Margin = S(0, 6, 10, 6), Cursor = ballHand,
         };
         b.FlatAppearance.BorderColor = fill == Card ? Edge : fill;
         b.FlatAppearance.BorderSize = S(2);
@@ -282,10 +439,10 @@ sealed class MainForm : Form
     Control BuildPlayPage()
     {
         var (card, body) = NewCard("Ready to brawl?");
-        playButton = Btn("PLAY", (_, _) => Launch(), Red);
-        playButton.ForeColor = Color.White;
-        playButton.Font = new Font("Segoe UI", 24f, FontStyle.Bold);
-        playButton.Padding = S(60, 8, 60, 8);
+        playButton = Btn("", (_, _) => Launch(), Red);
+        playButton.Image = GameArt.Text("PLAY", S(52), Color.White, ColorTranslator.FromHtml("#FFE08A"), ColorTranslator.FromHtml("#5A0E0E"));
+        playButton.AccessibleName = "Play";
+        playButton.Padding = S(60, 6, 60, 6);
         body.Controls.Add(playButton);
         playStatus = Note("");
         playStatus.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
@@ -294,12 +451,47 @@ sealed class MainForm : Form
         AddDiscSetup(body);
         body.Controls.Add(gameNote = Note("The game starts borderless at 1080p in its own 16:9 mode. " +
                                "In the game, F10 opens the settings menu (resolution, aspect, controllers, audio) and F11 switches between fullscreen and a window."));
+        // Tips: click the bubble (or the Smash Ball in the sky) for another one.
+        var tipRow = new FlowLayoutPanel { AutoSize = true, Margin = S(0, 10, 0, 6) };
+        tipRow.Controls.Add(new PictureBox { Image = Sprite("smash_ball", S(44), S(44)), Size = S(44, 44), Margin = S(0, 0, 8, 0) });
+        tipLabel = new Label
+        {
+            AutoSize = true, MaximumSize = new Size(S(620), 0), BackColor = Night, ForeColor = Snow,
+            BorderStyle = BorderStyle.FixedSingle, Padding = S(10, 8, 10, 8), Cursor = ballHand, Margin = S(0, 4, 0, 0),
+        };
+        tipLabel.Click += (_, _) => NextTip();
+        tipRow.Controls.Add(tipLabel);
+        tipIndex = Random.Shared.Next(Tips.Length) - 1;
+        NextTip();
+        body.Controls.Add(tipRow);
         var row = new FlowLayoutPanel { AutoSize = true, Margin = Padding.Empty };
         row.Controls.Add(Btn("Open game folder", (_, _) => Process.Start("explorer.exe", play), Card));
         row.Controls.Add(Btn("Open saves folder", (_, _) => Process.Start("explorer.exe", Directory.CreateDirectory(SaveDataDir()).FullName), Card));
         row.Controls.Add(Btn("Import Wii / Dolphin save...", (_, _) => ImportSave(), Card));
         body.Controls.Add(row);
         return card;
+    }
+
+    static readonly string[] Tips =
+    {
+        "Press F10 during the game to change the resolution, aspect ratio or controls without quitting.",
+        "F11 flips the game between fullscreen and a window.",
+        "Any controller works as a GameCube controller. Remap it on the Controls page.",
+        "No controller? Turn on the keyboard on the Controls page and pick your own keys.",
+        "Want more fighters? Put REX, Project+Ex or another Wii build on the SD card (Mods page).",
+        "Several builds can share the SD card. \"Codes to load\" on the Mods page picks the one that runs.",
+        "The first start after adding a build makes the SD card image. Big builds take a few minutes, once.",
+        "Click Mario or Sonic up there. Go on.",
+        "The fighter under the menu takes a bow when clicked.",
+        "Open saves folder takes you straight to your saves. A backup now and then never hurts.",
+    };
+    Label? tipLabel;
+    int tipIndex;
+
+    void NextTip()
+    {
+        tipIndex = (tipIndex + 1) % Tips.Length;
+        if (tipLabel != null) tipLabel.Text = "Tip: " + Tips[tipIndex];
     }
 
     // A Dolphin save folder, or a data.bin a homebrew save manager exported from a Wii (Brawl's save is no-copy).
@@ -396,7 +588,7 @@ sealed class MainForm : Form
     // Every gamepad is a GameCube controller on its port (runtime hle/input/pad.cpp), laid out automatically for its
     // type. The Gamepad view changes one port's buttons through the game's [controller] expr_<port>_<control>
     // expressions (runtime input_bindings.cpp, Dolphin's input names). Only the pads actually connected are listed,
-    // refreshed every second. The keyboard is set up in the game's own F10 menu.
+    // refreshed every second. The Keyboard view maps keys to player 1's controller ([gc_keyboard], runtime pad.cpp).
     static readonly (string key, string label)[] GcControls =
     {
         ("buttons_a", "A"), ("buttons_b", "B"), ("buttons_x", "X"), ("buttons_y", "Y"), ("buttons_z", "Z"), ("buttons_start", "Start"),
@@ -505,9 +697,56 @@ sealed class MainForm : Form
             FillPadTable();
         }, Card));
 
-        // Keyboard: the game's own keyboard controller.
-        keyboard.Controls.Add(Note("The keyboard can be a GameCube controller too. Turn it on in the game: press F10, open the Controller tab, " +
-                                   "tick \"Keyboard and mouse\" and take the WASD + mouse preset or set each key yourself. It replaces the gamepad on that port."));
+        // Keyboard: player 1's GameCube controller (Config.toml [gc_keyboard], applied by the runtime's pad start).
+        var useKeyboard = new CheckBox
+        {
+            Text = "Use the keyboard and mouse as player 1's controller", AutoSize = true, ForeColor = Snow,
+            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), Margin = S(0, 4, 0, 4), Cursor = ballHand,
+            Checked = config.Get("gc_keyboard", "enabled") == "true",
+        };
+        keyboard.Controls.Add(useKeyboard);
+        keyboard.Controls.Add(Note("Click a control, then press the key for it, or click the control again with the mouse button you want " +
+                                   "(Escape cancels, Delete clears). It replaces the gamepad on port 1; the game's F10 menu has the same settings."));
+        var keyTable = new TableLayoutPanel { AutoSize = true, ColumnCount = 4, Margin = S(0, 4, 0, 4) };
+        var keyButtons = new List<Button>();
+        for (int i = 0; i < KeyboardControls.Length; i++)
+        {
+            var (key, label, defaults) = KeyboardControls[i];
+            keyTable.Controls.Add(new Label { Text = label, AutoSize = true, ForeColor = Snow, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), Margin = S(0, 12, 12, 0) }, (i / 10) * 2, i % 10);
+            var b = Btn(KeyText(config.Get("gc_keyboard", key) ?? defaults), null!, Card);
+            b.AutoSize = false;
+            b.Size = S(200, 38);
+            b.Margin = S(0, 3, 24, 3);
+            b.Tag = key;
+            b.Click += (s, _) => { if (capturing == null) BeginCapture((Button)s!); };
+            b.MouseDown += (s, e) =>
+            {
+                // A mouse button pressed on the control being set binds that mouse button.
+                if (capturing != s || e.Button == MouseButtons.Left && captureStarted.ElapsedMilliseconds < 300) return;
+                EndCapture(e.Button switch { MouseButtons.Left => "Mouse Left", MouseButtons.Right => "Mouse Right", MouseButtons.Middle => "Mouse Middle", _ => null });
+            };
+            keyButtons.Add(b);
+            keyTable.Controls.Add(b, (i / 10) * 2 + 1, i % 10);
+        }
+        keyboard.Controls.Add(keyTable);
+        void SaveAllKeys()
+        {
+            // The whole layout goes to Config.toml once the keyboard is turned on, so the game applies exactly what is shown.
+            foreach (var (key, _, defaults) in KeyboardControls)
+                if (config.Get("gc_keyboard", key) == null) config.SetString("gc_keyboard", key, defaults);
+        }
+        useKeyboard.CheckedChanged += (_, _) =>
+        {
+            config.Set("gc_keyboard", "enabled", useKeyboard.Checked ? "true" : "false");
+            if (useKeyboard.Checked) SaveAllKeys();
+            config.Save();
+        };
+        keyboard.Controls.Add(Btn("Reset to the WASD + mouse layout", (_, _) =>
+        {
+            foreach (var (key, _, defaults) in KeyboardControls) config.SetString("gc_keyboard", key, defaults);
+            config.Save();
+            foreach (var b in keyButtons) b.Text = KeyText(KeyboardControls.First(c => c.key == (string)b.Tag!).defaults);
+        }, Card));
 
         // The input list: connected pads first (in port order), then the keyboard.
         var shown = new List<(uint id, string name, int style)>();
@@ -543,11 +782,91 @@ sealed class MainForm : Form
         return card;
     }
 
+    // The keyboard's GameCube controls (runtime pad.cpp ApplyKeyboardConfig reads the same keys), with the in-game
+    // menu's WASD + mouse preset as defaults.
+    static readonly (string key, string label, string defaults)[] KeyboardControls =
+    {
+        ("a", "A", "Mouse Left"), ("b", "B", "Space"), ("x", "X", "E"), ("y", "Y", "Q"), ("z", "Z", "Mouse Middle"),
+        ("l", "L (shield)", "Left Shift"), ("r", "R (shield)", "Mouse Right"), ("start", "Start", "Return"),
+        ("dpad_up", "D-pad up", "Up"), ("dpad_down", "D-pad down", "Down"), ("dpad_left", "D-pad left", "Left"), ("dpad_right", "D-pad right", "Right"),
+        ("stick_up", "Stick up", "W"), ("stick_down", "Stick down", "S"), ("stick_left", "Stick left", "A"), ("stick_right", "Stick right", "D"),
+        ("cstick_up", "C-stick up", "I"), ("cstick_down", "C-stick down", "K"), ("cstick_left", "C-stick left", "J"), ("cstick_right", "C-stick right", "L"),
+    };
+
+    Button? capturing;
+    string? captureKey;
+    readonly Stopwatch captureStarted = new();
+
+    static string KeyText(string key) => key.Length == 0 ? "None" : key;
+
+    void BeginCapture(Button button)
+    {
+        capturing = button;
+        captureKey = button.Text;
+        captureStarted.Restart();
+        button.Text = "Press a key...";
+        button.BackColor = Orange;
+        button.ForeColor = Night;
+    }
+
+    // name: the binding (an SDL key name or "Mouse ..."), "" to clear it, null to cancel.
+    void EndCapture(string? name)
+    {
+        if (capturing == null) return;
+        if (name != null)
+        {
+            config.SetString("gc_keyboard", (string)capturing.Tag!, name);
+            config.Save();
+            captureKey = KeyText(name);
+        }
+        capturing.Text = captureKey!;
+        capturing.BackColor = Card;
+        capturing.ForeColor = Snow;
+        capturing = null;
+    }
+
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if (capturing != null)
+        {
+            e.SuppressKeyPress = true;
+            e.Handled = true;
+            if (e.KeyCode == Keys.Escape) EndCapture(null);
+            else if (e.KeyCode == Keys.Delete) EndCapture("");
+            else if (SdlName(e.KeyCode) is { } name) EndCapture(name);
+            return;  // a key SDL has no name for here: keep waiting
+        }
         if (e.KeyCode == Keys.Escape && cancelPadCapture?.Invoke() == true) { e.Handled = true; return; }
         base.OnKeyDown(e);
     }
+
+    // Arrow keys and Space normally move focus or press the focused button: while a control is being set they are keys.
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (capturing != null)
+        {
+            OnKeyDown(new KeyEventArgs(keyData));
+            return true;
+        }
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    // SDL scancode names, as the runtime reads them (SDL_GetScancodeFromName).
+    static string? SdlName(Keys k) => (k & Keys.KeyCode) switch
+    {
+        >= Keys.A and <= Keys.Z => (k & Keys.KeyCode).ToString(),
+        >= Keys.D0 and <= Keys.D9 => ((char)('0' + ((k & Keys.KeyCode) - Keys.D0))).ToString(),
+        >= Keys.NumPad0 and <= Keys.NumPad9 => "Keypad " + ((k & Keys.KeyCode) - Keys.NumPad0),
+        >= Keys.F1 and <= Keys.F9 => (k & Keys.KeyCode).ToString(),
+        Keys.Up => "Up", Keys.Down => "Down", Keys.Left => "Left", Keys.Right => "Right",
+        Keys.Space => "Space", Keys.Return => "Return", Keys.Tab => "Tab", Keys.Back => "Backspace", Keys.Insert => "Insert",
+        Keys.Home => "Home", Keys.End => "End", Keys.PageUp => "PageUp", Keys.PageDown => "PageDown", Keys.CapsLock => "CapsLock",
+        Keys.ShiftKey or Keys.LShiftKey => "Left Shift", Keys.RShiftKey => "Right Shift",
+        Keys.ControlKey or Keys.LControlKey => "Left Ctrl", Keys.RControlKey => "Right Ctrl", Keys.Menu or Keys.LMenu => "Left Alt",
+        Keys.OemMinus => "-", Keys.Oemplus => "=", Keys.OemOpenBrackets => "[", Keys.OemCloseBrackets => "]", Keys.Oemcomma => ",",
+        Keys.OemPeriod => ".", Keys.OemQuestion => "/", Keys.OemSemicolon => ";", Keys.OemQuotes => "'", Keys.Oemtilde => "`",
+        _ => null,
+    };
 
     // ----- Game disc (part of the Play page) -----
     // One button sets the disc up (or changes it later); extraction progress shows under it, and the dump
@@ -667,10 +986,11 @@ sealed class MainForm : Form
     Control BuildModsPage()
     {
         var (card, body) = NewCard("Mods");
-        body.Controls.Add(new Label { Text = "SD card mods (Project+ and the like)", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Snow, AutoSize = true, Margin = S(0, 4, 0, 2) });
-        body.Controls.Add(Note("The SD card folder is the game's SD card, the way a Wii sees one. Copy a mod's SD card contents into it: for Project+, " +
-                               "the Project+, private and apps folders from its Wii download. Its Gecko codes (RSBE01.GCT and gc.txt) load with it, " +
-                               "and the game's own SD features (snapshots, replays, custom stages) use the card too. The card is rebuilt when the folder changes."));
+        body.Controls.Add(new Label { Text = "SD card mods (REX, Project+Ex, Project+, Brawl Minus, Legacy XP)", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Snow, AutoSize = true, Margin = S(0, 4, 0, 2) });
+        body.Controls.Add(Note("The SD card folder is the game's SD card, the way a Wii sees one. Copy a build's card folder from its Wii (console) " +
+                               "download into it: rex_ for REX (the biggest roster), P+Ex, Project+, Minusery (Brawl Minus) or LegacyXP. Its Gecko codes " +
+                               "(RSBE01.GCT and gc.txt) load with it, and the game's own SD features (snapshots, replays, custom stages) use the card too. " +
+                               "The card image is rebuilt when the folder changes; a big build takes a few minutes the first time."));
         sdStatus = Note("");
         sdStatus.ForeColor = Snow;
         body.Controls.Add(sdStatus);

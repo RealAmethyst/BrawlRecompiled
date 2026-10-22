@@ -8,7 +8,7 @@
     <AssemblyName>Brawl Recompiled</AssemblyName>
     <RootNamespace>BrawlRecompiled</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Product>Brawl Recompiled</Product>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
@@ -21,5 +21,7 @@
     <!-- linux\ is its own project -->
     <Compile Remove="linux/**" />
     <None Remove="linux/**" />
+    <!-- tools/make_launcher_art.py: fighter portraits, the Smash Ball and the game's title font, from the game's files -->
+    <EmbeddedResource Include="art/*.png;art/*.txt" LogicalName="art.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

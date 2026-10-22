@@ -956,12 +956,11 @@ extern "C" void DVDInit_8015EA1C()
     // The disc ID (game code, maker, disc number, revision, ...) from the extracted boot.bin: games compare it with
     // their own copy (Brawl's gfErrorCheck shows "Please insert the ... Game Disc." on any difference).
     uint32_t diskHeader = 0x80000000;
-    if (FILE* boot = _wfopen((rootPath / "sys" / "boot.bin").wstring().c_str(), L"rb")) {
-        uint8_t id[0x20] = {};
-        if (std::fread(id, 1, sizeof(id), boot) == sizeof(id)) {
-            for (uint32_t i = 0; i < sizeof(id); ++i) Memory::Write8(diskHeader + i, id[i]);
+    if (std::ifstream boot(rootPath / "sys" / "boot.bin", std::ios::binary); boot) {
+        char id[0x20] = {};
+        if (boot.read(id, sizeof(id))) {
+            for (uint32_t i = 0; i < sizeof(id); ++i) Memory::Write8(diskHeader + i, static_cast<uint8_t>(id[i]));
         }
-        std::fclose(boot);
     }
     Memory::Write32(diskHeader + 0x00, CurrentDiscGameCode());
     

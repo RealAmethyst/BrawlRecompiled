@@ -3,6 +3,7 @@
 #include "hle/controller_status_contract.h"
 #include "input_bindings.h"
 #include "wii_remote_input.h"
+#include "runtime_config.h"
 
 #include <algorithm>
 #include <atomic>
@@ -10,8 +11,12 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <string>
+#include <utility>
 
 #include <SDL3/SDL_gamepad.h>
+#include <SDL3/SDL_keyboard.h>
 #include <dolphin/pad.h>
 
 namespace {
@@ -94,9 +99,63 @@ extern "C" void PAD_HLE_SetRumbleEnabled(bool enabled)
     g_rumbleEnabled.store(enabled, std::memory_order_relaxed);
 }
 
+namespace {
+
+// The launcher's keyboard mapping (Config.toml [gc_keyboard]): enabled, then one key per GameCube button and stick
+// direction, by SDL scancode name ("Space", "Left Shift") or "Mouse Left" / "Mouse Middle" / "Mouse Right". The
+// keyboard then plays port 1, as the in-game menu's "Keyboard and mouse" switch does.
+int32_t KeyFromName(const std::string& name) {
+    if (name == "Mouse Left") return PAD_KEY_MOUSE_LEFT;
+    if (name == "Mouse Middle") return PAD_KEY_MOUSE_MIDDLE;
+    if (name == "Mouse Right") return PAD_KEY_MOUSE_RIGHT;
+    const SDL_Scancode code = SDL_GetScancodeFromName(name.c_str());
+    return code == SDL_SCANCODE_UNKNOWN ? PAD_KEY_INVALID : static_cast<int32_t>(code);
+}
+
+void ApplyKeyboardConfig() {
+    toml::value table;
+    try {
+        std::ifstream in(RuntimeConfigFile::ResolveConfigPath(), std::ios::binary);
+        if (!in) return;
+        table = toml::parse(in, "Config.toml");
+    } catch (const std::exception&) {
+        return;  // the game's own config reader reports a broken Config.toml
+    }
+    const auto enabled = RuntimeConfigFile::FindConfigValue<bool>(table, "gc_keyboard", "enabled");
+    if (!enabled) return;  // no launcher setting: the in-game menu's own choice stands
+    u32 loaded = 0;
+    PADGetKeyButtonBindings(0, &loaded);  // aurora reads its saved bindings on first use: before ours, not over them
+    PADSetKeyboardActive(0, *enabled ? TRUE : FALSE);
+    if (*enabled) {
+        static constexpr std::pair<const char*, PADButton> kButtons[] = {
+            {"a", PAD_BUTTON_A}, {"b", PAD_BUTTON_B}, {"x", PAD_BUTTON_X}, {"y", PAD_BUTTON_Y},
+            {"start", PAD_BUTTON_START}, {"z", PAD_TRIGGER_Z}, {"l", PAD_TRIGGER_L}, {"r", PAD_TRIGGER_R},
+            {"dpad_up", PAD_BUTTON_UP}, {"dpad_down", PAD_BUTTON_DOWN}, {"dpad_left", PAD_BUTTON_LEFT},
+            {"dpad_right", PAD_BUTTON_RIGHT}};
+        static constexpr std::pair<const char*, PADAxis> kAxes[] = {
+            {"stick_right", PAD_AXIS_LEFT_X_POS}, {"stick_left", PAD_AXIS_LEFT_X_NEG},
+            {"stick_up", PAD_AXIS_LEFT_Y_POS}, {"stick_down", PAD_AXIS_LEFT_Y_NEG},
+            {"cstick_right", PAD_AXIS_RIGHT_X_POS}, {"cstick_left", PAD_AXIS_RIGHT_X_NEG},
+            {"cstick_up", PAD_AXIS_RIGHT_Y_POS}, {"cstick_down", PAD_AXIS_RIGHT_Y_NEG}};
+        for (const auto& [key, button] : kButtons) {
+            if (const auto name = RuntimeConfigFile::FindConfigValue<std::string>(table, "gc_keyboard", key))
+                PADSetKeyButtonBinding(0, {KeyFromName(*name), button});
+        }
+        for (const auto& [key, axis] : kAxes) {
+            if (const auto name = RuntimeConfigFile::FindConfigValue<std::string>(table, "gc_keyboard", key))
+                PADSetKeyAxisBinding(0, {KeyFromName(*name), axis, 1});
+        }
+    }
+    PADSerializeMappings();
+}
+
+} // namespace
+
 extern "C" uint32_t PAD__Init_HLE()
 {
-    return PADInit() ? 1u : 0u;
+    const bool ok = PADInit();
+    ApplyKeyboardConfig();
+    return ok ? 1u : 0u;
 }
 // Brawl (RSBE01): GameCube controllers are its main input.
 PPC_NATIVE_OVERRIDE(80215E68, PAD__Init_HLE, uint32_t, (), ());
