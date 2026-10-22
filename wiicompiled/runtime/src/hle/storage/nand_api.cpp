@@ -147,11 +147,8 @@ extern "C" int32_t NANDCheck_HLE(uint32_t blockSize, uint32_t blockCount, uint32
     }
     return result;
 }
-#if 0  // SPM: NANDCheck: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801DB140, NANDCheck_HLE, int32_t, (uint32_t blockSize, uint32_t blockCount, uint32_t outResults), (blockSize, blockCount, outResults));
-#endif
-#endif
+// Brawl: NANDCheck(fsBlock, inode, &answer) at 0x8020D900 (its callers pass the answer pointer in r5).
+PPC_NATIVE_OVERRIDE(8020D900, NANDCheck_HLE, int32_t, (uint32_t blockSize, uint32_t blockCount, uint32_t outResults), (blockSize, blockCount, outResults));
 
 extern "C" int32_t NANDOpen_HLE(uint32_t pathPtr, uint32_t fileInfoPtr, uint32_t mode) {
     const char* path = pathPtr ? (const char*)Memory::GetPointer(pathPtr) : nullptr;
@@ -339,11 +336,7 @@ extern "C" int32_t NANDSeek_HLE(uint32_t fileInfoPtr, int32_t offset, int32_t wh
 
     return static_cast<int32_t>(std::ftell(handle->file));
 }
-#if 0  // SPM: NANDSeek: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801D8BD0, NANDSeek_HLE, int32_t, (uint32_t fileInfoPtr, int32_t offset, int32_t whence), (fileInfoPtr, offset, whence));
-#endif
-#endif
+PPC_NATIVE_OVERRIDE(8020AC38, NANDSeek_HLE, int32_t, (uint32_t fileInfoPtr, int32_t offset, int32_t whence), (fileInfoPtr, offset, whence));
 
 extern "C" int32_t NANDGetLength_HLE(uint32_t fileInfoPtr, uint32_t outLengthPtr) {
     if (!fileInfoPtr || !outLengthPtr) {
@@ -359,11 +352,7 @@ extern "C" int32_t NANDGetLength_HLE(uint32_t fileInfoPtr, uint32_t outLengthPtr
     Memory::Write32(outLengthPtr, static_cast<uint32_t>(extent.size));
     return NAND_RESULT_OK;
 }
-#if 0  // SPM: NANDGetLength: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(801D9040, NANDGetLength_HLE, int32_t, (uint32_t fileInfoPtr, uint32_t outLengthPtr), (fileInfoPtr, outLengthPtr));
-#endif
-#endif
+PPC_NATIVE_OVERRIDE(8020B0E4, NANDGetLength_HLE, int32_t, (uint32_t fileInfoPtr, uint32_t outLengthPtr), (fileInfoPtr, outLengthPtr));
 
 extern "C" int32_t NANDCreate_HLE(uint32_t pathPtr, uint32_t perm, uint32_t attr) {
     const char* path = pathPtr ? (const char*)Memory::GetPointer(pathPtr) : nullptr;

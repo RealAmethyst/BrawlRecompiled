@@ -534,11 +534,7 @@ extern "C" int32_t NAND_IOS_Seek_HLE(uint32_t fd, int32_t offset, int32_t whence
     handle->position = static_cast<uint32_t>(std::ftell(handle->file));
     return static_cast<int32_t>(handle->position);
 }
-#if 0  // SPM: IOS_Seek: name not in SPM
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(80225410, NAND_IOS_Seek_HLE, int32_t, (uint32_t fd, int32_t offset, int32_t whence), (fd, offset, whence));
-#endif
-#endif
+PPC_NATIVE_OVERRIDE(80212B20, NAND_IOS_Seek_HLE, int32_t, (uint32_t fd, int32_t offset, int32_t whence), (fd, offset, whence));
 
 // ============================================================================
 // IOS_Ioctl HLE - Handles filesystem commands

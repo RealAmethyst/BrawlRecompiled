@@ -121,9 +121,7 @@ extern "C" void OS__Panic_801A2660_Cpu(CpuContext* ctx)
     std::exit(EXIT_FAILURE);
 }
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE_VOID(8019D5B0, OS__Panic_801A2660_Cpu, (CpuContext* ctx), (ctx));
-#endif
+PPC_NATIVE_OVERRIDE_VOID(801D8690, OS__Panic_801A2660_Cpu, (CpuContext* ctx), (ctx));
 
 // 0x801B3CC0 -> OSResetSystem
 extern "C" uint32_t OSResetSystem()

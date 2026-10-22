@@ -12,12 +12,14 @@ struct PendingNandCallback {
     uint32_t callbackPtr = 0;
     int32_t result = 0;
     uint32_t commandBlock = 0;
+    uint32_t callerLr = 0;  // the guest call that queued it, for the "not found" diagnostic
 };
 
 static std::mutex g_pendingNandCallbackMutex;
 static std::deque<PendingNandCallback> g_pendingNandCallbacks;
 
-static void DispatchNandCallback(CpuContext* cpu, uint32_t callbackPtr, int32_t result, uint32_t commandBlock) {
+static void DispatchNandCallback(CpuContext* cpu, uint32_t callbackPtr, int32_t result, uint32_t commandBlock,
+                                 uint32_t callerLr = 0) {
     if (callbackPtr == 0) {
         return;
     }
@@ -25,7 +27,8 @@ static void DispatchNandCallback(CpuContext* cpu, uint32_t callbackPtr, int32_t 
     // The callback signature is: void callback(int result, void* commandBlock)
     // We need to invoke it through the translated function system
     if (!TranslatedFunctionRegistry::FindByAddressPtr(callbackPtr)) {
-        LogNandError("InvokeNandCallback", "callback 0x%08X not found in registry", callbackPtr);
+        LogNandError("InvokeNandCallback", "callback 0x%08X not found in registry (queued by the call returning to 0x%08X)",
+                     callbackPtr, callerLr);
         return;
     }
 
@@ -53,7 +56,8 @@ static void InvokeNandCallback(uint32_t callbackPtr, int32_t result, uint32_t co
     }
 
     std::lock_guard<std::mutex> lock(g_pendingNandCallbackMutex);
-    g_pendingNandCallbacks.push_back({callbackPtr, result, commandBlock});
+    const CpuContext* caller = TryGetCpuContext();
+    g_pendingNandCallbacks.push_back({callbackPtr, result, commandBlock, caller ? caller->lr : 0u});
 }
 
 void NandQueueIosCallback(uint32_t callbackPtr, int32_t result, uint32_t callbackArg) {
@@ -93,7 +97,7 @@ bool NandProcessPendingCallbacks(CpuContext* cpu, int maxToProcess) {
             cb = g_pendingNandCallbacks.front();
             g_pendingNandCallbacks.pop_front();
         }
-        DispatchNandCallback(cpu, cb.callbackPtr, cb.result, cb.commandBlock);
+        DispatchNandCallback(cpu, cb.callbackPtr, cb.result, cb.commandBlock, cb.callerLr);
         ++processed;
     }
     return processed != 0;
@@ -159,15 +163,9 @@ PPC_NATIVE_OVERRIDE(8020ACD8, NANDSeekAsync_HLE, int32_t,
 NAND_ASYNC_FWD_BODY(NANDGetLengthAsync_HLE, NANDGetLength_HLE,
     (uint32_t fileInfoPtr, uint32_t outLengthPtr, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (fileInfoPtr, outLengthPtr))
-#if 0  // NSMBW: NANDGetLengthAsync is not linked into NSMBW (was MKW-only)
-#if 0  // SPM: 0x8019c048: no NSMBW symbol at this address
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(8019C048, NANDGetLengthAsync_HLE, int32_t,
+PPC_NATIVE_OVERRIDE(8020B268, NANDGetLengthAsync_HLE, int32_t,
     (uint32_t fileInfoPtr, uint32_t outLengthPtr, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (fileInfoPtr, outLengthPtr, callbackPtr, commandBlockPtr));
-#endif
-#endif
-#endif
 
 // The private/safe variants forward to the same synchronous library; only
 // NANDPrivateSafeOpen has its own implementation.
@@ -214,11 +212,9 @@ PPC_NATIVE_OVERRIDE(8019D720, NANDSafeCloseAsync_HLE, int32_t,
 NAND_ASYNC_FWD_BODY(NANDPrivateCreateAsync_HLE, NANDCreate_HLE,
     (uint32_t pathPtr, uint32_t perm, uint32_t attr, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (pathPtr, perm, attr))
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(80296F98, NANDPrivateCreateAsync_HLE, int32_t,
+PPC_NATIVE_OVERRIDE(8020A7F8, NANDPrivateCreateAsync_HLE, int32_t,
     (uint32_t pathPtr, uint32_t perm, uint32_t attr, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (pathPtr, perm, attr, callbackPtr, commandBlockPtr));
-#endif
 
 NAND_ASYNC_FWD_BODY(NANDPrivateCreateDirAsync_HLE, NANDCreateDir_HLE,
     (uint32_t pathPtr, uint32_t perm, uint32_t attr, uint32_t callbackPtr, uint32_t commandBlockPtr),
@@ -579,18 +575,14 @@ extern "C" int32_t NANDCheck_HLE(uint32_t blockSize, uint32_t blockCount, uint32
 extern "C" int32_t NANDCreate_HLE(uint32_t pathPtr, uint32_t perm, uint32_t attr);
 extern "C" int32_t NANDDelete_HLE(uint32_t pathPtr);
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(8029837C, NANDSafeCloseAsync_HLE, int32_t,
+PPC_NATIVE_OVERRIDE(8020C34C, NANDSafeCloseAsync_HLE, int32_t,
     (uint32_t fileInfoPtr, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (fileInfoPtr, callbackPtr, commandBlockPtr));
-#endif
 
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(80297E20, NANDPrivateSafeOpenAsync_HLE, int32_t,
+PPC_NATIVE_OVERRIDE(8020BD30, NANDPrivateSafeOpenAsync_HLE, int32_t,
     (uint32_t pathPtr, uint32_t fileInfoPtr, uint32_t mode, uint32_t tempBufferPtr, uint32_t tempBufferSize,
      uint32_t callbackPtr, uint32_t commandBlockPtr),
     (pathPtr, fileInfoPtr, mode, tempBufferPtr, tempBufferSize, callbackPtr, commandBlockPtr));
-#endif
 
 NAND_ASYNC_FWD_BODY(NANDCreateAsync_HLE, NANDCreate_HLE,
     (uint32_t pathPtr, uint32_t perm, uint32_t attr, uint32_t callbackPtr, uint32_t commandBlockPtr),
@@ -604,16 +596,20 @@ PPC_NATIVE_OVERRIDE(80296F20, NANDCreateAsync_HLE, int32_t,
 NAND_ASYNC_FWD_BODY(NANDDeleteAsync_HLE, NANDDelete_HLE,
     (uint32_t pathPtr, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (pathPtr))
+#if 0  // Brawl's 0x8020A920 is synchronous (no callback at any call site)
 PPC_NATIVE_OVERRIDE(8020A920, NANDDeleteAsync_HLE, int32_t,
     (uint32_t pathPtr, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (pathPtr, callbackPtr, commandBlockPtr));
+#endif
 
 NAND_ASYNC_FWD_BODY(NANDCheckAsync_HLE, NANDCheck_HLE,
     (uint32_t blockSize, uint32_t blockCount, uint32_t outResults, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (blockSize, blockCount, outResults))
+#if 0  // Brawl's 0x8020D900 is the synchronous NANDCheck (nand_api.cpp)
 PPC_NATIVE_OVERRIDE(8020D900, NANDCheckAsync_HLE, int32_t,
     (uint32_t blockSize, uint32_t blockCount, uint32_t outResults, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (blockSize, blockCount, outResults, callbackPtr, commandBlockPtr));
+#endif
 
 // NANDChangeDirAsync: SPM only changes to its own home (data) directory, which is where the HLE
 // already resolves relative paths, so this reports success.
@@ -625,6 +621,8 @@ static int32_t NANDChangeDir_SPM(uint32_t pathPtr) {
 NAND_ASYNC_FWD_BODY(NANDChangeDirAsync_HLE, NANDChangeDir_SPM,
     (uint32_t pathPtr, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (pathPtr))
+#if 0  // Brawl's 0x8020CAEC converts every NAND call's result code; it is not NANDChangeDirAsync
 PPC_NATIVE_OVERRIDE(8020CAEC, NANDChangeDirAsync_HLE, int32_t,
     (uint32_t pathPtr, uint32_t callbackPtr, uint32_t commandBlockPtr),
     (pathPtr, callbackPtr, commandBlockPtr));
+#endif

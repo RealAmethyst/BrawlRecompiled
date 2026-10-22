@@ -69,9 +69,7 @@ extern "C" uint32_t WPADGetDpdSensitivity_HLE()
 {
     return static_cast<uint32_t>(g_state.dpdSensitivity);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(802D0874, WPADGetDpdSensitivity_HLE, uint32_t, (), ());
-#endif
+PPC_NATIVE_OVERRIDE(8021C930, WPADGetDpdSensitivity_HLE, uint32_t, (), ());
 
 // The emulated remotes always have their pointer camera on (KPAD pos comes from the right stick or mouse). The real
 // library function read WPAD's own channel state, which this HLE never sets, so SPM's arcade minigames (Mansion
@@ -80,9 +78,7 @@ extern "C" uint32_t WPADIsDpdEnabled_HLE()
 {
     return 1;
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(802D087C, WPADIsDpdEnabled_HLE, uint32_t, (), ());
-#endif
+PPC_NATIVE_OVERRIDE(8021C938, WPADIsDpdEnabled_HLE, uint32_t, (), ());
 
 extern "C" int32_t WPADInitSub_HLE()
 {
@@ -128,9 +124,7 @@ extern "C" int32_t WPADSetDataFormat_HLE(uint32_t chan, int32_t format)
 {
     return g_state.contract.SetDataFormat(chan, format);
 }
-#if 0  // BRAWL: no matching function in the Brawl dol
-PPC_NATIVE_OVERRIDE(802CE414, WPADSetDataFormat_HLE, int32_t, (uint32_t chan, int32_t format), (chan, format));
-#endif
+PPC_NATIVE_OVERRIDE(8021A230, WPADSetDataFormat_HLE, int32_t, (uint32_t chan, int32_t format), (chan, format));
 
 // WPADProbe: reports the extension type of a Bluetooth remote on `chan`, or no controller.
 extern "C" int32_t WPADProbe_HLE(uint32_t chan, uint32_t typePtr)
