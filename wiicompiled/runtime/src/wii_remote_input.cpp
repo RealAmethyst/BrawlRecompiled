@@ -210,6 +210,13 @@ std::unordered_map<std::string, uint64_t> g_sceneStartFrame;  // the same, in ga
 // PADRead calls: the game polls once per logic frame, so unlike presented frames the count is the same every run.
 std::atomic<uint64_t> g_padPolls{0};
 
+// Brawl: a test script plays the GameCube pads (PADRead) only, like a player with one controller; posing as a Wii
+// Remote as well would give the game a second player. BRAWL_SCRIPT_REMOTES=1 brings the scripted remotes back.
+bool ScriptDrivesRemotes() {
+    static const bool remotes = std::getenv("BRAWL_SCRIPT_REMOTES") != nullptr;
+    return remotes;
+}
+
 bool ScriptedSample(uint32_t chan, KpadSample& sample) {
     const InputScript& script = Script();
     if (!script.active || chan >= script.remotes) {
@@ -781,7 +788,7 @@ static Kind RealKind(uint32_t chan) {
 // gamepad stands in for one there (VirtualRemote).
 Kind EffectiveKind(uint32_t chan) {
     if (chan >= PAD_MAX_CONTROLLERS) return Kind::NotWii;
-    if (Script().active && chan < Script().remotes) return Kind::Remote;  // NSMBW bring-up scripted remotes
+    if (ScriptDrivesRemotes() && Script().active && chan < Script().remotes) return Kind::Remote;  // NSMBW bring-up scripted remotes
     const Kind real = RealKind(chan);
     if (IsKpadKind(real)) return real;
     return VirtualRemote::Present(chan) ? Kind::Remote : real;
@@ -865,7 +872,7 @@ bool ReadKpadSample(uint32_t chan, KpadSample& sample) {
     if (chan >= PAD_MAX_CONTROLLERS) {
         return false;
     }
-    if (ScriptedSample(chan, sample)) {
+    if (ScriptDrivesRemotes() && ScriptedSample(chan, sample)) {
         return true;
     }
     SDL_Gamepad* gamepad = SDL_GetGamepadFromPlayerIndex(static_cast<int>(chan));
