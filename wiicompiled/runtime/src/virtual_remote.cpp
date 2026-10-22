@@ -417,9 +417,10 @@ bool Present(uint32_t chan) {
     if (chan >= PAD_MAX_CONTROLLERS) {
         return false;
     }
-    std::lock_guard<std::mutex> lock(g_mutex);
-    RefreshPadsLocked();
-    return chan == 0 || g_pads[chan].err == PAD_ERR_NONE;
+    // Brawl: the keyboard and gamepads are GameCube controllers (PADRead), the game's main input; standing in for
+    // a Wii Remote as well would give every press twice. Real Wii Remotes still connect over Bluetooth.
+    (void)chan;
+    return false;
 }
 
 // The Wii Remote's IR pointer. SPM reads KPAD pos / dpd_valid_fg straight from wpadmgr for Tippi's pointer, item

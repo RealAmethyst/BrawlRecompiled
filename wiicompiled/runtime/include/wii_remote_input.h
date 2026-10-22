@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include <cstdint>
 
 struct PADStatus;
@@ -96,6 +98,11 @@ const char* AccelCalibrationMessage();
 // Reports "no controller" on the GameCube side for every port served through
 // KPAD, so the game never sees the same remote twice. Runs after aurora's PADRead.
 void HideRemotesFromPad(PADStatus* statuses, uint32_t count);
+// Test scripts (input_script.txt): the scripted buttons on port 1 as GameCube PAD_BUTTON_* bits, or false when no
+// script runs (Brawl's menus and battles read the GameCube pad).
+bool ScriptedPadButtons(uint32_t port, uint16_t& buttons, int8_t& stickX, int8_t& stickY);
+// A line the game printed (OSReport): "-> scene" starts that scene's clock for "scene@ms" script events.
+void NoteGameReport(const std::string& line);
 
 // Dolphin-style continuous scanning. SDL's HIDAPI Wii driver drops a remote on
 // a failed Bluetooth read or an extension change and never re-adds it on its

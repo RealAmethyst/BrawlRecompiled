@@ -21,6 +21,9 @@
 #include <cstring>
 #include <fstream>
 #include <string>
+#include <cctype>
+#include <mutex>
+#include <unordered_map>
 #include <unordered_set>
 #include <cstdlib>
 #include <vector>
@@ -66,6 +69,9 @@ enum RawWiiButton : int {
 
 // WPAD_BUTTON_* bits as the game reads them from KPADStatus.hold.
 constexpr uint32_t kScriptPoint = 0x40000000;  // not a WPAD bit: input_script "POINT"
+// Not WPAD bits either: the GameCube pad's main stick pushed fully (SUP/SDOWN/SLEFT/SRIGHT) and its L/R triggers.
+constexpr uint32_t kScriptStickUp = 0x01000000, kScriptStickDown = 0x02000000, kScriptStickLeft = 0x04000000,
+                   kScriptStickRight = 0x08000000, kScriptL = 0x10000000, kScriptR = 0x20000000;
 constexpr uint32_t kWpadLeft = 0x0001, kWpadRight = 0x0002, kWpadDown = 0x0004, kWpadUp = 0x0008,
                    kWpadPlus = 0x0010, kWpadTwo = 0x0100, kWpadOne = 0x0200, kWpadB = 0x0400, kWpadA = 0x0800,
                    kWpadMinus = 0x1000, kWpadZ = 0x2000, kWpadC = 0x4000, kWpadHome = 0x8000;
@@ -78,6 +84,7 @@ constexpr uint32_t kWpadLeft = 0x0001, kWpadRight = 0x0002, kWpadDown = 0x0004, 
 // Wii Remote at rest. Buttons: A B ONE TWO PLUS MINUS HOME UP DOWN LEFT RIGHT (also 1 and 2); the
 // D-pad names are the remote's own, so held sideways RIGHT is screen up and DOWN is screen right.
 struct ScriptEvent {
+    std::string scene;  // "scene@ms": the time counts from the game's "-> scene" report (Brawl's scene changes)
     uint64_t startMs = 0;
     uint64_t endMs = 0;
     uint32_t bits = 0;
@@ -104,6 +111,12 @@ uint32_t ScriptButtonBit(const std::string& name) {
     if (name == "DOWN") return kWpadDown;
     if (name == "LEFT") return kWpadLeft;
     if (name == "RIGHT") return kWpadRight;
+    if (name == "SUP") return kScriptStickUp;
+    if (name == "SDOWN") return kScriptStickDown;
+    if (name == "SLEFT") return kScriptStickLeft;
+    if (name == "SRIGHT") return kScriptStickRight;
+    if (name == "L") return kScriptL;
+    if (name == "R") return kScriptR;
     return 0;
 }
 
@@ -140,7 +153,10 @@ const InputScript& Script() {
                 const size_t c3 = c2 == std::string::npos ? std::string::npos : item.find(':', c2 + 1);
                 ScriptEvent event;
                 event.text = item;
-                event.startMs = std::strtoull(item.substr(0, c1).c_str(), nullptr, 10);
+                const std::string when = item.substr(0, c1);
+                const size_t at = when.find('@');
+                if (at != std::string::npos) event.scene = when.substr(0, at);
+                event.startMs = std::strtoull(when.substr(at == std::string::npos ? 0 : at + 1).c_str(), nullptr, 10);
                 const std::string buttons = item.substr(c1 + 1, c2 == std::string::npos ? std::string::npos : c2 - c1 - 1);
                 const uint64_t duration = c2 == std::string::npos ? 150 : std::strtoull(item.substr(c2 + 1).c_str(), nullptr, 10);
                 if (c3 != std::string::npos) {
@@ -169,24 +185,38 @@ const InputScript& Script() {
     return script;
 }
 
+// Script time: ms since the first input read (deterministic mode: on the virtual timeline, so a run replays).
+uint64_t ScriptNowMs() {
+    const auto clockMs = [] {
+        return DetClock::Enabled() ? DetClock::Now() / (TimeBaseContract::kTicksPerSecond / 1000) : SDL_GetTicks();
+    };
+    static const uint64_t originMs = clockMs();
+    return clockMs() - originMs;
+}
+
+std::mutex g_sceneMutex;
+std::unordered_map<std::string, uint64_t> g_sceneStartMs;  // first "-> scene" report of each scene
+
 bool ScriptedSample(uint32_t chan, KpadSample& sample) {
     const InputScript& script = Script();
     if (!script.active || chan >= script.remotes) {
         return false;
     }
-    // Deterministic mode times the script on the virtual timeline, so a run replays identically.
-    const auto clockMs = [] {
-        return DetClock::Enabled() ? DetClock::Now() / (TimeBaseContract::kTicksPerSecond / 1000) : SDL_GetTicks();
-    };
-    static const uint64_t originMs = clockMs();
     static std::vector<bool> announced(script.events.size(), false);
-    const uint64_t now = clockMs() - originMs;
+    const uint64_t now = ScriptNowMs();
     sample = {};
     sample.acc[1] = -1.0f;  // at rest, KPAD frame
     for (size_t i = 0; i < script.events.size(); ++i) {
         const ScriptEvent& event = script.events[i];
-        if (event.chan == chan && now >= event.startMs && now < event.endMs) {
-            sample.hold |= event.bits & ~kScriptPoint;
+        uint64_t base = 0;
+        if (!event.scene.empty()) {
+            std::lock_guard<std::mutex> lock(g_sceneMutex);
+            const auto it = g_sceneStartMs.find(event.scene);
+            if (it == g_sceneStartMs.end()) continue;
+            base = it->second;
+        }
+        if (event.chan == chan && now >= base + event.startMs && now < base + event.endMs) {
+            sample.hold |= event.bits & ~kScriptPoint;  // the GameCube-only bits are dropped by the KPAD writer
             if ((event.bits & kScriptPoint) != 0) {
                 sample.pointerValid = true;
                 // NSMBW_SCRIPT_POINT="x,y" (-1..1) moves POINT off the centre; it sweeps left-right over time if x is "sweep"
@@ -748,6 +778,38 @@ bool IsRemoteChannel(uint32_t chan) {
 }
 
 // Marks ports served by a real remote as "no controller" in the GameCube pad statuses.
+void NoteGameReport(const std::string& line) {
+    const size_t arrow = line.find("-> ");
+    if (arrow == std::string::npos || !Script().active) return;
+    size_t end = arrow + 3;
+    while (end < line.size() && (std::isalnum(static_cast<unsigned char>(line[end])) || line[end] == '_')) ++end;
+    const std::string scene = line.substr(arrow + 3, end - arrow - 3);
+    std::lock_guard<std::mutex> lock(g_sceneMutex);
+    if (!scene.empty() && g_sceneStartMs.emplace(scene, ScriptNowMs()).second) {
+        RT_LOGF(RT_TAG_RUNTIME, "script: scene %s at %llu ms\n", scene.c_str(), static_cast<unsigned long long>(ScriptNowMs()));
+    }
+}
+
+bool ScriptedPadButtons(uint32_t port, uint16_t& buttons, int8_t& stickX, int8_t& stickY) {
+    KpadSample sample;
+    if (!ScriptedSample(port, sample)) {
+        return false;
+    }
+    stickX = (sample.hold & kScriptStickRight) ? 100 : (sample.hold & kScriptStickLeft) ? -100 : 0;
+    stickY = (sample.hold & kScriptStickUp) ? 100 : (sample.hold & kScriptStickDown) ? -100 : 0;
+    // Script names are the remote's; on the GameCube pad A, B, 1 (X), 2 (Y), + (Start) and the D-pad as named.
+    static constexpr std::pair<uint32_t, uint16_t> kMap[] = {
+        {kWpadA, PAD_BUTTON_A}, {kWpadB, PAD_BUTTON_B}, {kWpadOne, PAD_BUTTON_X}, {kWpadTwo, PAD_BUTTON_Y},
+        {kWpadPlus, PAD_BUTTON_START}, {kWpadUp, PAD_BUTTON_UP}, {kWpadDown, PAD_BUTTON_DOWN},
+        {kWpadLeft, PAD_BUTTON_LEFT}, {kWpadRight, PAD_BUTTON_RIGHT}, {kWpadMinus, PAD_TRIGGER_Z},
+        {kScriptL, PAD_TRIGGER_L}, {kScriptR, PAD_TRIGGER_R}};
+    buttons = 0;
+    for (const auto& [wpad, pad] : kMap) {
+        if (sample.hold & wpad) buttons |= pad;
+    }
+    return true;
+}
+
 void HideRemotesFromPad(PADStatus* statuses, uint32_t count) {
     for (uint32_t port = 0; port < count && port < PAD_MAX_CONTROLLERS; ++port) {
         if (IsKpadKind(RealKind(port))) {

@@ -1,5 +1,6 @@
 // OSReport formatting/logging.
 
+#include "wii_remote_input.h"
 #include <cstdint>
 #include <iostream>
 #include <set>
@@ -126,6 +127,7 @@ static void HLE_LogOSReport(CpuContext* cpu, const char* fmt)
     }
 
     std::cout << "[OSReport] " << buffer;
+    WiiRemoteInput::NoteGameReport(buffer);
 
     // OSReport strings don't always end in \n, so flush explicitly
     if (buffer.empty() || buffer.back() != '\n') {
