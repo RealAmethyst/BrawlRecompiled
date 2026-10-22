@@ -170,7 +170,6 @@ extern "C" void GX__CopyTex_8016fd74(uint32_t da, uint32_t c) {
     const uint16_t rawSrcTop = g_texCopyState.srcTop;
     const uint16_t rawSrcWidth = g_texCopyState.srcWidth;
     const uint16_t rawSrcHeight = g_texCopyState.srcHeight;
-    { static int n = 0; if (n++ < 40) RT_LOGF(RT_TAG_GX, "[spmcopy] tex copy src %u,%u %ux%u -> 0x%08X clear=%u\n", rawSrcLeft, rawSrcTop, rawSrcWidth, rawSrcHeight, da, c); }
 
     // Keep the source in guest EFB coordinates. Aurora maps it to the scaled
     // EFB exactly once, matching Dolphin's ConvertEFBRectangle path.

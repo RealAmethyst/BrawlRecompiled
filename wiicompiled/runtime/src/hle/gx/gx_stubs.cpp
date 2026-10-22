@@ -166,7 +166,6 @@ extern "C" void GX__ReadBoundingBox_SPM(uint32_t leftPtr, uint32_t topPtr, uint3
             else { l = std::min<uint16_t>(l, al); r = std::max<uint16_t>(r, ar); t = std::min<uint16_t>(t, at); b = std::max<uint16_t>(b, ab); }
         }
     }
-    { static int n = 0; if (n++ < 40) RT_LOGF(RT_TAG_GX, "[spmbbox] read l=%u t=%u r=%u b=%u\n", l, t, r, b); }
     try {
         if (leftPtr) Memory::Write16(leftPtr, l);
         if (topPtr) Memory::Write16(topPtr, t);
