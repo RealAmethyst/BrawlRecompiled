@@ -298,6 +298,8 @@ extern "C" void GX__LoadPosMtxImm_8017310c(uint32_t ma, uint32_t id) {
     const uint32_t* raw=(const uint32_t*)GuestToHostPtr(ma); float m[12];
     SwapBeF32ArrayToHost(raw, m, 12);
     if (id / 3u < 10u) std::memcpy(g_pnMtx[id / 3u], m, sizeof(m));
+    if (SpmDumpFrame()) RT_LOGF(RT_TAG_GX, "[drawdump] posmtx %u | %.3f %.3f %.3f %.2f | %.3f %.3f %.3f %.2f | %.3f %.3f %.3f %.2f\n", id,
+                                m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11]);
     GXLoadPosMtxImm((float(*)[4])m, id);
 }
 PPC_NATIVE_OVERRIDE_VOID(801F51DC, GX__LoadPosMtxImm_8017310c, (uint32_t ma, uint32_t id), (ma, id));

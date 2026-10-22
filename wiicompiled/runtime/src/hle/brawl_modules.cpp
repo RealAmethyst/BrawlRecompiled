@@ -27,7 +27,7 @@ struct BrawlModule {
     uint32_t bss;      // home of its bss
     uint32_t bssSize;
     uint32_t fixSize;  // bytes OSLinkFixed keeps: header and sections, without the relocation tables
-    uint32_t crc32;    // of the unrelocated file's first fixSize bytes: anything else is a modded module
+    uint32_t crc32;    // of the unrelocated file from the end of its header (0x4C) to fixSize: else a mod's module
     const char* name;
 };
 
@@ -77,14 +77,11 @@ bool LinkAtHome(uint32_t header, uint32_t gameBss) {
     if (m == nullptr || Memory::Read32(header + 0x1Cu) != 3u) {
         return false;
     }
-    if (Crc32(header, m->fixSize) != m->crc32) {
+    // Brawl's loader rewrites the header's relOffset/impOffset to relocation tables it keeps elsewhere, so only the
+    // rest of the image identifies the disc's module.
+    if (Crc32(header + 0x4Cu, m->fixSize - 0x4Cu) != m->crc32) {
         RT_LOGF(RT_TAG_OS, "REL module %s at 0x%08X is not the disc's (a mod): linking it in place, untranslated\n",
                 m->name, header);
-        for (uint32_t i = 0; i < 0x4Cu; i += 16) {
-            RT_LOGF(RT_TAG_OS, "  +%02X %08X %08X %08X %08X\n", i, Memory::Read32(header + i),
-                    Memory::Read32(header + i + 4), Memory::Read32(header + i + 8), Memory::Read32(header + i + 12));
-        }
-        RT_LOGF(RT_TAG_OS, "  crc of the body after the header: %08X\n", Crc32(header + 0x4Cu, m->fixSize - 0x4Cu));
         return false;
     }
 

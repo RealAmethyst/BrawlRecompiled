@@ -465,6 +465,12 @@ void HleFifoWrite(u32 val, uint32_t sizeBytes) {
             const uint16_t countWords = ReadBE16(data + 1);
             const uint32_t packetBytes = 1u + 4u + (static_cast<uint32_t>(countWords) + 1u) * 4u;
             if (g_hleGxState.fifoByteCount < packetBytes) break;
+            if (SpmDumpFrame()) {
+                float v[4] = {};
+                for (int k = 0; k < 4 && k <= countWords; ++k) { const uint32_t bits = ReadBE32(data + 5 + 4 * k); std::memcpy(&v[k], &bits, 4); }
+                RT_LOGF(RT_TAG_GX, "[drawdump] fifo xf 0x%04X x%u: %.3f %.3f %.3f %.3f\n", ReadBE16(data + 3), countWords + 1u,
+                        v[0], v[1], v[2], v[3]);
+            }
             GXCallDisplayList(data, packetBytes);
             GXMarkFrameWork();
             if (!consumeBytes(packetBytes, sink)) break;
@@ -474,6 +480,15 @@ void HleFifoWrite(u32 val, uint32_t sizeBytes) {
         if (opcode >= GX_LOAD_INDX_A_CMD && opcode <= GX_LOAD_INDX_D_CMD) {
             if (g_hleGxState.fifoByteCount < 5) break;
             const uint32_t xfValue = ReadBE32(data + 1);
+            if (SpmDumpFrame()) {
+                const auto& arr = g_hleGxState.vtxArray[GX_POS_MTX_ARRAY + (((cmd & GX_OPCODE_MASK_CMD) - GX_LOAD_INDX_A_CMD) / 0x08)];
+                const uint32_t src = arr.base + (xfValue >> 16) * arr.stride;
+                float m[12] = {};
+                for (int k = 0; k < 12; ++k) { const uint32_t bits = Memory::Read32(src + 4 * k); std::memcpy(&m[k], &bits, 4); }
+                RT_LOGF(RT_TAG_GX, "[drawdump] fifo indexed xf cmd %02X idx %u len %u dst 0x%03X from 0x%08X: %.3f %.3f %.3f %.2f | %.3f %.3f %.3f %.2f | %.3f %.3f %.3f %.2f\n",
+                        cmd, xfValue >> 16, ((xfValue >> 12) & 0xFu) + 1u, xfValue & 0xFFFu, src,
+                        m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11]);
+            }
             ApplyIndexedXfArrayForPacket(cmd, xfValue);
             GXCallDisplayList(data, 5);
             GXMarkFrameWork();

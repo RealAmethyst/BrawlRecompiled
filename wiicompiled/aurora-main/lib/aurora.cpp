@@ -513,11 +513,7 @@ std::optional<PendingFrameCapture> encode_frame_capture(const wgpu::CommandEncod
   const uint32_t requestedFrame = g_captureFrame.load(std::memory_order_acquire);
   const uint32_t currentFrame = gfx::current_frame();
   if (requestedFrame == UINT32_MAX || currentFrame < requestedFrame) return std::nullopt;
-  g_captureFrame.store(UINT32_MAX, std::memory_order_release);
-  if (currentFrame != requestedFrame) {
-    Log.error("Missed requested frame capture {} (current frame {})", requestedFrame, currentFrame);
-    return std::nullopt;
-  }
+  g_captureFrame.store(UINT32_MAX, std::memory_order_release);  // the first frame at or after the requested one
   if (!source.texture || source.size.width == 0 || source.size.height == 0) {
     Log.error("Frame {} capture has no present-source texture", currentFrame);
     return std::nullopt;

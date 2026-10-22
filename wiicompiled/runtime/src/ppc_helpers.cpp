@@ -7,6 +7,10 @@
 #include "runtime_log.h"
 #include "timebase_contract.h"
 
+#include <cstring>
+
+extern "C" void GxNotifyGuestRamDmaWrite(uint32_t addr, uint32_t size);  // hle/gx/gx_objects.cpp
+
 #include <array>
 #include <bitset>
 #include <chrono>
@@ -515,6 +519,33 @@ extern "C" void PPC_WriteSpr(uint32_t spr, uint32_t value)
         case 26: if (cpu) cpu->srr0 = value; return;
         case 27: if (cpu) cpu->srr1 = value; return;
         case 920: if (cpu) cpu->hid2 = value; return;
+        case 922:  // DMA_U: memory address and the length's upper bits; DMA_L starts the transfer
+            break;
+        case 923: {
+            // Locked-cache DMA (LCLoadBlocks / LCStoreBlocks, e.g. NW4R G3D's matrix calculation): DMA_L holds the
+            // locked-cache address, direction (LD), the length's low bits and the trigger (T). The copy completes at
+            // once, so T reads back clear and LCQueueWait never waits.
+            if ((value & 2u) != 0) {
+                const uint32_t dmaU = 922u < g_sprShadow.size() ? g_sprShadow[922] : 0;
+                uint32_t blocks = ((dmaU & 0x1Fu) << 2) | ((value >> 2) & 3u);
+                if (blocks == 0) blocks = 128;
+                const uint32_t memAddr = dmaU & ~0x1Fu;
+                const uint32_t lcAddr = value & ~0x1Fu;
+                const uint32_t bytes = blocks * 32u;
+                uint8_t* mem = Memory::GetPointer(memAddr, bytes);
+                uint8_t* lc = Memory::GetPointer(lcAddr, bytes);
+                if (mem != nullptr && lc != nullptr) {
+                    if ((value & 0x10u) != 0) {
+                        std::memcpy(lc, mem, bytes);  // LD: memory to locked cache
+                    } else {
+                        std::memcpy(mem, lc, bytes);  // store: locked cache to memory
+                        GxNotifyGuestRamDmaWrite(memAddr, bytes);
+                    }
+                }
+                value &= ~2u;
+            }
+            break;
+        }
         case 1008: if (cpu) cpu->hid0 = value; return;
         case 1009: if (cpu) cpu->hid1 = value; return;
         case 1011: break;

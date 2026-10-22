@@ -7,7 +7,7 @@
   "veneers": "0x940533e0",
   "veneer_count": 421,
   "fix_size": "0x4d7b0",
-  "crc32": "0xa3b967c4"
+  "crc32": "0xfc172d49"
  },
  "sora_menu_main": {
   "id": 2,
@@ -17,7 +17,7 @@
   "veneers": "0x9409b780",
   "veneer_count": 448,
   "fix_size": "0x468a8",
-  "crc32": "0xc702bb72"
+  "crc32": "0x4a2233a5"
  },
  "sora_menu_tour": {
   "id": 3,
@@ -27,7 +27,7 @@
   "veneers": "0x940b7180",
   "veneer_count": 131,
   "fix_size": "0x19dd0",
-  "crc32": "0x6cb50896"
+  "crc32": "0xb1c5223e"
  },
  "sora_menu_qm": {
   "id": 4,
@@ -37,7 +37,7 @@
   "veneers": "0x940c3380",
   "veneer_count": 98,
   "fix_size": "0xb9a0",
-  "crc32": "0xb93c0429"
+  "crc32": "0xcf8ee84a"
  },
  "sora_menu_edit": {
   "id": 5,
@@ -47,7 +47,7 @@
   "veneers": "0x940db600",
   "veneer_count": 158,
   "fix_size": "0x17a80",
-  "crc32": "0x7eb5ec89"
+  "crc32": "0x88e432ea"
  },
  "sora_menu_collect_viewer": {
   "id": 6,
@@ -57,7 +57,7 @@
   "veneers": "0x940eabc0",
   "veneer_count": 160,
   "fix_size": "0xebb0",
-  "crc32": "0x400a8b62"
+  "crc32": "0xdd8fb25e"
  },
  "sora_menu_replay": {
   "id": 7,
@@ -67,7 +67,7 @@
   "veneers": "0x940ef120",
   "veneer_count": 55,
   "fix_size": "0x3980",
-  "crc32": "0xb141ee3d"
+  "crc32": "0xcbc4181a"
  },
  "sora_menu_snap_shot": {
   "id": 8,
@@ -77,7 +77,7 @@
   "veneers": "0x940f2240",
   "veneer_count": 24,
   "fix_size": "0x2bc0",
-  "crc32": "0x75154cec"
+  "crc32": "0x35542698"
  },
  "sora_menu_event": {
   "id": 9,
@@ -87,7 +87,7 @@
   "veneers": "0x940f7820",
   "veneer_count": 90,
   "fix_size": "0x5440",
-  "crc32": "0xdb664735"
+  "crc32": "0x674edf3e"
  },
  "sora_menu_sel_char": {
   "id": 10,
@@ -97,7 +97,7 @@
   "veneers": "0x94118f40",
   "veneer_count": 206,
   "fix_size": "0x21148",
-  "crc32": "0xb3a30204"
+  "crc32": "0xc9d0e85"
  },
  "sora_menu_sel_stage": {
   "id": 11,
@@ -107,7 +107,7 @@
   "veneers": "0x94124700",
   "veneer_count": 135,
   "fix_size": "0xaab0",
-  "crc32": "0x6dd3e9c"
+  "crc32": "0xadafefaf"
  },
  "sora_menu_game_over": {
   "id": 12,
@@ -117,7 +117,7 @@
   "veneers": "0x94127e80",
   "veneer_count": 52,
   "fix_size": "0x2ed0",
-  "crc32": "0x23179205"
+  "crc32": "0x7fa906b7"
  },
  "sora_menu_intro": {
   "id": 13,
@@ -127,7 +127,7 @@
   "veneers": "0x9412bae0",
   "veneer_count": 55,
   "fix_size": "0x38f0",
-  "crc32": "0x893fd17c"
+  "crc32": "0x2718a4be"
  },
  "sora_menu_friend_list": {
   "id": 14,
@@ -137,7 +137,7 @@
   "veneers": "0x94138080",
   "veneer_count": 153,
   "fix_size": "0xc1f0",
-  "crc32": "0xbc2c56a5"
+  "crc32": "0x5c2644f0"
  },
  "sora_menu_watch": {
   "id": 15,
@@ -147,7 +147,7 @@
   "veneers": "0x9413fa20",
   "veneer_count": 119,
   "fix_size": "0x6fd0",
-  "crc32": "0xaaca49cf"
+  "crc32": "0xc4893f6a"
  },
  "sora_menu_name": {
   "id": 16,
@@ -157,7 +157,7 @@
   "veneers": "0x9414cd60",
   "veneer_count": 104,
   "fix_size": "0xcaf0",
-  "crc32": "0x61e8249c"
+  "crc32": "0x2ba16b21"
  },
  "sora_menu_sel_char_access": {
   "id": 17,
@@ -167,7 +167,7 @@
   "veneers": "0x9414eee0",
   "veneer_count": 1,
   "fix_size": "0x1ad0",
-  "crc32": "0xe6ead70b"
+  "crc32": "0xe81b76d4"
  },
  "sora_menu_rule": {
   "id": 18,
@@ -177,7 +177,7 @@
   "veneers": "0x9415bca0",
   "veneer_count": 78,
   "fix_size": "0xcd70",
-  "crc32": "0xfd12224b"
+  "crc32": "0xd1cf6095"
  },
  "sora_menu_simple_ending": {
   "id": 19,
@@ -187,7 +187,7 @@
   "veneers": "0x9415f260",
   "veneer_count": 46,
   "fix_size": "0x30b0",
-  "crc32": "0x8cc2a395"
+  "crc32": "0x2736a320"
  },
  "sora_minigame": {
   "id": 20,
@@ -197,7 +197,7 @@
   "veneers": "0x9416fde0",
   "veneer_count": 189,
   "fix_size": "0x10850",
-  "crc32": "0x74c00763"
+  "crc32": "0xf87e4bc6"
  },
  "sora_menu_time_result": {
   "id": 21,
@@ -207,7 +207,7 @@
   "veneers": "0x941732e0",
   "veneer_count": 56,
   "fix_size": "0x28f0",
-  "crc32": "0x54d4222f"
+  "crc32": "0x6451d63"
  },
  "sora_menu_boot": {
   "id": 22,
@@ -217,7 +217,7 @@
   "veneers": "0x941775e0",
   "veneer_count": 46,
   "fix_size": "0x3f50",
-  "crc32": "0xbc189113"
+  "crc32": "0xd8090914"
  },
  "sora_menu_challenger": {
   "id": 23,
@@ -227,7 +227,7 @@
   "veneers": "0x94179da0",
   "veneer_count": 23,
   "fix_size": "0x24b0",
-  "crc32": "0xc7f5918b"
+  "crc32": "0xcead04a1"
  },
  "sora_menu_title": {
   "id": 24,
@@ -237,7 +237,7 @@
   "veneers": "0x9417f780",
   "veneer_count": 71,
   "fix_size": "0x5830",
-  "crc32": "0x5d571a9c"
+  "crc32": "0x568e18c"
  },
  "sora_menu_title_sunset": {
   "id": 25,
@@ -247,7 +247,7 @@
   "veneers": "0x94185b60",
   "veneer_count": 68,
   "fix_size": "0x5f30",
-  "crc32": "0xa6d39d84"
+  "crc32": "0x8df8c12"
  },
  "sora_menu_fig_get_demo": {
   "id": 26,
@@ -257,7 +257,7 @@
   "veneers": "0x94189100",
   "veneer_count": 60,
   "fix_size": "0x3130",
-  "crc32": "0xa7e664d0"
+  "crc32": "0xe3661dea"
  },
  "sora_melee": {
   "id": 27,
@@ -267,7 +267,7 @@
   "veneers": "0x9460c640",
   "veneer_count": 1090,
   "fix_size": "0x47a480",
-  "crc32": "0x4b1d1aa0"
+  "crc32": "0x94960df0"
  },
  "sora_adv_menu_name": {
   "id": 28,
@@ -277,7 +277,7 @@
   "veneers": "0x946157c0",
   "veneer_count": 76,
   "fix_size": "0x4d30",
-  "crc32": "0xfd141016"
+  "crc32": "0x909cf91b"
  },
  "sora_adv_menu_visual": {
   "id": 29,
@@ -287,7 +287,7 @@
   "veneers": "0x9461a5e0",
   "veneer_count": 70,
   "fix_size": "0x4930",
-  "crc32": "0x8f986827"
+  "crc32": "0x87115773"
  },
  "sora_adv_menu_sel_char": {
   "id": 30,
@@ -297,7 +297,7 @@
   "veneers": "0x9461c4c0",
   "veneer_count": 1,
   "fix_size": "0x1a50",
-  "crc32": "0x575df734"
+  "crc32": "0xf88de234"
  },
  "sora_adv_menu_sel_map": {
   "id": 31,
@@ -307,7 +307,7 @@
   "veneers": "0x94622600",
   "veneer_count": 107,
   "fix_size": "0x60e8",
-  "crc32": "0x52c776e8"
+  "crc32": "0x394c1fc6"
  },
  "sora_adv_menu_difficulty": {
   "id": 32,
@@ -317,7 +317,7 @@
   "veneers": "0x94625620",
   "veneer_count": 55,
   "fix_size": "0x2930",
-  "crc32": "0xecfcbb73"
+  "crc32": "0x9349a0c5"
  },
  "sora_adv_menu_game_over": {
   "id": 33,
@@ -327,7 +327,7 @@
   "veneers": "0x9462aee0",
   "veneer_count": 97,
   "fix_size": "0x5520",
-  "crc32": "0x3c076724"
+  "crc32": "0x9cf3ba9b"
  },
  "sora_adv_menu_result": {
   "id": 34,
@@ -337,7 +337,7 @@
   "veneers": "0x9462e8c0",
   "veneer_count": 60,
   "fix_size": "0x3388",
-  "crc32": "0x9ad3c67e"
+  "crc32": "0xd7bb4e53"
  },
  "sora_adv_menu_save_load": {
   "id": 35,
@@ -347,7 +347,7 @@
   "veneers": "0x94630700",
   "veneer_count": 1,
   "fix_size": "0x1a50",
-  "crc32": "0xeed81c42"
+  "crc32": "0xb8d86f65"
  },
  "sora_adv_menu_seal": {
   "id": 36,
@@ -357,7 +357,7 @@
   "veneers": "0x946321a0",
   "veneer_count": 1,
   "fix_size": "0x1a50",
-  "crc32": "0xf9d94334"
+  "crc32": "0xc5ab693d"
  },
  "sora_adv_menu_ending": {
   "id": 37,
@@ -367,7 +367,7 @@
   "veneers": "0x946357c0",
   "veneer_count": 65,
   "fix_size": "0x35d0",
-  "crc32": "0x1a7ccc03"
+  "crc32": "0xbd32c2b"
  },
  "sora_adv_menu_telop": {
   "id": 38,
@@ -377,7 +377,7 @@
   "veneers": "0x94637e40",
   "veneer_count": 23,
   "fix_size": "0x2230",
-  "crc32": "0xfaaf1876"
+  "crc32": "0xd4b25cdd"
  },
  "sora_adv_menu_save_point": {
   "id": 39,
@@ -387,7 +387,7 @@
   "veneers": "0x94639a40",
   "veneer_count": 1,
   "fix_size": "0x1a50",
-  "crc32": "0xb6f173d7"
+  "crc32": "0x786105f3"
  },
  "sora_adv_stage": {
   "id": 40,
@@ -397,7 +397,7 @@
   "veneers": "0x946aa2c0",
   "veneer_count": 344,
   "fix_size": "0x6de40",
-  "crc32": "0x124e0ceb"
+  "crc32": "0xca34ac7d"
  },
  "sora_enemy": {
   "id": 41,
@@ -407,7 +407,7 @@
   "veneers": "0x947437a0",
   "veneer_count": 94,
   "fix_size": "0x97700",
-  "crc32": "0xceadde6e"
+  "crc32": "0xdd6f8e7a"
  },
  "st_battles": {
   "id": 42,
@@ -417,7 +417,7 @@
   "veneers": "0x94746c00",
   "veneer_count": 7,
   "fix_size": "0x2e58",
-  "crc32": "0xf67b10e7"
+  "crc32": "0xd94953d1"
  },
  "st_battle": {
   "id": 43,
@@ -427,7 +427,7 @@
   "veneers": "0x9474a520",
   "veneer_count": 18,
   "fix_size": "0x3880",
-  "crc32": "0x279c66b6"
+  "crc32": "0xb4d75b47"
  },
  "st_config": {
   "id": 44,
@@ -437,7 +437,7 @@
   "veneers": "0x9474d320",
   "veneer_count": 5,
   "fix_size": "0x2cc0",
-  "crc32": "0xe122724a"
+  "crc32": "0xaf5ce6ef"
  },
  "st_final": {
   "id": 45,
@@ -447,7 +447,7 @@
   "veneers": "0x947503e0",
   "veneer_count": 8,
   "fix_size": "0x3040",
-  "crc32": "0xd086949a"
+  "crc32": "0xed5319bb"
  },
  "st_dolpic": {
   "id": 46,
@@ -457,7 +457,7 @@
   "veneers": "0x9475cc20",
   "veneer_count": 68,
   "fix_size": "0xc798",
-  "crc32": "0xcf69ad09"
+  "crc32": "0x87d1dd49"
  },
  "st_mansion": {
   "id": 47,
@@ -467,7 +467,7 @@
   "veneers": "0x94770960",
   "veneer_count": 62,
   "fix_size": "0x137c0",
-  "crc32": "0x998b4e02"
+  "crc32": "0xabcc5f00"
  },
  "st_mariopast": {
   "id": 48,
@@ -477,7 +477,7 @@
   "veneers": "0x94784160",
   "veneer_count": 70,
   "fix_size": "0x133a0",
-  "crc32": "0x43b0df18"
+  "crc32": "0x394503a8"
  },
  "st_kart": {
   "id": 49,
@@ -487,7 +487,7 @@
   "veneers": "0x94796d40",
   "veneer_count": 76,
   "fix_size": "0x12630",
-  "crc32": "0xf9a14960"
+  "crc32": "0x8070c40b"
  },
  "st_donkey": {
   "id": 50,
@@ -497,7 +497,7 @@
   "veneers": "0x947a9a20",
   "veneer_count": 71,
   "fix_size": "0x126c8",
-  "crc32": "0x8b2e9593"
+  "crc32": "0x2474574e"
  },
  "st_jungle": {
   "id": 51,
@@ -507,7 +507,7 @@
   "veneers": "0x947d1c80",
   "veneer_count": 74,
   "fix_size": "0x27c38",
-  "crc32": "0x380bd59a"
+  "crc32": "0x9c0afd26"
  },
  "st_pirates": {
   "id": 52,
@@ -517,7 +517,7 @@
   "veneers": "0x947ef900",
   "veneer_count": 77,
   "fix_size": "0x1d690",
-  "crc32": "0xfbe59a92"
+  "crc32": "0xeff685ed"
  },
  "st_oldin": {
   "id": 53,
@@ -527,7 +527,7 @@
   "veneers": "0x947f7100",
   "veneer_count": 37,
   "fix_size": "0x72e8",
-  "crc32": "0xae1d8425"
+  "crc32": "0xb8a2fda9"
  },
  "st_norfair": {
   "id": 54,
@@ -537,7 +537,7 @@
   "veneers": "0x94810820",
   "veneer_count": 81,
   "fix_size": "0x19360",
-  "crc32": "0xa3a2537"
+  "crc32": "0x6abb807b"
  },
  "st_orpheon": {
   "id": 55,
@@ -547,7 +547,7 @@
   "veneers": "0x94815f00",
   "veneer_count": 13,
   "fix_size": "0x5198",
-  "crc32": "0x1e5874d4"
+  "crc32": "0x4485525"
  },
  "st_crayon": {
   "id": 56,
@@ -557,7 +557,7 @@
   "veneers": "0x94827400",
   "veneer_count": 62,
   "fix_size": "0x112a8",
-  "crc32": "0xc6c96bf1"
+  "crc32": "0xedf8fd78"
  },
  "st_halberd": {
   "id": 57,
@@ -567,7 +567,7 @@
   "veneers": "0x94841340",
   "veneer_count": 84,
   "fix_size": "0x19a20",
-  "crc32": "0x8d4c30a2"
+  "crc32": "0xfa525001"
  },
  "st_starfox": {
   "id": 58,
@@ -577,7 +577,7 @@
   "veneers": "0x94846d60",
   "veneer_count": 20,
   "fix_size": "0x54b0",
-  "crc32": "0x8cdb699d"
+  "crc32": "0x32c96c0d"
  },
  "st_stadium": {
   "id": 59,
@@ -587,7 +587,7 @@
   "veneers": "0x9484d9a0",
   "veneer_count": 26,
   "fix_size": "0x6ac8",
-  "crc32": "0xdbda2961"
+  "crc32": "0x4f64fb07"
  },
  "st_tengan": {
   "id": 60,
@@ -597,7 +597,7 @@
   "veneers": "0x9485a400",
   "veneer_count": 70,
   "fix_size": "0xc890",
-  "crc32": "0x202ab47a"
+  "crc32": "0x64f08d40"
  },
  "st_fzero": {
   "id": 61,
@@ -607,7 +607,7 @@
   "veneers": "0x94871060",
   "veneer_count": 66,
   "fix_size": "0x166b8",
-  "crc32": "0x14201619"
+  "crc32": "0x1431df4b"
  },
  "st_ice": {
   "id": 62,
@@ -617,7 +617,7 @@
   "veneers": "0x9488d060",
   "veneer_count": 78,
   "fix_size": "0x1ba70",
-  "crc32": "0x5dc45e33"
+  "crc32": "0x726f2e67"
  },
  "st_gw": {
   "id": 63,
@@ -627,7 +627,7 @@
   "veneers": "0x948b12e0",
   "veneer_count": 72,
   "fix_size": "0x23c30",
-  "crc32": "0x58678505"
+  "crc32": "0xa5307e83"
  },
  "st_emblem": {
   "id": 64,
@@ -637,7 +637,7 @@
   "veneers": "0x948b69c0",
   "veneer_count": 27,
   "fix_size": "0x5238",
-  "crc32": "0x27e76806"
+  "crc32": "0xb8586f02"
  },
  "st_madein": {
   "id": 65,
@@ -647,7 +647,7 @@
   "veneers": "0x948c1b40",
   "veneer_count": 33,
   "fix_size": "0xaf70",
-  "crc32": "0xebe9e5df"
+  "crc32": "0x4fd623ea"
  },
  "st_earth": {
   "id": 66,
@@ -657,7 +657,7 @@
   "veneers": "0x948de380",
   "veneer_count": 107,
   "fix_size": "0x1c480",
-  "crc32": "0x34ae55dd"
+  "crc32": "0xd529f9bd"
  },
  "st_palutena": {
   "id": 67,
@@ -667,7 +667,7 @@
   "veneers": "0x948f2800",
   "veneer_count": 74,
   "fix_size": "0x13d48",
-  "crc32": "0x92b0bf8e"
+  "crc32": "0x8bcac7b2"
  },
  "st_famicom": {
   "id": 68,
@@ -677,7 +677,7 @@
   "veneers": "0x9490df60",
   "veneer_count": 98,
   "fix_size": "0x1b130",
-  "crc32": "0x5d1933df"
+  "crc32": "0xaf64ccc6"
  },
  "st_newpork": {
   "id": 69,
@@ -687,7 +687,7 @@
   "veneers": "0x949148e0",
   "veneer_count": 33,
   "fix_size": "0x6340",
-  "crc32": "0xc823c426"
+  "crc32": "0xa5138fae"
  },
  "st_village": {
   "id": 70,
@@ -697,7 +697,7 @@
   "veneers": "0x9492b420",
   "veneer_count": 70,
   "fix_size": "0x168b8",
-  "crc32": "0x7d487d77"
+  "crc32": "0x5576c304"
  },
  "st_metalgear": {
   "id": 71,
@@ -707,7 +707,7 @@
   "veneers": "0x94944220",
   "veneer_count": 80,
   "fix_size": "0x18848",
-  "crc32": "0xb4630cfb"
+  "crc32": "0x91ec1e49"
  },
  "st_greenhill": {
   "id": 72,
@@ -717,7 +717,7 @@
   "veneers": "0x94959440",
   "veneer_count": 68,
   "fix_size": "0x14bb0",
-  "crc32": "0x9c8be2fc"
+  "crc32": "0x3e1d693e"
  },
  "st_pictchat": {
   "id": 73,
@@ -727,7 +727,7 @@
   "veneers": "0x94974ba0",
   "veneer_count": 86,
   "fix_size": "0x1b1d8",
-  "crc32": "0x5e259900"
+  "crc32": "0x949382f5"
  },
  "st_plankton": {
   "id": 74,
@@ -737,7 +737,7 @@
   "veneers": "0x94989200",
   "veneer_count": 99,
   "fix_size": "0x14090",
-  "crc32": "0x9f5c5b05"
+  "crc32": "0x5850a45f"
  },
  "st_dxshrine": {
   "id": 75,
@@ -747,7 +747,7 @@
   "veneers": "0x9498c5e0",
   "veneer_count": 6,
   "fix_size": "0x2d70",
-  "crc32": "0x9bec87f"
+  "crc32": "0xef49e86f"
  },
  "st_dxyorster": {
   "id": 76,
@@ -757,7 +757,7 @@
   "veneers": "0x94999400",
   "veneer_count": 47,
   "fix_size": "0xcd58",
-  "crc32": "0xf80a80a0"
+  "crc32": "0x382fbd3a"
  },
  "st_dxgarden": {
   "id": 77,
@@ -767,7 +767,7 @@
   "veneers": "0x949a5040",
   "veneer_count": 58,
   "fix_size": "0xb800",
-  "crc32": "0xf5d3a537"
+  "crc32": "0xfdf6f1ab"
  },
  "st_dxonett": {
   "id": 78,
@@ -777,7 +777,7 @@
   "veneers": "0x949b3c00",
   "veneer_count": 67,
   "fix_size": "0xe6d0",
-  "crc32": "0xb3438b2f"
+  "crc32": "0x5c7aaa94"
  },
  "st_dxgreens": {
   "id": 79,
@@ -787,7 +787,7 @@
   "veneers": "0x949c6460",
   "veneer_count": 73,
   "fix_size": "0x122c0",
-  "crc32": "0x76ebc6c"
+  "crc32": "0x25da2037"
  },
  "st_dxrcruise": {
   "id": 80,
@@ -797,7 +797,7 @@
   "veneers": "0x949cc240",
   "veneer_count": 15,
   "fix_size": "0x5920",
-  "crc32": "0x8ed94c78"
+  "crc32": "0x191af7d7"
  },
  "st_dxbigblue": {
   "id": 81,
@@ -807,7 +807,7 @@
   "veneers": "0x949d9de0",
   "veneer_count": 41,
   "fix_size": "0xda78",
-  "crc32": "0x715e67f2"
+  "crc32": "0x14726e8a"
  },
  "st_dxcorneria": {
   "id": 82,
@@ -817,7 +817,7 @@
   "veneers": "0x949e1780",
   "veneer_count": 36,
   "fix_size": "0x7690",
-  "crc32": "0x684c70"
+  "crc32": "0x80d1dacc"
  },
  "st_dxpstadium": {
   "id": 83,
@@ -827,7 +827,7 @@
   "veneers": "0x949e7460",
   "veneer_count": 30,
   "fix_size": "0x5a78",
-  "crc32": "0xd99f512f"
+  "crc32": "0x65bb765c"
  },
  "st_dxzebes": {
   "id": 84,
@@ -837,7 +837,7 @@
   "veneers": "0x949ee3a0",
   "veneer_count": 27,
   "fix_size": "0x6d40",
-  "crc32": "0x38f013a"
+  "crc32": "0x586f33b"
  },
  "st_stageedit": {
   "id": 85,
@@ -847,7 +847,7 @@
   "veneers": "0x949f6620",
   "veneer_count": 52,
   "fix_size": "0x80a0",
-  "crc32": "0x3fc090c"
+  "crc32": "0x170f84ad"
  },
  "st_otrain": {
   "id": 86,
@@ -857,7 +857,7 @@
   "veneers": "0x949f94c0",
   "veneer_count": 4,
   "fix_size": "0x2b10",
-  "crc32": "0x4c89ff5a"
+  "crc32": "0x5c1b2b3e"
  },
  "st_heal": {
   "id": 87,
@@ -867,7 +867,7 @@
   "veneers": "0x949fc820",
   "veneer_count": 13,
   "fix_size": "0x32e0",
-  "crc32": "0xf3189c9b"
+  "crc32": "0xe48a9ba8"
  },
  "st_homerun": {
   "id": 88,
@@ -877,7 +877,7 @@
   "veneers": "0x94a0ae60",
   "veneer_count": 80,
   "fix_size": "0xe518",
-  "crc32": "0x9132bca0"
+  "crc32": "0xe2bfb7d3"
  },
  "st_tbreak": {
   "id": 89,
@@ -887,7 +887,7 @@
   "veneers": "0x94a10600",
   "veneer_count": 17,
   "fix_size": "0x5260",
-  "crc32": "0xf0c678e1"
+  "crc32": "0x8196ad9a"
  },
  "st_croll": {
   "id": 90,
@@ -897,7 +897,7 @@
   "veneers": "0x94a1db60",
   "veneer_count": 128,
   "fix_size": "0xd3f8",
-  "crc32": "0x7441bcfc"
+  "crc32": "0x3f1223f1"
  },
  "ft_mario": {
   "id": 91,
@@ -907,7 +907,7 @@
   "veneers": "0x94a481a0",
   "veneer_count": 29,
   "fix_size": "0x29a18",
-  "crc32": "0xf509a47d"
+  "crc32": "0x53bf9f39"
  },
  "ft_donkey": {
   "id": 92,
@@ -917,7 +917,7 @@
   "veneers": "0x94a6a4a0",
   "veneer_count": 31,
   "fix_size": "0x21d78",
-  "crc32": "0xdd0d65a7"
+  "crc32": "0x8e64b12"
  },
  "ft_link": {
   "id": 93,
@@ -927,7 +927,7 @@
   "veneers": "0x94a91b80",
   "veneer_count": 33,
   "fix_size": "0x271e0",
-  "crc32": "0xc13a6208"
+  "crc32": "0x10952ed1"
  },
  "ft_samus": {
   "id": 94,
@@ -937,7 +937,7 @@
   "veneers": "0x94ac64e0",
   "veneer_count": 34,
   "fix_size": "0x34298",
-  "crc32": "0x44812466"
+  "crc32": "0x665b7969"
  },
  "ft_yoshi": {
   "id": 95,
@@ -947,7 +947,7 @@
   "veneers": "0x94af4c40",
   "veneer_count": 34,
   "fix_size": "0x2df38",
-  "crc32": "0xaf4d596d"
+  "crc32": "0xd2edb589"
  },
  "ft_kirby": {
   "id": 96,
@@ -957,7 +957,7 @@
   "veneers": "0x94b3d120",
   "veneer_count": 50,
   "fix_size": "0x46f60",
-  "crc32": "0x3a14ad15"
+  "crc32": "0x684a73e8"
  },
  "ft_fox": {
   "id": 97,
@@ -967,7 +967,7 @@
   "veneers": "0x94b5a600",
   "veneer_count": 24,
   "fix_size": "0x1cf30",
-  "crc32": "0x8d1ee9ef"
+  "crc32": "0x84ac6373"
  },
  "ft_pikachu": {
   "id": 98,
@@ -977,7 +977,7 @@
   "veneers": "0x94b861e0",
   "veneer_count": 35,
   "fix_size": "0x2b5c0",
-  "crc32": "0x45726048"
+  "crc32": "0x1b8ee4db"
  },
  "ft_luigi": {
   "id": 99,
@@ -987,7 +987,7 @@
   "veneers": "0x94ba27c0",
   "veneer_count": 21,
   "fix_size": "0x1c0c8",
-  "crc32": "0xfb4123d5"
+  "crc32": "0x18b49a23"
  },
  "ft_captain": {
   "id": 100,
@@ -997,7 +997,7 @@
   "veneers": "0x94bc4a80",
   "veneer_count": 46,
   "fix_size": "0x21d68",
-  "crc32": "0xb41c2a6f"
+  "crc32": "0x129542c5"
  },
  "ft_ness": {
   "id": 101,
@@ -1007,7 +1007,7 @@
   "veneers": "0x94bfdd60",
   "veneer_count": 45,
   "fix_size": "0x38a40",
-  "crc32": "0x4d4540d9"
+  "crc32": "0xcf8f328c"
  },
  "ft_koopa": {
   "id": 102,
@@ -1017,7 +1017,7 @@
   "veneers": "0x94c282c0",
   "veneer_count": 28,
   "fix_size": "0x29c30",
-  "crc32": "0x74e39faf"
+  "crc32": "0x12c76200"
  },
  "ft_peach": {
   "id": 103,
@@ -1027,7 +1027,7 @@
   "veneers": "0x94c472e0",
   "veneer_count": 46,
   "fix_size": "0x1ebc0",
-  "crc32": "0xfda19d7b"
+  "crc32": "0x8b510290"
  },
  "ft_zelda": {
   "id": 104,
@@ -1037,7 +1037,7 @@
   "veneers": "0x94c815a0",
   "veneer_count": 41,
   "fix_size": "0x39970",
-  "crc32": "0x85ac081b"
+  "crc32": "0x7cfe5ae0"
  },
  "ft_iceclimber": {
   "id": 105,
@@ -1047,7 +1047,7 @@
   "veneers": "0x94cb3c20",
   "veneer_count": 30,
   "fix_size": "0x31eb8",
-  "crc32": "0xf59927b7"
+  "crc32": "0x848f7103"
  },
  "ft_marth": {
   "id": 106,
@@ -1057,7 +1057,7 @@
   "veneers": "0x94cca700",
   "veneer_count": 49,
   "fix_size": "0x16720",
-  "crc32": "0x708c508c"
+  "crc32": "0x6a03d017"
  },
  "ft_gamewatch": {
   "id": 107,
@@ -1067,7 +1067,7 @@
   "veneers": "0x94d004c0",
   "veneer_count": 26,
   "fix_size": "0x35608",
-  "crc32": "0x351f071d"
+  "crc32": "0xc5cc7803"
  },
  "ft_falco": {
   "id": 108,
@@ -1077,7 +1077,7 @@
   "veneers": "0x94d1d7c0",
   "veneer_count": 24,
   "fix_size": "0x1cef0",
-  "crc32": "0x8cb59ba4"
+  "crc32": "0x2683c87e"
  },
  "ft_ganon": {
   "id": 109,
@@ -1087,7 +1087,7 @@
   "veneers": "0x94d3b2e0",
   "veneer_count": 21,
   "fix_size": "0x1d6b0",
-  "crc32": "0x8faeb898"
+  "crc32": "0xc2e3b21c"
  },
  "ft_wario": {
   "id": 110,
@@ -1097,7 +1097,7 @@
   "veneers": "0x94d6caa0",
   "veneer_count": 39,
   "fix_size": "0x31048",
-  "crc32": "0xddc51cb0"
+  "crc32": "0xbfec0486"
  },
  "ft_metaknight": {
   "id": 111,
@@ -1107,7 +1107,7 @@
   "veneers": "0x94d88c20",
   "veneer_count": 25,
   "fix_size": "0x1bc98",
-  "crc32": "0xd47e748a"
+  "crc32": "0x2c30efe3"
  },
  "ft_pit": {
   "id": 112,
@@ -1117,7 +1117,7 @@
   "veneers": "0x94daea20",
   "veneer_count": 31,
   "fix_size": "0x25930",
-  "crc32": "0x41968059"
+  "crc32": "0x43f3ae5d"
  },
  "ft_pikmin": {
   "id": 113,
@@ -1127,7 +1127,7 @@
   "veneers": "0x94def540",
   "veneer_count": 41,
   "fix_size": "0x40570",
-  "crc32": "0x81ca650e"
+  "crc32": "0x572ce60b"
  },
  "ft_lucas": {
   "id": 114,
@@ -1137,7 +1137,7 @@
   "veneers": "0x94e23340",
   "veneer_count": 42,
   "fix_size": "0x33640",
-  "crc32": "0xf49984e1"
+  "crc32": "0xf8ab89d1"
  },
  "ft_diddy": {
   "id": 115,
@@ -1147,7 +1147,7 @@
   "veneers": "0x94e4f100",
   "veneer_count": 34,
   "fix_size": "0x2b6a8",
-  "crc32": "0x30b00c2b"
+  "crc32": "0xd8d5d844"
  },
  "ft_poke": {
   "id": 116,
@@ -1157,7 +1157,7 @@
   "veneers": "0x94e8ae20",
   "veneer_count": 31,
   "fix_size": "0x3b450",
-  "crc32": "0x76f37a86"
+  "crc32": "0x9ce8983"
  },
  "ft_dedede": {
   "id": 117,
@@ -1167,7 +1167,7 @@
   "veneers": "0x94ec1f40",
   "veneer_count": 33,
   "fix_size": "0x369f8",
-  "crc32": "0x3229ba80"
+  "crc32": "0x3d815f40"
  },
  "ft_lucario": {
   "id": 118,
@@ -1177,7 +1177,7 @@
   "veneers": "0x94ee1be0",
   "veneer_count": 31,
   "fix_size": "0x1f6c8",
-  "crc32": "0x8988962"
+  "crc32": "0x1a68e306"
  },
  "ft_ike": {
   "id": 119,
@@ -1187,7 +1187,7 @@
   "veneers": "0x94f00ac0",
   "veneer_count": 34,
   "fix_size": "0x1e9c0",
-  "crc32": "0xe8dfd4f9"
+  "crc32": "0xac6144ba"
  },
  "ft_robot": {
   "id": 120,
@@ -1197,7 +1197,7 @@
   "veneers": "0x94f27500",
   "veneer_count": 23,
   "fix_size": "0x263a0",
-  "crc32": "0xf4378928"
+  "crc32": "0x50f96773"
  },
  "ft_toonlink": {
   "id": 121,
@@ -1207,7 +1207,7 @@
   "veneers": "0x94f4ece0",
   "veneer_count": 33,
   "fix_size": "0x27358",
-  "crc32": "0x3f87b4dd"
+  "crc32": "0xc7c95814"
  },
  "ft_snake": {
   "id": 122,
@@ -1217,7 +1217,7 @@
   "veneers": "0x94f8f8e0",
   "veneer_count": 47,
   "fix_size": "0x404d8",
-  "crc32": "0xbe60310f"
+  "crc32": "0x749b8f81"
  },
  "ft_sonic": {
   "id": 123,
@@ -1227,7 +1227,7 @@
   "veneers": "0x94fb5880",
   "veneer_count": 27,
   "fix_size": "0x25808",
-  "crc32": "0x345287b0"
+  "crc32": "0xf5341653"
  },
  "ft_purin": {
   "id": 124,
@@ -1237,7 +1237,7 @@
   "veneers": "0x94fcb3a0",
   "veneer_count": 20,
   "fix_size": "0x156e8",
-  "crc32": "0xae3d8477"
+  "crc32": "0x1d8643af"
  },
  "ft_wolf": {
   "id": 125,
@@ -1247,7 +1247,7 @@
   "veneers": "0x94fe8540",
   "veneer_count": 24,
   "fix_size": "0x1cde0",
-  "crc32": "0x7ebb310e"
+  "crc32": "0x24061b8"
  },
  "ft_zako": {
   "id": 126,
@@ -1257,6 +1257,6 @@
   "veneers": "0x950041a0",
   "veneer_count": 18,
   "fix_size": "0x1b8d8",
-  "crc32": "0x737ec82d"
+  "crc32": "0xa93982be"
  }
 }

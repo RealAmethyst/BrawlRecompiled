@@ -795,10 +795,31 @@ static bool LogFpsEnabled() {
 uint64_t DvdReadNanosTotal();
 uint32_t DvdReadCount();
 
+// Test captures: shots.txt beside the executable lists seconds after the first presented frame; at each, the next
+// rendered frame is saved as shot_<n>.bmp (Aurora reads it back from the GPU, so it works with the window covered).
+void RequestScheduledCaptures() {
+    static const std::vector<double> times = [] {
+        std::vector<double> out;
+        std::ifstream in("shots.txt");
+        for (double t; in >> t;) out.push_back(t);
+        return out;
+    }();
+    if (times.empty()) return;
+    static const Clock::time_point start = Clock::now();
+    static size_t next = 0;
+    static std::string path;
+    if (next < times.size() && std::chrono::duration<double>(Clock::now() - start).count() >= times[next]) {
+        path = "shot_" + std::to_string(next) + ".bmp";
+        aurora_request_frame_capture(0, path.c_str());
+        ++next;
+    }
+}
+
 void VI_HLE_PresentFrame(bool presentedXfb, bool paceToRetrace) {
     if (s_presentSequenceActive.exchange(true, std::memory_order_acq_rel)) {
         return;
     }
+    RequestScheduledCaptures();
     GuestProfiler::OnFramePresented();
     static FrameTimes times;
     const Clock::time_point presentStart = Clock::now();

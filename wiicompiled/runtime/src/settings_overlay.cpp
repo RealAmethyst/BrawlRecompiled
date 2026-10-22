@@ -1617,6 +1617,8 @@ void UpdateBootShaderState() {
     g_bootShaderNotice |= queued > kBootShaderNoticeThreshold;
     if (queued == 0 || now - g_bootShaderWaitStart > kBootShaderWaitLimit) {
         g_bootShadersReady.store(true, std::memory_order_release);
+        // Brawl asks for A on its own strap screen, so the cover lifts by itself once the boot shaders are ready.
+        NotifyStrapInputAccepted();
     }
 }
 

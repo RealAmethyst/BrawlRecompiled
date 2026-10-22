@@ -1372,6 +1372,18 @@ extern "C" void GX__CallDisplayList_80172f64(uint32_t listAddr, uint32_t nbytes)
         if (auroraList) g_boundTexMaps.fill(BoundTexInfo{});
         { static int s_callLog = 0;
           if (s_callLog++ < 60) RT_LOGF(RT_TAG_GX, "[spmdl] call 0x%08X %u bytes aurora=%d\n", listAddr, nbytes, auroraList ? 1 : 0); }  // the list rebinds textures behind the cache
+        if (SpmDumpFrame()) {  // the list's bytes and the position-matrix array it indexes
+            std::string hex;
+            for (uint32_t i = 0; i < nbytes && i < 256; ++i) { char b[4]; std::snprintf(b, sizeof b, "%02X", list[i]); hex += b; }
+            RT_LOGF(RT_TAG_GX, "[drawdump] calldl 0x%08X %u: %s\n", listAddr, nbytes, hex.c_str());
+            const uint32_t mb = g_hleGxState.vtxArray[GX_POS_MTX_ARRAY].base;
+            for (uint32_t k = 0; mb && k < 2; ++k) {
+                float m[12];
+                for (int j = 0; j < 12; ++j) { const uint32_t bits = Memory::Read32(mb + k * 48 + j * 4); std::memcpy(&m[j], &bits, 4); }
+                RT_LOGF(RT_TAG_GX, "[drawdump]   mtx[%u] %.3f %.3f %.3f %.2f | %.3f %.3f %.3f %.2f | %.3f %.3f %.3f %.2f\n", k,
+                        m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11]);
+            }
+        }
         const bool mayContainDraw = auroraList ? false
             : (cached != nullptr) ? cached->mayContainDraw : DisplayListMayContainDraw(list, nbytes);
         if (!mayContainDraw) {

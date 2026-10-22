@@ -182,6 +182,7 @@ PPC_NATIVE_OVERRIDE_VOID(801f0194, GX__GetVtxAttrFmtv_8016e2b8, (uint32_t vf, ui
 
 extern "C" void GX__SetArray_8016e32c(uint32_t a, uint32_t ba, uint32_t str) {
     const uint32_t attr = CanonicalVtxAttr(a);
+    if (SpmDumpFrame()) RT_LOGF(RT_TAG_GX, "[drawdump] setarray %u base 0x%08X stride %u\n", attr, ba, str);
     if(attr<26){ g_hleGxState.vtxArray[attr].base=ba; g_hleGxState.vtxArray[attr].stride=str; }
 }
 PPC_NATIVE_OVERRIDE_VOID(801f0208, GX__SetArray_8016e32c, (uint32_t a, uint32_t ba, uint32_t str), (a, ba, str));
