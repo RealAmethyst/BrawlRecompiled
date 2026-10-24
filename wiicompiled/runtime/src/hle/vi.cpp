@@ -560,6 +560,8 @@ void AdvanceRetrace(CpuContext* ctx, Clock::time_point retraceStamp, bool servic
     if (DetClock::Enabled()) {
         DetHash::OnRetrace(retraceValue);
         FrameInput::Latch(retraceValue);
+    } else {
+        DetHash::OnRetrace(retraceValue);  // NSMBW_DET_DUMP memory images work outside sessions too
     }
 
     // Wake up threads sleeping on the VI retrace queue (VIWaitForRetrace).

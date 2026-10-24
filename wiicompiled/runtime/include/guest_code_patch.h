@@ -19,6 +19,12 @@ bool NoteWrite(uint32_t address);
 void Sync();
 // [start, end) holds its pristine code again (a module was linked again at its home).
 void ResetPristine(uint32_t start, uint32_t end);
+// A patch a mod made to code not guarded yet (the code handler's boot pass over a resident module): `value` is the
+// word as the guest stores it.
+void RecordPatch(uint32_t address, uint32_t value);
+// Writes every patch known in [start, end) back over freshly linked code and syncs. On a Wii the code handler runs
+// many times while a module loads, so its hooks are in place again before the module's prolog runs.
+void Reapply(uint32_t start, uint32_t end);
 bool Active();
 void RunPatched(uint32_t address, CpuContext* ctx);
 // BRAWL_INTERPRET=<hex start>-<hex end>: every translated function starting in that range runs in the interpreter, a

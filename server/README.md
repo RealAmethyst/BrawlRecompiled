@@ -1,50 +1,43 @@
-# Brawl Recompiled online server
+# Brawl Recompiled online servers
 
-One small Python program (no dependencies, Python 3.8+) that every copy of Brawl Recompiled can reach: it keeps the
-list of public rooms and relays the games' packets between players, so online play works behind any router with no
-port forwarding. It uses one UDP port, 52200 by default, and very little bandwidth (a match is a few kilobytes a
-second per player).
+Online play needs something every copy of the game can reach, to keep the public room list and turn room codes into
+games. There are two kinds; the game picks by the address in `[online] server` (`Config.toml`, set on the launcher's
+Online page) or the one built into the game.
+
+## The matchmaking Worker (built in, free): `worker/`
+
+A Cloudflare Worker with one Durable Object. No game traffic goes through it: games check in every couple of seconds
+while they are in a room or a match, learn their own public address from a STUN server (stun.l.google.com), and the
+Worker introduces games that want to reach each other. Both games then send "punch" packets to each other's public and
+local addresses until one gets through, and play directly from then on.
+
+It fits easily in Cloudflare's free plan. It can't connect two players whose routers both rewrite ports per destination
+(some mobile and "carrier-grade" connections); those players can use Tailscale, or the relay below.
+
+```bash
+cd worker
+npm install
+npx wrangler login     # once, in a browser
+npx wrangler deploy    # prints https://brawl-online.<your-subdomain>.workers.dev
+npx wrangler dev       # or run it locally at http://127.0.0.1:8787 to test
+```
+
+The address it prints is the server address (`https://...`).
+
+## The UDP relay: `brawl_online_server.py`
+
+One small Python program (no dependencies, Python 3.8+) that relays every packet between players, so it works behind
+any router. It needs an always-on machine with a public IP and UDP port 52200 open (a VPS, or your own PC with the port
+forwarded). Its address is `host:52200`.
 
 ```bash
 python3 brawl_online_server.py --port 52200
 ```
 
-The games find the server through `[online] server` in `Config.toml` (the launcher's Online page sets it), or the
-address built into the game when there is one. A room code is the host's id on the server, so codes only work between
-players on the same server.
+`brawl-online.service` runs it under systemd; `Dockerfile` and `fly.toml` run it on Fly.io (which needs a dedicated
+IPv4 for UDP, about $2 a month).
 
-## Running it for everyone
-
-Any always-on machine with a public IP and UDP port 52200 open works. Free or nearly free options:
-
-### Oracle Cloud Always Free (free)
-
-1. Create an account at <https://www.oracle.com/cloud/free/> and make a VM with the "Always Free" shape, Ubuntu image.
-2. In the VM's subnet, open **Security List > Add Ingress Rule**: source `0.0.0.0/0`, protocol **UDP**, port **52200**.
-3. On the VM:
-   ```bash
-   sudo iptables -I INPUT -p udp --dport 52200 -j ACCEPT
-   sudo netfilter-persistent save
-   sudo mkdir -p /opt/brawl && sudo cp brawl_online_server.py /opt/brawl/
-   sudo cp brawl-online.service /etc/systemd/system/
-   sudo systemctl enable --now brawl-online
-   journalctl -u brawl-online -f      # see it running
-   ```
-4. The VM's public IP (or a domain name pointed at it) plus `:52200` is the server address.
-
-### Fly.io (about $2 a month: UDP needs a dedicated IPv4 there)
-
-```bash
-fly launch --no-deploy --copy-config --name brawl-online   # in this folder, with fly.toml and the Dockerfile
-fly ips allocate-v4
-fly deploy
-```
-The address is `brawl-online.fly.dev:52200`.
-
-### Your own PC
-
-Run the server, forward UDP port 52200 on your router to that PC, and give players your public IP (or a dynamic-DNS
-name). It must stay running while people play.
+A room code is the host's id, so codes only work between players using the same server.
 
 ## Making it the built-in server
 

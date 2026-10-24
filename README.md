@@ -81,12 +81,16 @@ install into a build's `pf` folder exactly as on a Wii.
 
 ## Online play
 
-Press F10 in the game and open **Online**:
+Press **F9** in the game (or use **Online** in the launcher):
 
-- **Host a room** for 2 to 4 players, then **Start** once everyone is in.
-- **Find rooms** lists rooms on your network and on [Tailscale](https://tailscale.com). To join over the internet
-  without Tailscale, type the host's address and click **Find**; the host forwards UDP port 52130 to their PC.
+- **Host a room** for 2 to 4 players: list it publicly, or keep it to friends, who join with its 5-letter room code.
+- **Find rooms** shows public rooms, rooms on your network and rooms over [Tailscale](https://tailscale.com).
+- **Join with a code** takes a friend's room code (or an IP address).
 - Starting a room hands everyone the host's save and restarts every game into the match together.
+
+Over the internet the games connect directly to each other, with no port forwarding: a free matchmaking server only
+introduces them (see `server/`). A few home and mobile connections can't be reached that way; if a code never
+connects, Tailscale gets around it.
 
 Every player needs the same build: vanilla, or the same mod (the Mods page; online with a mod is new, and works best
 when everyone's `UserData\SD` folder is a copy of the same download). The games run in lockstep: each

@@ -154,6 +154,9 @@ bool LinkAtHome(uint32_t header, uint32_t gameBss) {
                 GuestCodePatch::ResetPristine(value & ~1u, (value & ~1u) + size);
             }
         }
+        // The pristine image just replaced the code handler's hooks, and the module's prolog may run them right away
+        // (Project+ loads its stock icons from one in sora_scene).
+        GuestCodePatch::Reapply(m->image + keep, m->image + m->fixSize);
     }
     for (uint32_t field = 0; field < 3; ++field) {  // prolog, epilog, unresolved
         const uint8_t section = Memory::Read8(header + 0x30u + field);
@@ -222,6 +225,23 @@ void BrawlModulesSnapshotImages() {
     for (size_t i = 0; i < sizeof(kModules) / sizeof(kModules[0]); ++i) {
         const auto* image = static_cast<const uint8_t*>(Memory::GetPointer(kModules[i].image, kModules[i].fixSize));
         g_pristine[i].assign(image, image + kModules[i].fixSize);
+    }
+}
+
+// After the code handler's boot pass (Gecko::Install): what it wrote into the resident modules' pre-linked images,
+// which no write trap covers yet. Each link at home starts from the pristine image and puts these back.
+void BrawlModulesRecordBootPatches() {
+    std::lock_guard<std::mutex> lock(g_modulesMutex);
+    for (size_t i = 0; i < sizeof(kModules) / sizeof(kModules[0]); ++i) {
+        const BrawlModule& m = kModules[i];
+        if (!m.resident) continue;
+        const auto* now = static_cast<const uint8_t*>(Memory::GetPointer(m.image, m.fixSize));
+        for (uint32_t offset = 0x4Cu; offset + 4 <= m.fixSize; offset += 4) {
+            if (std::memcmp(now + offset, g_pristine[i].data() + offset, 4) == 0) continue;
+            uint32_t value = 0;
+            std::memcpy(&value, now + offset, 4);
+            GuestCodePatch::RecordPatch(m.image + offset, value);
+        }
     }
 }
 

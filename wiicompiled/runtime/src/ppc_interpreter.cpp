@@ -64,10 +64,13 @@ const std::vector<uint32_t>& TracePcs() {
 }
 
 void TracePc(const CpuContext* c, uint32_t pc) {
-    static std::unordered_map<uint32_t, int> hits;
+    static std::unordered_map<uint64_t, int> hits;
     static std::mutex mutex;
+    // BRAWL_TRACE_UNIQUE=1: once per (pc, lr, r4) instead of the first 20 hits (e.g. every character a print
+    // function is asked for, whenever it happens).
+    static const bool unique = std::getenv("BRAWL_TRACE_UNIQUE") != nullptr;
     std::lock_guard<std::mutex> lock(mutex);
-    if (hits[pc]++ >= 20) return;
+    if (unique ? hits[(uint64_t{pc} << 32) ^ (uint64_t{c->lr} << 16) ^ c->gpr[4]]++ > 0 : hits[pc]++ >= 20) return;
     std::string regs;
     char item[24];
     for (int r = 0; r < 32; ++r) {

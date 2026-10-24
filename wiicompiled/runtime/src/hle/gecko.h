@@ -13,6 +13,8 @@ void Install();
 // Which build this game runs, for network play to check that everyone runs the same one: "vanilla" without codes,
 // otherwise the codes' SD folder and a hash of the code list.
 std::string BuildIdentity();
+// A problem with how the mods are laid out on the SD card, for the player (empty when there is none).
+const std::string& SetupProblem();
 // VISetNextFrameBuffer_HLE stands in for the guest function whose blr the VBI hook replaces.
 void RunVbiHook(CpuContext* ctx);
 

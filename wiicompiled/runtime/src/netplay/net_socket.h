@@ -53,6 +53,7 @@ public:
 private:
     bool SendRaw(const Address& to, const void* data, size_t size);
     void RelayTick();
+    int OnlinePacket(Address& from, uint8_t* bytes, int received);
 
     intptr_t m_socket = -1;
     uint16_t m_port = 0;
@@ -60,10 +61,11 @@ private:
     int64_t m_lastRelayRegister = 0;  // steady-clock milliseconds
 };
 
-// Online play over the internet through Brawl Recompiled's server (server/brawl_online_server.py). Every game
-// registers there under its own id; other games are reached at relay addresses, 240.x.y.z, which UdpSocket
-// sends through the server, so nobody needs port forwarding. The server ([online] server in Config.toml, or
-// BRAWL_ONLINE_SERVER) also keeps the list of public rooms.
+// Online play over the internet. Every game has its own id; other games are reached at relay addresses, 240.x.y.z,
+// which UdpSocket maps to them. The server ([online] server in Config.toml, or BRAWL_ONLINE_SERVER) is either the
+// free matchmaking Worker (an https:// address, server/worker), which introduces games so they connect directly, or
+// the UDP relay (host:port, server/brawl_online_server.py), which carries their packets. Either keeps the public
+// room list.
 namespace Relay {
 
 bool Enabled();    // a server is set

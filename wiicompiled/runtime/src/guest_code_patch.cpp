@@ -40,6 +40,7 @@ std::mutex g_mutex;
 std::vector<std::pair<uint32_t, uint32_t>> g_ranges;                              // guarded code, [start, end)
 std::unordered_map<uint32_t, std::unique_ptr<std::array<uint8_t, kPage>>> g_pristine;  // by page address
 std::unordered_set<uint32_t> g_dirty;                                              // page addresses written since Sync
+std::unordered_map<uint32_t, uint32_t> g_sites;  // every word a mod patched, and what it wrote there (guest order)
 std::unordered_set<uint32_t> g_reported;                                           // functions logged as patched
 std::unordered_set<uint32_t> g_loggedWords;                                        // BRAWL_PATCH_LOG words logged
 std::vector<uint32_t> g_forced;                                                    // BRAWL_INTERPRET guard indices
@@ -163,6 +164,7 @@ void Sync() {
                 if (std::memcmp(now + offset, was + offset, 4) == 0) continue;
                 const uint32_t address = page + offset;
                 if (!IsGuardedLocked(address)) continue;
+                std::memcpy(&g_sites[address], now + offset, 4);
                 // BRAWL_PATCH_LOG: every changed word, once (the pristine copy stays the disc's code).
                 static const bool logWords = std::getenv("BRAWL_PATCH_LOG") != nullptr;
                 if (logWords && g_loggedWords.insert(address).second) {
@@ -188,18 +190,51 @@ void Sync() {
 }
 
 void ResetPristine(uint32_t start, uint32_t end) {
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        SnapshotLocked(start, end);
+        for (int64_t index = FunctionIndex(start); index >= 0 && index < static_cast<int64_t>(g_mkwGuardedFunctionCount); ++index) {
+            const uint32_t function = g_mkwGuardedFunctionStarts[index];
+            if (function >= end) break;
+            if (function >= start) {
+                g_mkwGuestCodePatched[index] = 0;
+                g_reported.erase(function);  // a patch of the reloaded code is news again
+            }
+        }
+        for (const uint32_t index : g_forced) {  // the interpreter check outlives a module's relink
+            const uint32_t function = g_mkwGuardedFunctionStarts[index];
+            if (function >= start && function < end) g_mkwGuestCodePatched[index] = 1;
+        }
+        for (uint32_t page = start & ~(kPage - 1); page < end; page += kPage) g_dirty.erase(page);
+        for (auto it = g_loggedWords.begin(); it != g_loggedWords.end();) {
+            it = *it >= start && *it < end ? g_loggedWords.erase(it) : std::next(it);
+        }
+    }
+    // Loading the module opened its pages for good: guard them again, or a Gecko hook the code handler writes into
+    // the fresh code later (Project+'s stock icon loader in the character select module) goes unnoticed and the
+    // translated original runs instead.
+    for (uint32_t page = start & ~(kPage - 1); page < end; page += kPage) GuestFlat::ReprotectExecutablePage(page);
+}
+
+void RecordPatch(uint32_t address, uint32_t value) {
     std::lock_guard<std::mutex> lock(g_mutex);
-    SnapshotLocked(start, end);
-    for (int64_t index = FunctionIndex(start); index >= 0 && index < static_cast<int64_t>(g_mkwGuardedFunctionCount); ++index) {
-        const uint32_t function = g_mkwGuardedFunctionStarts[index];
-        if (function >= end) break;
-        if (function >= start) g_mkwGuestCodePatched[index] = 0;
+    g_sites[address] = value;
+}
+
+void Reapply(uint32_t start, uint32_t end) {
+    std::vector<std::pair<uint32_t, uint32_t>> writes;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        for (const auto& [address, value] : g_sites) {
+            if (address >= start && address < end) writes.emplace_back(address, value);
+        }
     }
-    for (const uint32_t index : g_forced) {  // the interpreter check outlives a module's relink
-        const uint32_t function = g_mkwGuardedFunctionStarts[index];
-        if (function >= start && function < end) g_mkwGuestCodePatched[index] = 1;
+    if (writes.empty()) return;
+    for (const auto& [address, value] : writes) {  // through the write trap, as the code handler's own stores go
+        std::memcpy(Memory::GetPointer(address, 4), &value, 4);
+        NoteWrite(address);
     }
-    for (uint32_t page = start & ~(kPage - 1); page < end; page += kPage) g_dirty.erase(page);
+    Sync();
 }
 
 void RunPatched(uint32_t address, CpuContext* ctx) {

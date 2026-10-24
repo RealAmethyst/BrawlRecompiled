@@ -11,6 +11,7 @@ extern "C" uint8_t* aurora_load_png_rgba(const char* path, uint32_t* width, uint
 #include "settings_overlay.h"
 #include "online_menu.h"
 #include "graphics_info.h"
+#include "hle/gecko.h"
 #include "audio_backend.h"
 #include "aurora_events.h"
 #include "controller_button_names.h"
@@ -258,6 +259,13 @@ void LimitResolutionForIntegratedGpu() {
 }
 
 void DrawNotice() {
+    static const bool modProblemShown = [] {
+        if (Gecko::SetupProblem().empty()) return false;
+        g_notice = Gecko::SetupProblem();
+        g_noticeFrames = 60 * 15;
+        return true;
+    }();
+    (void)modProblemShown;
     if (g_noticeFrames <= 0 || StartupScreenVisible()) {
         return;
     }

@@ -602,8 +602,8 @@ sealed class MainForm : Form
 
         body.Controls.Add(new Label { Text = "Server", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Snow, AutoSize = true, Margin = S(0, 14, 0, 2) });
         body.Controls.Add(Labeled("Online server", Field("online", "server", "the built-in server", 320)));
-        body.Controls.Add(Note("Leave this empty to use the built-in server. Running your own (server/brawl_online_server.py)? Put its address here, " +
-                               "for example myserver.example.com:52200. Without a server, rooms still work on your network and over Tailscale."));
+        body.Controls.Add(Note("Leave this empty to use the built-in server. Running your own? Put its address here: an https:// address for a " +
+                               "matchmaking Worker (server/worker), or host:port for a relay (server/brawl_online_server.py). Rooms on your network and over Tailscale always work."));
         return card;
     }
 

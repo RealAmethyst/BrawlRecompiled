@@ -66,6 +66,8 @@ std::optional<fs::path> FindFile(const fs::path& directory, const std::string& n
     return std::nullopt;
 }
 
+std::string g_setupProblem;  // FindCodes' advice when the card's layout hides a mod
+
 std::optional<fs::path> FindCodes() {
     const fs::path userData = RuntimeConfigFile::ApplicationDataDirectory();
     // Config.toml [mods] sd_codes: the card folder whose codes load when several builds share the card (the
@@ -84,6 +86,18 @@ std::optional<fs::path> FindCodes() {
     std::sort(folders.begin(), folders.end());
     for (const auto& folder : folders) {
         if (auto codes = FindFile(folder, "RSBE01.GCT")) return codes;
+    }
+    // A download unpacked into a folder of its own (SD/Project+ v3.2.1 (Wii Lite)/Project+/RSBE01.GCT): its codes
+    // look for their files at the card's root, so say what to move instead of quietly starting the vanilla game.
+    for (const auto& folder : folders) {
+        for (const auto& entry : fs::directory_iterator(folder, ec)) {
+            if (!entry.is_directory(ec) || !FindFile(entry.path(), "RSBE01.GCT")) continue;
+            const std::string outer = reinterpret_cast<const char*>(folder.filename().u8string().c_str());
+            g_setupProblem = "Your mod is one folder too deep: move everything inside SD\\" + outer +
+                             " straight into the SD folder. Starting Brawl without it.";
+            RT_LOGF(RT_TAG_MOD, "[gecko] %s\n", g_setupProblem.c_str());
+            return FindFile(userData / "Codes", "RSBE01.gct");
+        }
     }
     return FindFile(userData / "Codes", "RSBE01.gct");
 }
@@ -140,7 +154,15 @@ GameConfig ReadGameConfig(const fs::path& path) {
 
 } // namespace
 
+void BrawlModulesRecordBootPatches();  // hle/brawl_modules.cpp
+
 namespace Gecko {
+
+const std::string& SetupProblem() {
+    static const bool searched = (FindCodes(), true);
+    (void)searched;
+    return g_setupProblem;
+}
 
 std::string BuildIdentity() {
     static const std::string identity = [] {
@@ -198,6 +220,7 @@ void Install() {
     boot.gpr[1] = kBootStack;
     InvokeIndirectCpu(kHandlerEntry, &boot);
     GuestCodePatch::Sync();
+    BrawlModulesRecordBootPatches();
 }
 
 void RunVbiHook(CpuContext* ctx) {

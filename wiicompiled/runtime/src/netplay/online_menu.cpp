@@ -63,6 +63,7 @@ struct State {
     int codeCursor = 0;
     std::string message;  // a line in red under the banner
     Netplay::Address pendingHost;
+    double pendingSince = 0;  // ImGui time the code was entered
     int browseFirst = 0;
     Phase lastPhase = Phase::Off;
 };
@@ -262,6 +263,7 @@ void JoinTyped(const std::string& text) {
         return;
     }
     g.pendingHost = address;
+    g.pendingSince = ImGui::GetTime();
     NetplayLobby::AddKnownDevice(Netplay::ToString(address));
     NetplayLobby::Browse();
 }
@@ -724,6 +726,11 @@ void Draw() {
                 break;
             }
         }
+    }
+    if (lobby.phase == Phase::Browsing && g.pendingHost.Valid() && Netplay::Relay::IsRelayAddress(g.pendingHost) &&
+        ImGui::GetTime() - g.pendingSince > 20 && g.message.empty()) {
+        g.message = "Can't reach that room yet. Check the code with the host. If it's right, a router between you blocks "
+                    "direct connections: Tailscale (free) gets around that.";
     }
     if (lobby.phase != Phase::Browsing && lobby.phase != Phase::Joining) g.pendingHost = {};
     if (g.open) DrawPanel();
