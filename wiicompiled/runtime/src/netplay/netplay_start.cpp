@@ -19,6 +19,12 @@
 #include <windows.h>
 #endif
 
+#if !defined(_WIN32) && !defined(__ANDROID__)
+#include <fcntl.h>
+#include <unistd.h>
+void RuntimeShutdownProcessTranscript();  // main.cpp
+#endif
+
 #if defined(__ANDROID__)
 namespace AndroidBridge {
 bool RestartGame();
@@ -41,7 +47,26 @@ std::filesystem::path SessionNand() {
 std::vector<std::string> g_names;
 bool g_isHost = false;
 
-constexpr const char* kSaveFile = "title/00010000/534d4e45/data/wiimj2d.sav";
+// Brawl's save, both copies of each part: what the host keeps from a session.
+constexpr const char* kSaveFiles[] = {
+    "title/00010000/52534245/data/autosv0.bin",
+    "title/00010000/52534245/data/autosv1.bin",
+    "title/00010000/52534245/data/advsv0.bin",
+    "title/00010000/52534245/data/advsv1.bin",
+};
+
+// Copies the session's save over the player's own. Call with the NAND override cleared.
+void KeepSessionSave(const char* what) {
+    for (const char* file : kSaveFiles) {
+        std::error_code ec;
+        const auto played = SessionNand() / std::filesystem::u8path(file);
+        const auto mine = RuntimeNandPath::ResolveNandRootPath() / std::filesystem::u8path(file);
+        if (!std::filesystem::exists(played, ec)) continue;
+        std::filesystem::create_directories(mine.parent_path(), ec);
+        std::filesystem::copy_file(played, mine, std::filesystem::copy_options::overwrite_existing, ec);
+        RT_LOGF(RT_TAG_RUNTIME, "netplay: kept %s %s (%s)\n", what, file, ec ? ec.message().c_str() : "ok");
+    }
+}
 
 [[noreturn]] void RestartProcess() {
 #if defined(_WIN32)
@@ -60,6 +85,20 @@ constexpr const char* kSaveFile = "title/00010000/534d4e45/data/wiimj2d.sav";
     TerminateProcess(GetCurrentProcess(), 0);
 #elif defined(__ANDROID__)
     AndroidBridge::RestartGame();
+#else
+    // Linux: the same executable again, in place of this process, with the console's own output back and none of
+    // this process's other descriptors (the guest RAM, sockets, the window) carried over.
+    RuntimeShutdownProcessTranscript();
+    for (int fd = 3; fd < 4096; ++fd) {
+        fcntl(fd, F_SETFD, FD_CLOEXEC);
+    }
+    char exe[4096] = {};
+    const ssize_t length = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+    if (length > 0) {
+        char* argv[] = {exe, nullptr};
+        execv(exe, argv);
+    }
+    RT_LOGF(RT_TAG_RUNTIME, "netplay: could not start the game again\n");
 #endif
     std::_Exit(0);
 }
@@ -113,13 +152,7 @@ void RecoverHostSave() {
     if (!std::filesystem::exists(HostMarker(), ec)) {
         return;
     }
-    const auto played = SessionNand() / std::filesystem::u8path(kSaveFile);
-    const auto mine = RuntimeNandPath::ResolveNandRootPath() / std::filesystem::u8path(kSaveFile);
-    if (std::filesystem::exists(played, ec)) {
-        std::filesystem::copy_file(played, mine, std::filesystem::copy_options::overwrite_existing, ec);
-        RT_LOGF(RT_TAG_RUNTIME, "netplay: kept the save from the last session you hosted (%s)\n",
-                ec ? ec.message().c_str() : "ok");
-    }
+    KeepSessionSave("from the last session you hosted:");
     std::filesystem::remove(HostMarker(), ec);
 }
 
@@ -185,14 +218,8 @@ void PrepareToLeave() {
     if (g_isHost) {
         std::error_code markerError;
         std::filesystem::remove(HostMarker(), markerError);
-        std::error_code ec;
         RuntimeNandPath::NandRootOverride().clear();
-        const auto mine = RuntimeNandPath::ResolveNandRootPath() / std::filesystem::u8path(kSaveFile);
-        const auto played = SessionNand() / std::filesystem::u8path(kSaveFile);
-        if (std::filesystem::exists(played, ec)) {
-            std::filesystem::copy_file(played, mine, std::filesystem::copy_options::overwrite_existing, ec);
-            RT_LOGF(RT_TAG_RUNTIME, "netplay: kept the session's save (%s)\n", ec ? ec.message().c_str() : "ok");
-        }
+        KeepSessionSave("from the session:");
     }
     std::error_code ec;
     std::filesystem::remove(SessionFile(), ec);

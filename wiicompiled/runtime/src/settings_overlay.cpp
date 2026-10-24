@@ -9,6 +9,8 @@ extern "C" uint8_t* aurora_load_png_rgba(const char* path, uint32_t* width, uint
 #include "netplay_lobby.h"
 #include "netplay_ui.h"
 #include "settings_overlay.h"
+#include "online_menu.h"
+#include "graphics_info.h"
 #include "audio_backend.h"
 #include "aurora_events.h"
 #include "controller_button_names.h"
@@ -234,6 +236,43 @@ void LimitResolutionForFrameRate() {
     if (IsHighFrameRateMode() && IsHighResolutionScale(g_resolutionScale)) {
         SetResolutionScale(4.0f);
     }
+}
+
+// A short message along the bottom of the screen for a few seconds (after the title card).
+std::string g_notice;
+int g_noticeFrames = 0;
+
+// An integrated GPU (a mini PC's Radeon 780M in a player's video) drops well below 60 fps above 1080p: start at
+// 1080p for this session and say so. The saved choice stays, and F10 can raise it again.
+void LimitResolutionForIntegratedGpu() {
+    if (!GraphicsInfo::Integrated() || DisplaySettings::LinesForScale(g_resolutionScale) <= 1080.5f) {
+        return;
+    }
+    g_resolutionScale = 2.25f;
+    DisplaySettings::Settings settings = DisplaySettings::Latest();
+    settings.renderScale = g_resolutionScale;
+    DisplaySettings::Request(settings);
+    g_notice = "Integrated graphics: rendering at 1080p to keep the game at full speed. F10 > Resolution raises it.";
+    g_noticeFrames = 60 * 8;
+    RT_LOGF(RT_TAG_CONFIG, "integrated GPU: rendering at 1080p this session (the saved resolution is kept)\n");
+}
+
+void DrawNotice() {
+    if (g_noticeFrames <= 0 || StartupScreenVisible()) {
+        return;
+    }
+    --g_noticeFrames;
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + viewport->Size.x * 0.5f, viewport->Pos.y + viewport->Size.y - 24.0f),
+                            ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+    ImGui::SetNextWindowBgAlpha(0.7f);
+    if (ImGui::Begin("Notice", nullptr,
+                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs |
+                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing)) {
+        ImGui::SetWindowFontScale(std::max(1.0f, viewport->Size.y / 720.0f));
+        ImGui::TextUnformatted(g_notice.c_str());
+    }
+    ImGui::End();
 }
 
 using ControllerNames::FindNativeButton;
@@ -1158,7 +1197,7 @@ void DrawGraphicsSettings() {
             "rate (60 Hz, or the frame interpolation target).");
     }
     constexpr std::array<const char*, 3> kFrameInterpolationModes{
-        "Off", "120 FPS", "180 FPS",
+        "Off", "120 FPS (120 Hz+ screen)", "180 FPS (180 Hz+ screen)",
     };
     const char* currentFrameInterpolationMode =
         kFrameInterpolationModes[static_cast<size_t>(g_frameInterpolationMode)];
@@ -1356,6 +1395,8 @@ void DrawShaderCompilationStatus() {
 }
 
 std::string StartButtonName();
+std::string g_busyLabel;  // SetBusyProgress
+float g_busyFraction = 0.0f;
 
 void DrawStartupScreen() {
     if (!StartupScreenVisible()) {
@@ -1390,7 +1431,9 @@ void DrawStartupScreen() {
         float titleHeight = ImGui::GetTextLineHeight();
         const bool gameFonts = GameLayout::FontReady(pmFont.get());
         char shaderLine[96] = {};
-        if (g_bootShaderNotice && !g_bootShadersReady.load(std::memory_order_relaxed)) {
+        if (!g_busyLabel.empty()) {
+            std::snprintf(shaderLine, sizeof(shaderLine), "%s", g_busyLabel.c_str());
+        } else if (g_bootShaderNotice && !g_bootShadersReady.load(std::memory_order_relaxed)) {
             std::snprintf(shaderLine, sizeof(shaderLine), "Compiling shaders... %u to go",
                           aurora_get_queued_pipeline_count());
         }
@@ -1499,7 +1542,7 @@ void DrawStartupScreen() {
                 GameLayout::DrawText(list, view, small, u, 0.0f, cardY - 30.0f + bob, Fit(small, u, 17.0f), 0xD6D9E4FFu,
                                      0xB8BCCBFFu, 1.0f, 1, 1);
                 // How to reach the settings, along the card's bottom edge.
-                const auto hint = GameLayout::Utf16("F10 = settings menu   F11 = fullscreen / window");
+                const auto hint = GameLayout::Utf16("F9 = online play   F10 = settings   F11 = fullscreen / window");
                 GameLayout::DrawText(list, view, small, hint, 0.0f, cardY - hh + 16.0f + bob, Fit(small, hint, 12.0f),
                                      0x8E93A6FFu, 0x8E93A6FFu, 1.0f, 1, 1);
             }
@@ -1507,9 +1550,16 @@ void DrawStartupScreen() {
                 const float bw = 180.0f, by = cardY - 70.0f;
                 list->AddRectFilled(R(-bw, by + 10, 0, 0), R(bw, by - 10, 0, 0), IM_COL32(8, 10, 18, 255), 5.0f * k);
                 list->AddRectFilled(R(-bw + 4, by + 6, 0, 0), R(bw - 4, by - 6, 0, 0), IM_COL32(52, 58, 80, 255), 3.0f * k);
-                const float p = std::fmod(t * 0.6f, 1.0f);
-                const float sx = -bw + 4 + p * (2 * bw - 58);
-                list->AddRectFilled(R(sx, by + 6, 0, 0), R(sx + 50, by - 6, 0, 0), IM_COL32(255, 140, 40, 255), 3.0f * k);
+                if (!g_busyLabel.empty()) {
+                    const float fill = -bw + 4 + std::clamp(g_busyFraction, 0.0f, 1.0f) * (2 * bw - 8);
+                    list->AddRectFilled(R(-bw + 4, by + 6, 0, 0), R(fill, by - 6, 0, 0), IM_COL32(255, 140, 40, 255),
+                                        3.0f * k);
+                } else {
+                    const float p = std::fmod(t * 0.6f, 1.0f);
+                    const float sx = -bw + 4 + p * (2 * bw - 58);
+                    list->AddRectFilled(R(sx, by + 6, 0, 0), R(sx + 50, by - 6, 0, 0), IM_COL32(255, 140, 40, 255),
+                                        3.0f * k);
+                }
                 const auto u = GameLayout::Utf16(shaderLine);
                 GameLayout::DrawText(list, view, small, u, 0.0f, by - 26.0f + bob, Fit(small, u, 15.0f), 0xD6D9E4FFu,
                                      0xD6D9E4FFu, 1.0f, 1, 1);
@@ -1722,6 +1772,11 @@ void DrawTopBar() {
         ImGui::EndMenu();
     }
 
+    if (ImGui::MenuItem("Online (F9)")) {
+        OnlineMenu::SetOpen(true);
+        SetTopBarVisible(false);
+    }
+
     if (ImGui::BeginMenu("Controller settings")) {
         DrawControllerSettings();
         // Nest capture under this menu so opening/closing the modal preserves
@@ -1811,7 +1866,7 @@ void PersistDisplayModeIfChanged() {
 
 void ApplyInputBlockState() {
     const bool blocked = controller_mapping_wizard::IsActive() || g_rebind.active ||
-                         g_exitPromptOpen || g_topBarVisible || StartupScreenVisible();
+                         g_exitPromptOpen || g_topBarVisible || StartupScreenVisible() || OnlineMenu::IsOpen();
     PADBlockInput(blocked);
     InputBindings::SetInputBlocked(blocked);
 }
@@ -1835,6 +1890,7 @@ void InitializeRuntimeSettings() noexcept {
 #endif
     const uint32_t targetFps = kFrameInterpolationTargetFps[static_cast<size_t>(g_frameInterpolationMode)];
     LimitResolutionForFrameRate();
+    LimitResolutionForIntegratedGpu();
     aurora_set_frame_interpolation_fps(targetFps);
     AuroraSetTexturePatches(RuntimeConfigFile::SpinningCoins(true));
     aurora_set_vsync(g_vsync.load());
@@ -1880,6 +1936,12 @@ void HandleEvents(const AuroraEvent* events) noexcept {
         }
         if (!g_rebind.active && IsToggleKey(ev->sdl, SDL_SCANCODE_F10)) {
             SetTopBarVisible(!g_topBarVisible);
+            ApplyInputBlockState();
+        }
+        // F9: the online play menu.
+        if (!g_rebind.active && IsToggleKey(ev->sdl, SDL_SCANCODE_F9)) {
+            OnlineMenu::SetOpen(!OnlineMenu::IsOpen());
+            if (OnlineMenu::IsOpen()) SetTopBarVisible(false);
             ApplyInputBlockState();
         }
         if (!g_rebind.active && g_muteHotkey != PAD_KEY_INVALID &&
@@ -2196,13 +2258,20 @@ void Draw() noexcept {
     DrawTopBar();
     DrawExitPrompt();
     controller_mapping_wizard::Draw();
+    DrawNotice();
     ApplyInputBlockState();
     DrawControlsPanel();
     DrawStartupScreen();
+    OnlineMenu::Draw();  // above the title card: the launcher can open it at start
+}
+
+void SetBusyProgress(const char* label, float fraction) noexcept {
+    g_busyLabel = label != nullptr ? label : "";
+    g_busyFraction = fraction;
 }
 
 bool StartupScreenVisible() noexcept {
-    return !g_strapInputAccepted.load(std::memory_order_acquire) ||
+    return !g_busyLabel.empty() || !g_strapInputAccepted.load(std::memory_order_acquire) ||
            !g_bootShadersReady.load(std::memory_order_acquire) ||
            g_presentedFrame < g_startupDismissFrame.load(std::memory_order_relaxed);
 }

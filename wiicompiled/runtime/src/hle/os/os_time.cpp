@@ -28,12 +28,14 @@ void ReadTimeBaseRegisters(uint32_t& outHi, uint32_t& outLo)
 } // namespace
 
 namespace OsHleInternal {
-uint64_t ReadSystemTime()
+uint64_t ReadSystemTime(bool guestRead)
 {
     uint64_t timeBase = 0;
     if (DetClock::Enabled()) {
-        // The HLE's own reads (alarm due checks, OSSetAlarm) don't step the deterministic timeline.
-        timeBase = DetClock::Now();
+        // The HLE's own reads (alarm due checks, OSSetAlarm) don't step the deterministic timeline. A guest read
+        // does: Brawl re-arms its periodic pad alarm from the alarm itself, and a read that never moves gives it
+        // the same fire time forever.
+        timeBase = guestRead ? DetClock::ReadForGuest() : DetClock::Now();
     } else {
         uint32_t hi1 = 0;
         uint32_t lo = 0;
@@ -72,7 +74,7 @@ extern "C" uint32_t OS____GetSystemTime_801aad7c(uint32_t /*r3_hi*/, uint32_t /*
 
     uint64_t now = 0;
     try {
-        now = ReadSystemTime();
+        now = ReadSystemTime(true);
     } catch (const ::Memory::AccessViolation& e) {
         LogMemoryError(RT_TAG_OS, "OS____GetSystemTime_801aad7c", e);
         now = (static_cast<uint64_t>(PPC_Mftbu()) << 32) | PPC_Mftb();

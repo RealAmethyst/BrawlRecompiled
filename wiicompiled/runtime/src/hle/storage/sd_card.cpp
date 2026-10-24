@@ -7,6 +7,8 @@
 
 #include "sd_card.h"
 
+#include "det_clock.h"
+#include "hle/gecko.h"
 #include "runtime_config.h"
 #include "runtime_log.h"
 
@@ -52,6 +54,14 @@ uint64_t g_size = 0;
 bool g_tried = false;
 fs::path g_imagePath;
 fs::path g_folder;  // empty: a plain image, nothing to sync back
+
+SdCard::ProgressHandler g_progress = nullptr;
+uint64_t g_progressDone = 0, g_progressTotal = 0;
+
+void ReportProgress(uint64_t bytes) {
+    g_progressDone += bytes;
+    if (g_progress) g_progress(g_progressDone, g_progressTotal);
+}
 
 // The image FatFs works on while building or syncing.
 FILE* g_fatfsDisk = nullptr;
@@ -235,6 +245,8 @@ bool BuildImage(const Manifest& manifest) {
     }
 
     std::vector<char> buffer(4 * kMiB);
+    g_progressDone = 0;
+    g_progressTotal = content;
     for (auto it = manifest.begin(); ok && it != manifest.end(); ++it) {
         const auto& [path, entry] = *it;
         const std::string target = VolumePath(path);
@@ -257,6 +269,7 @@ bool BuildImage(const Manifest& manifest) {
         for (size_t got; ok && (got = std::fread(buffer.data(), 1, buffer.size(), source)) > 0;) {
             UINT written = 0;
             ok = f_write(&file, buffer.data(), static_cast<UINT>(got), &written) == FR_OK && written == got;
+            ReportProgress(got);
         }
         std::fclose(source);
         ok = f_close(&file) == FR_OK && ok;
@@ -303,6 +316,7 @@ bool PutFile(const std::string& path, const Entry& entry) {
     for (size_t got; ok && (got = std::fread(buffer.data(), 1, buffer.size(), source)) > 0;) {
         UINT written = 0;
         ok = f_write(&file, buffer.data(), static_cast<UINT>(got), &written) == FR_OK && written == got;
+        ReportProgress(got);
     }
     std::fclose(source);
     ok = f_close(&file) == FR_OK && ok;
@@ -330,6 +344,8 @@ bool UpdateImage(const Manifest& built, const Manifest& current) {
         if (!current.count(path)) gone.push_back(path);
     }
     if (put.size() + gone.size() > 256) return false;  // a new mod: a fresh card sized for it
+    g_progressDone = 0;
+    g_progressTotal = bytes;
     FILE* disk = OpenFile(g_imagePath, "r+b");
     if (!disk) return false;
     g_fatfsDisk = disk;
@@ -402,6 +418,12 @@ void SyncBack(const fs::path& relative, const Manifest& built, int& copied) {
 bool OpenLocked() {
     if (g_tried) return g_image != nullptr;
     g_tried = true;
+    // Online (deterministic mode) a vanilla game has no card at all, so an empty SD folder on one player's PC and none
+    // on another's can't make their games differ.
+    if (RuntimeConfigFile::ModsVanilla() || (DetClock::Enabled() && Gecko::BuildIdentity() == "vanilla")) {
+        RT_LOGF(RT_TAG_NAND, "[sd] vanilla (no mods) chosen: no SD card\n");
+        return false;
+    }
     const fs::path userData = RuntimeConfigFile::ApplicationDataDirectory();
     std::error_code ec;
     if (fs::is_directory(userData / "SD", ec)) {
@@ -463,9 +485,16 @@ extern "C" DWORD get_fattime() { return FatTime(std::time(nullptr)); }
 
 namespace SdCard {
 
+void SetProgressHandler(ProgressHandler handler) { g_progress = handler; }
+
 bool Present() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    return OpenLocked();
+    const bool open = OpenLocked();
+    if (g_progressTotal != 0) {  // a build or update ran (or failed part way): take its progress off the screen
+        if (g_progress) g_progress(g_progressTotal, g_progressTotal);
+        g_progressTotal = 0;
+    }
+    return open;
 }
 
 uint64_t SizeBytes() {

@@ -143,7 +143,9 @@ bool ProcessAlarmQueue(CpuContext* cpu, int maxToProcess);
 uint64_t NextAlarmTicks();
 
 // Defined in os_time.cpp.
-uint64_t ReadSystemTime();
+// guestRead: the read is the guest's own (__OSGetSystemTime), so in deterministic mode it steps the timeline like an
+// mftb read; the HLE's own reads (alarm due checks) don't.
+uint64_t ReadSystemTime(bool guestRead = false);
 
 } // namespace OsHleInternal
 

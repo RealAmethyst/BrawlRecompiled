@@ -1,0 +1,11 @@
+[Unit]
+Description=Brawl Recompiled online server
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/brawl/brawl_online_server.py --port 52200
+Restart=always
+DynamicUser=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -175,6 +175,15 @@ sealed class WiiDisc : IDisposable
             var magic = new byte[4];
             f.ReadExactly(magic, 0, 4);
             var m = System.Text.Encoding.ASCII.GetString(magic);
+            // Dolphin's compressed formats and NKit images are the usual reason a dump is refused: say how to fix it.
+            if (m is "RVZ\u0001" or "WIA\u0001" || BinaryPrimitives.ReadUInt32LittleEndian(magic) == 0xB10BC001u)
+                throw new InvalidDataException("This is a Dolphin compressed image (RVZ, WIA or GCZ). In Dolphin, right-click the game, " +
+                                               "choose Convert File, pick ISO, and choose the .iso it makes.");
+            var nkit = new byte[4];
+            if (f.Length > 0x204) { f.Position = 0x200; f.ReadExactly(nkit, 0, 4); }
+            if (System.Text.Encoding.ASCII.GetString(nkit) == "NKIT")
+                throw new InvalidDataException("This is an NKit image, which leaves out parts of the disc. Restore it to a full ISO with " +
+                                               "NKit's Restore tool (or Dolphin's Convert File to ISO), then choose that.");
             return m == "WBFS" ? new Wbfs(path) : m == "CISO" ? new Ciso(path) : new Iso(path);
         }
 

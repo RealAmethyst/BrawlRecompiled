@@ -792,6 +792,7 @@ AuroraInfo initialize(int argc, char* argv[], const AuroraConfig& config) noexce
 #ifdef AURORA_ENABLE_GX
       .gpuName = webgpu::adapter_name(),
       .gpuCompatActive = webgpu::g_safeVertexFetch,
+      .gpuIntegrated = webgpu::adapter_integrated(),
 #endif
   };
 }
@@ -2178,6 +2179,68 @@ bool aurora_flush_efb_copy_to_ram(void* dest) {
 #else
   (void)dest;
   return true;
+#endif
+}
+bool aurora_read_display_copy(uint8_t* rgba, uint32_t width, uint32_t height) {
+#ifdef AURORA_ENABLE_GX
+  // The last finished display copy (the frame on screen), read back once and scaled to width x height RGBA:
+  // what a game that reads its XFB with the CPU sees (Brawl's Classic score screen picture).
+  aurora::wait_for_frame_worker();
+  const auto texture = aurora::gx::g_gxState.displayCopyTexture;
+  if (!texture || rgba == nullptr || width == 0 || height == 0) return false;
+  const auto format = texture->format;
+  const bool bgra = format == wgpu::TextureFormat::BGRA8Unorm || format == wgpu::TextureFormat::BGRA8UnormSrgb;
+  const bool rgba8 = format == wgpu::TextureFormat::RGBA8Unorm || format == wgpu::TextureFormat::RGBA8UnormSrgb;
+  if (!bgra && !rgba8) return false;
+  const uint32_t srcW = texture->size.width, srcH = texture->size.height;
+  const uint32_t bytesPerRow = (srcW * 4 + 255) & ~255u;
+  const uint64_t bufferSize = static_cast<uint64_t>(bytesPerRow) * srcH;
+  const wgpu::BufferDescriptor bufferDescriptor{
+      .label = "Display copy readback",
+      .usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead,
+      .size = bufferSize,
+  };
+  auto buffer = aurora::webgpu::g_device.CreateBuffer(&bufferDescriptor);
+  const wgpu::CommandEncoderDescriptor encoderDescriptor{.label = "Display copy readback encoder"};
+  auto encoder = aurora::webgpu::g_device.CreateCommandEncoder(&encoderDescriptor);
+  const wgpu::TexelCopyTextureInfo source{.texture = texture->texture};
+  const wgpu::TexelCopyBufferInfo destination{
+      .layout = wgpu::TexelCopyBufferLayout{.offset = 0, .bytesPerRow = bytesPerRow, .rowsPerImage = srcH},
+      .buffer = buffer,
+  };
+  const wgpu::Extent3D size{srcW, srcH, 1};
+  encoder.CopyTextureToBuffer(&source, &destination, &size);
+  const auto commandBuffer = encoder.Finish();
+  {
+    std::lock_guard submitLock(aurora::g_queueSubmitMutex);
+    aurora::webgpu::g_queue.Submit(1, &commandBuffer);
+  }
+  const auto status = std::make_shared<wgpu::MapAsyncStatus>(wgpu::MapAsyncStatus::CallbackCancelled);
+  const auto future = buffer.MapAsync(wgpu::MapMode::Read, 0, bufferSize, wgpu::CallbackMode::WaitAnyOnly,
+                                      [status](wgpu::MapAsyncStatus s, wgpu::StringView) { *status = s; });
+  if (aurora::webgpu::g_instance.WaitAny(future, 5000000000) != wgpu::WaitStatus::Success ||
+      *status != wgpu::MapAsyncStatus::Success) {
+    return false;
+  }
+  const auto* pixels = static_cast<const uint8_t*>(buffer.GetConstMappedRange(0, bufferSize));
+  for (uint32_t y = 0; y < height; ++y) {
+    const uint8_t* row = pixels + static_cast<size_t>((y * 2 + 1) * srcH / (height * 2)) * bytesPerRow;
+    for (uint32_t x = 0; x < width; ++x) {
+      const uint8_t* p = row + static_cast<size_t>((x * 2 + 1) * srcW / (width * 2)) * 4;
+      uint8_t* out = rgba + (static_cast<size_t>(y) * width + x) * 4;
+      out[0] = bgra ? p[2] : p[0];
+      out[1] = p[1];
+      out[2] = bgra ? p[0] : p[2];
+      out[3] = 255;
+    }
+  }
+  buffer.Unmap();
+  return true;
+#else
+  (void)rgba;
+  (void)width;
+  (void)height;
+  return false;
 #endif
 }
 AuroraBackend aurora_get_backend() { return aurora::g_config.desiredBackend; }

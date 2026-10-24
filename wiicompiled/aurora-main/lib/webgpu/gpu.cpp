@@ -179,6 +179,7 @@ static void choose_gpu_compat() {
 }
 
 const char* adapter_name() noexcept { return g_adapterName.c_str(); }
+bool adapter_integrated() noexcept { return g_adapterInfo.adapterType == wgpu::AdapterType::IntegratedGPU; }
 
 namespace {
 

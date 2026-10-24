@@ -33,7 +33,7 @@ using WiiRemoteInput::Kind;
 using WiiRemoteInput::KpadSample;
 
 constexpr uint32_t kMagic = 0x4E50574Eu;  // "NWPN"
-constexpr uint8_t kVersion = 1;
+constexpr uint8_t kVersion = 2;  // 2: GameCube controller records
 constexpr uint32_t kNone = 0xFFFFFFFFu;
 constexpr int kMaxSlots = 4;
 constexpr uint32_t kRing = 512;          // frames of input kept per slot
@@ -51,7 +51,7 @@ enum PacketType : uint8_t {
 
 enum RecordFlags : uint8_t {
     kConnected = 0x01,
-    kKindShift = 1,  // 2 bits: 0 remote, 1 + Nunchuk, 2 + Classic
+    kKindShift = 1,  // 2 bits: 0 remote, 1 + Nunchuk, 2 + Classic, 3 GameCube controller (Brawl)
     kRepeat = 0x80,  // same as the previous frame's record in this block
 };
 
@@ -59,7 +59,15 @@ struct InputRecord {
     bool connected = false;
     uint8_t kind = 0;
     KpadSample sample{};
+    FrameInput::GcPad pad{};  // kind kGcPad
 };
+
+constexpr uint8_t kGcPad = 3;
+
+bool SamePad(const FrameInput::GcPad& a, const FrameInput::GcPad& b) {
+    return a.button == b.button && a.stickX == b.stickX && a.stickY == b.stickY && a.substickX == b.substickX &&
+           a.substickY == b.substickY && a.triggerL == b.triggerL && a.triggerR == b.triggerR;
+}
 
 bool SameRecord(const InputRecord& a, const InputRecord& b) {
     if (a.connected != b.connected || a.kind != b.kind) {
@@ -68,14 +76,19 @@ bool SameRecord(const InputRecord& a, const InputRecord& b) {
     if (!a.connected) {
         return true;
     }
+    if (a.kind == kGcPad) {
+        return SamePad(a.pad, b.pad);
+    }
     return std::memcmp(&a.sample, &b.sample, sizeof(KpadSample)) == 0;
 }
 
-// A neutral, connected sideways remote: what every player holds before their first input arrives.
+// A GameCube controller at rest: what every player holds before their first input arrives (Brawl is played on
+// GameCube controllers; a player with only a Wii Remote sends that instead once they press something).
 InputRecord Neutral() {
     InputRecord record;
     record.connected = true;
-    record.sample.acc[1] = -1.0f;
+    record.kind = kGcPad;
+    record.pad.connected = true;
     return record;
 }
 
@@ -139,6 +152,17 @@ void WriteRecord(Writer& w, const InputRecord& record, const InputRecord* previo
     if (!record.connected) {
         return;
     }
+    if (record.kind == kGcPad) {
+        const FrameInput::GcPad& p = record.pad;
+        w.U16(p.button);
+        w.U8(static_cast<uint8_t>(p.stickX));
+        w.U8(static_cast<uint8_t>(p.stickY));
+        w.U8(static_cast<uint8_t>(p.substickX));
+        w.U8(static_cast<uint8_t>(p.substickY));
+        w.U8(p.triggerL);
+        w.U8(p.triggerR);
+        return;
+    }
     const KpadSample& s = record.sample;
     w.U16(static_cast<uint16_t>(s.hold & 0xFFFFu));
     for (float v : s.acc) w.F32(v);
@@ -169,6 +193,18 @@ bool ReadRecord(Reader& r, InputRecord& record, const InputRecord* previous) {
     record.connected = (flags & kConnected) != 0;
     record.kind = static_cast<uint8_t>((flags >> kKindShift) & 3);
     if (!record.connected) {
+        return !r.bad;
+    }
+    if (record.kind == kGcPad) {
+        FrameInput::GcPad& p = record.pad;
+        p.connected = true;
+        p.button = r.U16();
+        p.stickX = static_cast<int8_t>(r.U8());
+        p.stickY = static_cast<int8_t>(r.U8());
+        p.substickX = static_cast<int8_t>(r.U8());
+        p.substickY = static_cast<int8_t>(r.U8());
+        p.triggerL = r.U8();
+        p.triggerR = r.U8();
         return !r.bad;
     }
     KpadSample& s = record.sample;
@@ -515,7 +551,12 @@ uint64_t HashSlice(uint32_t frame) {
                                static_cast<size_t>(to - from));
         }
     };
-    add(0x80000000u, std::min(begin, kMem1), std::min(end, kMem1));
+    // Brawl's 0x804951C0..0x80495380 (0x1C0 bytes of .bss, audio-level-like values) rounds differently on Windows
+    // and Linux while every other byte of a match stays equal (tested 700 frames in), so the check skips it.
+    constexpr uint64_t kSkipFrom = 0x004951C0u, kSkipTo = 0x00495380u;
+    const uint64_t mem1From = std::min(begin, kMem1), mem1To = std::min(end, kMem1);
+    add(0x80000000u, mem1From, std::min(mem1To, std::max(mem1From, kSkipFrom)));
+    add(0x80000000u, std::max(mem1From, kSkipTo), mem1To);
     add(0x90000000u, std::max(begin, kMem1) - kMem1, std::max(end, kMem1) - kMem1);
     const uint64_t hash = XXH3_64bits_digest(state);
     XXH3_freeState(state);
@@ -596,14 +637,20 @@ void FrameSource(uint32_t retrace, FrameInput::Frame& frame) {
     AxDspHle::JoinMixWorker();
     const uint64_t hash = HashSlice(retrace);
 
+    // This device's player: its controller in port 1 (or its first Wii Remote), as that player's port.
     const FrameInput::Frame local = FrameInput::SampleLocal();
     InputRecord mine;
-    mine.connected = local[0].connected;
-    mine.kind = KindCode(local[0].kind);
-    mine.sample = local[0].sample;
-    mine.sample.hold &= ~static_cast<uint32_t>(kWpadHome);  // the HOME Menu would pause one device only
+    if (local[0].pad.connected) {
+        mine = Neutral();
+        mine.pad = local[0].pad;
+    } else {
+        mine.connected = local[0].connected;
+        mine.kind = KindCode(local[0].kind);
+        mine.sample = local[0].sample;
+        mine.sample.hold &= ~static_cast<uint32_t>(kWpadHome);  // the HOME Menu would pause one device only
+    }
     if (!mine.connected) {
-        mine = Neutral();  // a player always has a remote in the session
+        mine = Neutral();  // a player always has a controller in the session
     }
 
     std::unique_lock<std::mutex> lock(s.mutex);
@@ -668,6 +715,11 @@ void FrameSource(uint32_t retrace, FrameInput::Frame& frame) {
         }
         const InputRecord record =
             retrace < s.config.inputDelay ? Neutral() : s.slots[chan].records[retrace % kRing];
+        if (record.kind == kGcPad) {
+            remote.pad = record.pad;
+            remote.pad.connected = record.connected;
+            continue;
+        }
         remote.connected = record.connected;
         remote.kind = KindFromCode(record.kind);
         remote.sample = record.sample;

@@ -11,10 +11,19 @@
 // the next one. Network play swaps the latch source for every player's input for that frame.
 namespace FrameInput {
 
+// A GameCube controller port as PADRead reports it (Brawl's main input).
+struct GcPad {
+    bool connected = false;
+    uint16_t button = 0;
+    int8_t stickX = 0, stickY = 0, substickX = 0, substickY = 0;
+    uint8_t triggerL = 0, triggerR = 0;
+};
+
 struct Remote {
     bool connected = false;
     WiiRemoteInput::Kind kind = WiiRemoteInput::Kind::NotWii;
     WiiRemoteInput::KpadSample sample{};
+    GcPad pad{};  // the GameCube port with the same number
 };
 using Frame = std::array<Remote, 4>;
 

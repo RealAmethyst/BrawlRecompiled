@@ -5,6 +5,9 @@
 #include "netplay_ui.h"
 #include "settings_overlay.h"
 
+// hle/input/pad.cpp: the local GameCube ports as the game would read them now.
+void PAD_HLE_SampleLocalPads(FrameInput::GcPad* pads);
+
 namespace FrameInput {
 namespace {
 
@@ -25,12 +28,18 @@ bool Active() {
 Frame SampleLocal() {
     Frame frame{};
     const bool blocked = InputBindings::InputBlocked();
+    GcPad pads[4]{};
+    PAD_HLE_SampleLocalPads(pads);
     for (uint32_t chan = 0; chan < frame.size(); ++chan) {
+        frame[chan].pad = pads[chan];
+        if (blocked) frame[chan].pad = {frame[chan].pad.connected};  // the overlay owns input: at rest
         Remote& remote = frame[chan];
         remote.kind = WiiRemoteInput::EffectiveKind(chan);
         remote.connected = IsKpad(remote.kind) && WiiRemoteInput::ReadKpadSample(chan, remote.sample);
         if (!remote.connected) {
+            const GcPad pad = remote.pad;
             remote = {};
+            remote.pad = pad;
             continue;
         }
         NetplayUi::FilterGameInput(chan, remote.sample);

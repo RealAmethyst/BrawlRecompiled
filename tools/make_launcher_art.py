@@ -50,7 +50,8 @@ def main():
     night, snow, dim, gold, ink = (0x1A, 0x1E, 0x2C), (0xF2, 0xF2, 0xF6), (0xB8, 0xBC, 0xCB), (0xFF, 0xC4, 0x3A), (0x0B, 0x0D, 0x16)
     labels = {"title": ("BRAWL RECOMPILED", 116, (0xFF, 0xF3, 0xB0), (0xFF, 0x8C, 0x28), (0x0C, 0x0E, 0x16), None),
               "play": ("PLAY", 104, (255, 255, 255), (0xFF, 0xE0, 0x8A), (0x5A, 0x0E, 0x0E), None)}
-    for page, heading in (("play", "READY TO BRAWL?"), ("display", "DISPLAY"), ("controls", "CONTROLS"), ("mods", "MODS")):
+    for page, heading in (("play", "READY TO BRAWL?"), ("display", "DISPLAY"), ("controls", "CONTROLS"), ("mods", "MODS"),
+                          ("online", "ONLINE PLAY")):
         labels[f"head_{page}"] = (heading, 76, (255, 255, 255), (0xFF, 0xC8, 0x6A), ink, None)
         labels[f"nav_{page}"] = (page.upper(), 52, snow, dim, ink, 332)
         labels[f"nav_{page}_on"] = (page.upper(), 52, night, (0x3A, 0x24, 0x10), gold, 332)

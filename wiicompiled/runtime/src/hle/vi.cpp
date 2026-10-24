@@ -1119,6 +1119,15 @@ void VI_HLE_PresentFrame(bool presentedXfb, bool paceToRetrace) {
 // This marks that we now have valid framebuffer data to present.
 // -----------------------------------------------------------------------------
 void VI_HLE_SetXfbReady(uint32_t xfbAddr) {
+    static uint32_t seen[4] = {};
+    for (uint32_t& s : seen) {
+        if (s == xfbAddr) break;
+        if (s == 0) {
+            s = xfbAddr;
+            RT_LOGF(RT_TAG_VI, "XFB at 0x%08X\n", xfbAddr);
+            break;
+        }
+    }
     std::lock_guard<std::mutex> lock(g_viMutex);
     g_vi.hasValidXfb = true;
     g_vi.readyXfb = xfbAddr;

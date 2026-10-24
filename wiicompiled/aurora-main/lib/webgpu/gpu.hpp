@@ -70,6 +70,8 @@ enum ShaderDebug : uint32_t {
 extern uint32_t g_shaderDebug;
 // The adapter's device name, for AuroraInfo.gpuName.
 const char* adapter_name() noexcept;
+// An integrated GPU (a laptop or mini PC's, sharing the CPU's memory).
+bool adapter_integrated() noexcept;
 
 bool initialize(AuroraBackend backend);
 void shutdown();

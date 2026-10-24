@@ -103,6 +103,7 @@ sealed class MainForm : Form
         AddPage(nav, "Display", BuildDisplayPage());
         AddPage(nav, "Controls", BuildControlsPage());
         AddPage(nav, "Mods", BuildModsPage());
+        AddPage(nav, "Online", BuildOnlinePage());
         ShowPage(pages[0].button);
         Shown += (_, _) =>
         {
@@ -450,7 +451,7 @@ sealed class MainForm : Form
         body.Controls.Add(playStatus);
         AddDiscSetup(body);
         body.Controls.Add(gameNote = Note("The game starts borderless at 1080p in its own 16:9 mode. " +
-                               "In the game, F10 opens the settings menu (resolution, aspect, controllers, audio) and F11 switches between fullscreen and a window."));
+                               "In the game, F10 opens the settings menu (resolution, aspect, controllers, audio, online play) and F11 switches between fullscreen and a window."));
         // Tips: click the bubble (or the Smash Ball in the sky) for another one.
         var tipRow = new FlowLayoutPanel { AutoSize = true, Margin = S(0, 10, 0, 6) };
         tipRow.Controls.Add(new PictureBox { Image = Sprite("smash_ball", S(44), S(44)), Size = S(44, 44), Margin = S(0, 0, 8, 0) });
@@ -479,7 +480,8 @@ sealed class MainForm : Form
         "Any controller works as a GameCube controller. Remap it on the Controls page.",
         "No controller? Turn on the keyboard on the Controls page and pick your own keys.",
         "Want more fighters? Put REX, Project+Ex or another Wii build on the SD card (Mods page).",
-        "Several builds can share the SD card. \"Codes to load\" on the Mods page picks the one that runs.",
+        "Several builds can share the SD card. \"Build to play\" on the Mods page picks the one that runs, or vanilla Brawl.",
+        "Play online: F10 in the game, then Online. Host a room or join one; everyone needs the same build.",
         "The first start after adding a build makes the SD card image. Big builds take a few minutes, once.",
         "Click Mario or Sonic up there. Go on.",
         "The fighter under the menu takes a bow when clicked.",
@@ -522,7 +524,9 @@ sealed class MainForm : Form
         }
     }
 
-    void Launch()
+    // `online`: what the game's Online menu does at start (BRAWL_ONLINE: "host:<n>", "host-public:<n>", "browse",
+    // "join:<code>", "menu"), or null for a normal start.
+    void Launch(string? online = null)
     {
         var (ok, text, _) = DiscStatus();
         if (!ok)
@@ -537,7 +541,9 @@ sealed class MainForm : Form
             return;
         }
         Gamepads.Release();
-        var game = Process.Start(new ProcessStartInfo(gameExe) { WorkingDirectory = play, UseShellExecute = false });
+        var start = new ProcessStartInfo(gameExe) { WorkingDirectory = play, UseShellExecute = false };
+        if (online != null) start.Environment["BRAWL_ONLINE"] = online;
+        var game = Process.Start(start);
         if (game != null)
         {
             game.EnableRaisingEvents = true;
@@ -547,16 +553,70 @@ sealed class MainForm : Form
         WindowState = FormWindowState.Minimized;
     }
 
+    // ----- Online -----
+    Control BuildOnlinePage()
+    {
+        var (card, body) = NewCard("Online");
+        body.Controls.Add(Note("Play Brawl Recompiled with friends over the internet, or on your own network. Host a room and share its code, " +
+                               "find a room, or join a friend's code. In the game, F9 opens the same menu at any time.\n" +
+                               "Everyone needs the same game: vanilla, or the same mod (Mods page). Each player uses the controller in their own port 1."));
+        TextBox Field(string section, string key, string placeholder, int width)
+        {
+            var box = new TextBox { Width = S(width), Font = new Font("Segoe UI", 11f), BackColor = Night, ForeColor = Snow, BorderStyle = BorderStyle.FixedSingle,
+                                    Margin = S(3, 6, 3, 6), PlaceholderText = placeholder, Text = config.Get(section, key) ?? "" };
+            box.Leave += (_, _) =>
+            {
+                var text = box.Text.Trim();
+                if (text.Length == 0) config.Remove(section, key); else config.SetString(section, key, text);
+                config.Save();
+            };
+            return box;
+        }
+        FlowLayoutPanel Labeled(string label, Control control)
+        {
+            var row = new FlowLayoutPanel { AutoSize = true, Margin = S(0, 2, 0, 2) };
+            row.Controls.Add(new Label { Text = label, AutoSize = false, Size = S(200, 34), ForeColor = Snow, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft });
+            row.Controls.Add(control);
+            return row;
+        }
+        body.Controls.Add(Labeled("Your name", Field("online", "name", Environment.MachineName, 260)));
+
+        body.Controls.Add(new Label { Text = "Host a room", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Snow, AutoSize = true, Margin = S(0, 14, 0, 2) });
+        var players = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = S(140), FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10.5f), Margin = S(3, 4, 3, 4), BackColor = Night, ForeColor = Snow };
+        players.Items.AddRange(new object[] { "2 players", "3 players", "4 players" });
+        players.SelectedIndex = 0;
+        body.Controls.Add(Labeled("Players", players));
+        var listed = new CheckBox { Text = "List it on the online server, so anyone can find it (friends can always join with its code)", Checked = true, AutoSize = true, ForeColor = Snow, Font = new Font("Segoe UI", 10f), Margin = S(3, 4, 3, 4) };
+        body.Controls.Add(listed);
+        body.Controls.Add(Btn("HOST A ROOM", (_, _) => Launch((listed.Checked ? "host-public:" : "host:") + (players.SelectedIndex + 2))));
+
+        body.Controls.Add(new Label { Text = "Join a room", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Snow, AutoSize = true, Margin = S(0, 14, 0, 2) });
+        var joinRow = new FlowLayoutPanel { AutoSize = true, Margin = Padding.Empty };
+        joinRow.Controls.Add(Btn("FIND ROOMS", (_, _) => Launch("browse")));
+        var code = new TextBox { Width = S(170), Font = new Font("Segoe UI", 12f), BackColor = Night, ForeColor = Snow, BorderStyle = BorderStyle.FixedSingle,
+                                 Margin = S(14, 8, 3, 6), PlaceholderText = "Room code", CharacterCasing = CharacterCasing.Upper };
+        joinRow.Controls.Add(code);
+        joinRow.Controls.Add(Btn("JOIN", (_, _) => { if (code.Text.Trim().Length > 0) Launch("join:" + code.Text.Trim()); }, Card));
+        body.Controls.Add(joinRow);
+        body.Controls.Add(Note("A room code is 5 letters and digits, shown in the host's Online menu. An IP address or Tailscale name works too."));
+
+        body.Controls.Add(new Label { Text = "Server", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Snow, AutoSize = true, Margin = S(0, 14, 0, 2) });
+        body.Controls.Add(Labeled("Online server", Field("online", "server", "the built-in server", 320)));
+        body.Controls.Add(Note("Leave this empty to use the built-in server. Running your own (server/brawl_online_server.py)? Put its address here, " +
+                               "for example myserver.example.com:52200. Without a server, rooms still work on your network and over Tailscale."));
+        return card;
+    }
+
     // ----- Display -----
     Control BuildDisplayPage()
     {
         var (card, body) = NewCard("Display");
         body.Controls.Add(Choice("Display mode", "display_mode", new[] { ("Borderless fullscreen", "\"borderless\""), ("Windowed", "\"windowed\""), ("Exclusive fullscreen", "\"exclusive\"") }));
-        body.Controls.Add(Choice("Resolution", "resolution_multiplier", new[] { ("1080p", "2.25"), ("4K (2160p)", "4.5"), ("Match the screen", "0"), ("1440p", "3"), ("720p", "1.5"), ("480p (original)", "1") }));
+        body.Controls.Add(Choice("Resolution", "resolution_multiplier", new[] { ("1080p", "2.25"), ("4K (2160p, needs a graphics card)", "4.5"), ("Match the screen", "0"), ("1440p", "3"), ("720p", "1.5"), ("480p (original)", "1") }));
         // The game's own 16:9 mode (its widescreen switch) or 4:3; "fill" stretches the 16:9 camera to wider screens.
         body.Controls.Add(Choice("Aspect ratio", "aspect_mode", new[] { ("16:9 (the game's own widescreen)", "1"), ("Fill the screen (ultrawide)", "2"), ("Original 4:3", "0") },
             also: value => config.Set("video", "widescreen", value == "0" ? "false" : "true")));
-        body.Controls.Add(Choice("Frame interpolation", "frame_interpolation_fps", new[] { ("120 FPS (on a 120 Hz or faster screen)", "120"), ("Off (60 FPS)", "0"), ("180 FPS (experimental)", "180") }));
+        body.Controls.Add(Choice("Frame interpolation", "frame_interpolation_fps", new[] { ("120 FPS (on a 120 Hz or faster screen)", "120"), ("Off (60 FPS)", "0"), ("180 FPS (on a 180 Hz or faster screen)", "180") }));
         body.Controls.Add(Choice("Vsync", "vsync", new[] { ("On (no screen tearing)", "true"), ("Off", "false") }));
         body.Controls.Add(Choice("FPS counter", "show_fps", new[] { ("Hidden", "false"), ("Shown", "true") }));
         body.Controls.Add(Note("Changes are saved at once and used the next time the game starts. The same settings are in the game's F10 menu. " +
@@ -987,7 +1047,7 @@ sealed class MainForm : Form
     {
         var (card, body) = NewCard("Mods");
         body.Controls.Add(new Label { Text = "SD card mods (REX, Project+Ex, Project+, Brawl Minus, Legacy XP)", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Snow, AutoSize = true, Margin = S(0, 4, 0, 2) });
-        body.Controls.Add(Note("The SD card folder is the game's SD card, the way a Wii sees one. Copy a build's card folder from its Wii (console) " +
+        body.Controls.Add(Note("The SD card folder is the game's SD card, the way a Wii sees one. Add a mod with the buttons below (choose its Wii / console download: the .zip, or the folder you extracted it to), or copy a build's card folder from that download " +
                                "download into it: rex_ for REX (the biggest roster), P+Ex, Project+, Minusery (Brawl Minus) or LegacyXP. Its Gecko codes " +
                                "(RSBE01.GCT and gc.txt) load with it, and the game's own SD features (snapshots, replays, custom stages) use the card too. " +
                                "The card image is rebuilt when the folder changes; a big build takes a few minutes the first time."));
@@ -997,7 +1057,7 @@ sealed class MainForm : Form
         body.Controls.Add(Btn("Open SD card folder", (_, _) => Process.Start("explorer.exe", Directory.CreateDirectory(sdDir).FullName)));
         // Which build's Gecko codes load when several share the card (Config.toml [mods] sd_codes = the folder).
         var codesRow = new FlowLayoutPanel { AutoSize = true, Margin = S(0, 4, 0, 4) };
-        codesRow.Controls.Add(new Label { Text = "Codes to load", AutoSize = false, Size = S(200, 32), ForeColor = Snow, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft });
+        codesRow.Controls.Add(new Label { Text = "Build to play", AutoSize = false, Size = S(200, 32), ForeColor = Snow, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft });
         var codesCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = S(300), FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10.5f), Margin = S(3, 4, 3, 4), BackColor = Night, ForeColor = Snow };
         codesRow.Controls.Add(codesCombo);
         body.Controls.Add(codesRow);
@@ -1007,20 +1067,60 @@ sealed class MainForm : Form
             fillingCodes = true;
             codesCombo.Items.Clear();
             codesCombo.Items.Add("The first build on the card");
+            codesCombo.Items.Add("Vanilla Brawl (no mods)");
             var builds = SdBuilds();
             foreach (var b in builds) codesCombo.Items.Add(b);
-            int i = builds.IndexOf(config.Get("mods", "sd_codes") ?? "");
-            codesCombo.SelectedIndex = i < 0 ? 0 : i + 1;
+            var chosen = config.Get("mods", "sd_codes") ?? "";
+            int i = builds.IndexOf(chosen);
+            codesCombo.SelectedIndex = chosen == "vanilla" ? 1 : i < 0 ? 0 : i + 2;
             fillingCodes = false;
         }
         codesCombo.SelectedIndexChanged += (_, _) =>
         {
             if (fillingCodes) return;
             if (codesCombo.SelectedIndex <= 0) config.Remove("mods", "sd_codes");
+            else if (codesCombo.SelectedIndex == 1) config.SetString("mods", "sd_codes", "vanilla");  // no codes, no SD card
             else config.SetString("mods", "sd_codes", (string)codesCombo.Items[codesCombo.SelectedIndex]!);
             config.Save();
         };
         FillCodes();
+        // Add a mod: the build folder is found inside a .zip or an extracted download and copied onto the card.
+        void AddMod(string source)
+        {
+            sdStatus.Text = "Adding the mod...";
+            Task.Run(() =>
+            {
+                try
+                {
+                    var name = ModInstall.Install(source, Directory.CreateDirectory(sdDir).FullName,
+                        n => { if (n % 200 == 0) BeginInvoke(() => sdStatus.Text = $"Adding the mod... {n} files"); });
+                    BeginInvoke(() =>
+                    {
+                        config.SetString("mods", "sd_codes", name);
+                        config.Save();
+                        FillCodes();
+                        RefreshStatus();
+                        sdStatus.Text = $"Added {name}; it is now the build to play. " + sdStatus.Text;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    BeginInvoke(() => sdStatus.Text = ex.Message);
+                }
+            });
+        }
+        var addRow = new FlowLayoutPanel { AutoSize = true, Margin = Padding.Empty };
+        addRow.Controls.Add(Btn("Add a mod from its .zip...", (_, _) =>
+        {
+            using var dialog = new OpenFileDialog { Title = "Choose the mod's Wii download", Filter = "Mod downloads (*.zip)|*.zip|All files|*.*" };
+            if (dialog.ShowDialog(this) == DialogResult.OK) AddMod(dialog.FileName);
+        }));
+        addRow.Controls.Add(Btn("Add a mod from a folder...", (_, _) =>
+        {
+            using var dialog = new FolderBrowserDialog { Description = "Choose the folder the mod's Wii download was extracted to" };
+            if (dialog.ShowDialog(this) == DialogResult.OK) AddMod(dialog.SelectedPath);
+        }, Card));
+        body.Controls.Add(addRow);
         body.Controls.Add(new Label { Text = "File and texture mods", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Snow, AutoSize = true, Margin = S(0, 14, 0, 2) });
         body.Controls.Add(Note("How to install one:\n" +
                                "1. Click Open mods folder.\n" +

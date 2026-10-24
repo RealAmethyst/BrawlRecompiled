@@ -3,6 +3,7 @@
 #include "hle/controller_status_contract.h"
 #include "input_bindings.h"
 #include "wii_remote_input.h"
+#include "frame_input.h"
 #include "runtime_config.h"
 
 #include <algorithm>
@@ -160,14 +161,10 @@ extern "C" uint32_t PAD__Init_HLE()
 // Brawl (RSBE01): GameCube controllers are its main input.
 PPC_NATIVE_OVERRIDE(80215E68, PAD__Init_HLE, uint32_t, (), ());
 
-// PADRead: gathers every GameCube pad source for the frame and writes the statuses to guest memory.
-extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
+// Every GameCube pad source for this poll, as the game would read them: SDL pads, the keyboard, bindings, and a
+// test script last.
+static uint32_t ReadLocalPads(PADStatus* statuses)
 {
-    if (statusPtr == 0) {
-        return 0;
-    }
-
-    PADStatus statuses[PAD_CHANMAX]{};
     // Keep looking for a Bluetooth Wii Remote that dropped out (or was turned on late).
     WiiRemoteInput::Poll();
     uint32_t rumbleMask = PADRead(statuses);
@@ -190,6 +187,49 @@ extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
         statuses[port].button = scripted;
         statuses[port].stickX = stickX;
         statuses[port].stickY = stickY;
+    }
+    return rumbleMask;
+}
+
+// Deterministic mode (network play): the local ports for frame_input.cpp to latch at the retrace.
+void PAD_HLE_SampleLocalPads(FrameInput::GcPad* pads)
+{
+    PADStatus statuses[PAD_CHANMAX]{};
+    ReadLocalPads(statuses);
+    for (uint32_t port = 0; port < PAD_CHANMAX; ++port) {
+        const PADStatus& s = statuses[port];
+        pads[port] = {s.err == PAD_ERR_NONE, s.button, s.stickX, s.stickY, s.substickX, s.substickY,
+                      s.triggerLeft, s.triggerRight};
+    }
+}
+
+// PADRead: gathers every GameCube pad source for the frame and writes the statuses to guest memory. In network
+// play every port is the frame's latched input from all players instead (frame_input.h).
+extern "C" uint32_t PAD__Read_HLE(uint32_t statusPtr)
+{
+    if (statusPtr == 0) {
+        return 0;
+    }
+
+    PADStatus statuses[PAD_CHANMAX]{};
+    uint32_t rumbleMask = 0;
+    if (FrameInput::Active()) {
+        for (uint32_t port = 0; port < PAD_CHANMAX; ++port) {
+            const FrameInput::GcPad& pad = FrameInput::Get(port).pad;
+            PADStatus& s = statuses[port];
+            s.err = pad.connected ? PAD_ERR_NONE : PAD_ERR_NO_CONTROLLER;
+            if (!pad.connected) continue;
+            s.button = pad.button;
+            s.stickX = pad.stickX;
+            s.stickY = pad.stickY;
+            s.substickX = pad.substickX;
+            s.substickY = pad.substickY;
+            s.triggerLeft = pad.triggerL;
+            s.triggerRight = pad.triggerR;
+            rumbleMask |= 0x80000000u >> port;
+        }
+    } else {
+        rumbleMask = ReadLocalPads(statuses);
     }
 
     // Which ports report a controller, and the device behind each: logged whenever that changes.

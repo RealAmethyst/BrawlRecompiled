@@ -154,6 +154,7 @@ typedef struct {
   // The graphics adapter ("Adreno (TM) 840") and whether the GPU driver workarounds are on.
   const char* gpuName;
   bool gpuCompatActive;
+  bool gpuIntegrated;  // an integrated GPU: shares the CPU's memory, so high render scales cost far more
 } AuroraInfo;
 
 AuroraInfo aurora_initialize(int argc, char* argv[], const AuroraConfig* config);
@@ -176,6 +177,8 @@ void aurora_report_producer_paced(bool paced);
 void aurora_request_frame_capture(uint32_t frame, const char* outputPath);
 bool aurora_flush_efb_copies_to_ram();
 bool aurora_flush_efb_copy_to_ram(void* dest);
+// The frame on screen (the last display copy), scaled to width x height RGBA8. False when there is none yet.
+bool aurora_read_display_copy(uint8_t* rgba, uint32_t width, uint32_t height);
 // Button prompt textures for the controller in use: 0 xbox, 1 playstation, 2 nintendo, -1 the game's own.
 void aurora_set_button_icon_style(int style);
 // The icon set in use (-1 = the game's own), and whether a texture from button_icons/<style>/marker<id> was drawn

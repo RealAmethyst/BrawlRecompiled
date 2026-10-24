@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <vector>
+
+#include <aurora/aurora.h>
 
 #include "abi_bridge.h"
 #include "memory.h"
@@ -79,8 +82,56 @@ extern "C" void DCFlushRange_801a162c(uint32_t addr, uint32_t length)
     DcRangeOp("DCFlushRange_801a162c", addr, length);
 }
 
+// Brawl's screen picture (fn_8002F4B4, the Classic score screen and the like) converts the XFB on screen, 640x480
+// YUYV, into a 640x480 RGBA8 texture with the CPU and then stores it with DCStoreRange. The XFB here only ever
+// existed on the GPU, so its RAM holds nothing (the picture came out solid green, issue #1): put the frame on
+// screen into the texture before the store instead.
+void FillScreenPicture(uint32_t addr, uint32_t length)
+{
+    constexpr uint32_t kWidth = 640, kHeight = 480;
+    const CpuContext* ctx = TryGetCpuContext();
+    if (length != kWidth * kHeight * 4) {
+        return;
+    }
+    if (!Memory::Contains(addr, length)) {
+        return;
+    }
+    // The return address names the caller when the translated call set it; otherwise the picture is recognised by
+    // what an XFB that was never written converts to: every texel the same green (Y, U and V all 0).
+    const uint8_t* tile = Memory::GetPointer(addr, 64);
+    bool green = true;
+    for (int i = 0; i < 16 && green; ++i) {
+        green = tile[i * 2] == 255 && tile[i * 2 + 1] < 16 && tile[32 + i * 2] > 100 && tile[32 + i * 2 + 1] < 16 &&
+                std::memcmp(tile + i * 2, tile, 2) == 0 && std::memcmp(tile + 32 + i * 2, tile + 32, 2) == 0;
+    }
+    RT_LOGF(RT_TAG_GX, "screen picture: store of 0x%08X, lr 0x%08X, green %d\n", addr, ctx != nullptr ? ctx->lr : 0u,
+            green ? 1 : 0);
+    if (!green && (ctx == nullptr || ctx->lr != 0x8002F554u)) {
+        return;
+    }
+    std::vector<uint8_t> rgba(static_cast<size_t>(kWidth) * kHeight * 4);
+    if (!aurora_read_display_copy(rgba.data(), kWidth, kHeight)) {
+        RT_LOGF(RT_TAG_GX, "screen picture: the frame on screen could not be read back\n");
+        return;
+    }
+    // GX RGBA8: 4x4 tiles in rows, each 32 bytes of A,R then 32 bytes of G,B for its 16 texels.
+    uint8_t* out = Memory::GetPointer(addr, length);
+    for (uint32_t ty = 0; ty < kHeight / 4; ++ty) {
+        for (uint32_t tx = 0; tx < kWidth / 4; ++tx, out += 64) {
+            for (uint32_t i = 0; i < 16; ++i) {
+                const uint8_t* p = &rgba[((ty * 4 + i / 4) * kWidth + tx * 4 + i % 4) * 4];
+                out[i * 2] = p[3];
+                out[i * 2 + 1] = p[0];
+                out[32 + i * 2] = p[1];
+                out[32 + i * 2 + 1] = p[2];
+            }
+        }
+    }
+}
+
 extern "C" void DCStoreRange_801a165c(uint32_t addr, uint32_t length)
 {
+    FillScreenPicture(addr, length);
     DcRangeOp("DCStoreRange_801a165c", addr, length);
 }
 

@@ -51,10 +51,44 @@ public:
     int ReceiveFrom(Address& from, void* buffer, size_t capacity, int timeoutMs);
 
 private:
+    bool SendRaw(const Address& to, const void* data, size_t size);
+    void RelayTick();
+
     intptr_t m_socket = -1;
     uint16_t m_port = 0;
     bool m_bound = false;
+    int64_t m_lastRelayRegister = 0;  // steady-clock milliseconds
 };
+
+// Online play over the internet through Brawl Recompiled's server (server/brawl_online_server.py). Every game
+// registers there under its own id; other games are reached at relay addresses, 240.x.y.z, which UdpSocket
+// sends through the server, so nobody needs port forwarding. The server ([online] server in Config.toml, or
+// BRAWL_ONLINE_SERVER) also keeps the list of public rooms.
+namespace Relay {
+
+bool Enabled();    // a server is set
+bool Connected();  // it answered in the last few seconds
+bool IsRelayAddress(const Address& address);
+Address OwnAddress();  // this game, as other games reach it
+// This game's room code: its relay address as 5 letters and digits. CodeToAddress also takes "240.x.y.z".
+std::string Code();
+bool CodeToAddress(std::string_view code, Address& out);
+
+// List this game's room publicly while hosting (maxPlayers 0: not listed).
+void SetListing(uint8_t maxPlayers, uint8_t players, const std::string& name, const std::string& build);
+
+struct ListedRoom {
+    Address host;
+    uint8_t maxPlayers = 0;
+    uint8_t players = 0;
+    std::string name;
+    std::string build;
+};
+// The server's public rooms as last fetched; RequestList fetches them again with the next socket activity.
+std::vector<ListedRoom> Listed();
+void RequestList();
+
+} // namespace Relay
 
 struct LocalInterface {
     uint32_t ip = 0;         // host byte order

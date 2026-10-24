@@ -15,8 +15,11 @@
 #include "runtime_config.h"
 #include "runtime_log.h"
 
+#include <xxhash.h>
+
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -66,14 +69,9 @@ std::optional<fs::path> FindFile(const fs::path& directory, const std::string& n
 std::optional<fs::path> FindCodes() {
     const fs::path userData = RuntimeConfigFile::ApplicationDataDirectory();
     // Config.toml [mods] sd_codes: the card folder whose codes load when several builds share the card (the
-    // launcher's "Codes to load"); otherwise the first folder with codes.
-    std::string chosen;
-    try {
-        std::ifstream in(RuntimeConfigFile::ResolveConfigPath(), std::ios::binary);
-        if (in) chosen = RuntimeConfigFile::FindConfigValue<std::string>(toml::parse(in, "Config.toml"), "mods", "sd_codes").value_or("");
-    } catch (const std::exception& error) {
-        RT_LOGF(RT_TAG_MOD, "[gecko] Config.toml: %s\n", error.what());
-    }
+    // launcher's "Codes to load"); otherwise the first folder with codes. "vanilla": none.
+    if (RuntimeConfigFile::ModsVanilla()) return std::nullopt;
+    const std::string chosen = RuntimeConfigFile::ModsSdCodes();
     if (!chosen.empty()) {
         if (auto codes = FindFile(userData / "SD" / chosen, "RSBE01.GCT")) return codes;
         RT_LOGF(RT_TAG_MOD, "[gecko] the chosen SD folder '%s' has no RSBE01.GCT; using the first found\n", chosen.c_str());
@@ -143,6 +141,19 @@ GameConfig ReadGameConfig(const fs::path& path) {
 } // namespace
 
 namespace Gecko {
+
+std::string BuildIdentity() {
+    static const std::string identity = [] {
+        const auto codesPath = FindCodes();
+        if (!codesPath) return std::string("vanilla");
+        std::ifstream in(*codesPath, std::ios::binary);
+        const std::vector<uint8_t> codes((std::istreambuf_iterator<char>(in)), {});
+        char hash[24];
+        std::snprintf(hash, sizeof(hash), " %016llx", static_cast<unsigned long long>(XXH3_64bits(codes.data(), codes.size())));
+        return std::string(reinterpret_cast<const char*>(codesPath->parent_path().filename().u8string().c_str())).substr(0, 40) + hash;
+    }();
+    return identity;
+}
 
 void Install() {
     const auto codesPath = FindCodes();

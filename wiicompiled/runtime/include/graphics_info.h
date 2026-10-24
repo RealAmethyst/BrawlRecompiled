@@ -23,6 +23,16 @@ inline std::string Name() {
     return g_name;
 }
 
+inline bool g_integrated = false;
+inline void SetIntegrated(bool integrated) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_integrated = integrated;
+}
+inline bool Integrated() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_integrated;
+}
+
 inline bool CompatActive() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_compatActive;

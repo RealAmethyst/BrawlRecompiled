@@ -771,6 +771,13 @@ void SetRuntimeExitCodeImpl(int code) {
 
 } // namespace
 
+// Before the process replaces itself (a Linux restart into a network session, netplay_start.cpp): the console gets
+// its own stdout and stderr back, since the new image keeps those descriptors but not the thread that drained the
+// transcript pipe behind them, and would block on its first full pipe.
+void RuntimeShutdownProcessTranscript() {
+    ShutdownProcessTranscript();
+}
+
 namespace {
 
 void DumpHostStackTrace() {
@@ -1445,7 +1452,7 @@ int RuntimeMain(int argc, char** argv) {
             NetplaySession::Config netplay;
             int saveFile = 0;
             if (NetplayStart::TakePendingSession(netplay, saveFile)) {
-                netplay.autopilot = true;
+                netplay.autopilot = false;  // NSMBW's walk through its file select; Brawl's players use the menus
                 netplay.saveFile = saveFile;
                 NetplaySession::Start(netplay);
             } else if (NetplaySession::LoadConfigFromEnvironment(netplay)) {
@@ -1453,6 +1460,20 @@ int RuntimeMain(int argc, char** argv) {
             }
             NetplaySession::SetStallHandler(&NetplayUi::OnSessionStall);
         }
+        // A big mod's SD card takes minutes to build when the game first asks for it: keep the window alive and show
+        // how far the build is on the title card, as a network stall does (issue #2: "Not responding").
+        SdCard::SetProgressHandler([](uint64_t done, uint64_t total) {
+            static std::chrono::steady_clock::time_point last{};
+            const auto now = std::chrono::steady_clock::now();
+            if (done < total && now - last < std::chrono::milliseconds(33)) return;
+            last = now;
+            char label[96];
+            std::snprintf(label, sizeof(label), "Preparing the mods' SD card... %.1f of %.1f GB",
+                          done / 1073741824.0, total / 1073741824.0);
+            settings_overlay::SetBusyProgress(done < total ? label : nullptr,
+                                              total ? static_cast<float>(static_cast<double>(done) / total) : 1.0f);
+            NetplayUi::OnSessionStall();
+        });
         if (RuntimeConfigFile::DiscordPresenceEnabled()) {
             DiscordPresence::Initialize(RuntimeConfigFile::DiscordClientId(), "Super Smash Bros. Brawl");
         }
@@ -1596,6 +1617,8 @@ int RuntimeMain(int argc, char** argv) {
                       << std::endl;
         }
         GraphicsInfo::Set(auroraInfo.gpuName != nullptr ? auroraInfo.gpuName : "", auroraInfo.gpuCompatActive);
+        // BRAWL_ASSUME_INTEGRATED_GPU=1 tests the integrated-GPU limits on a PC with a graphics card.
+        GraphicsInfo::SetIntegrated(auroraInfo.gpuIntegrated || std::getenv("BRAWL_ASSUME_INTEGRATED_GPU") != nullptr);
         RT_LOG(RT_TAG_RUNTIME) << "graphics adapter: " << GraphicsInfo::Name() << ", compatibility fixes "
                   << (auroraInfo.gpuCompatActive ? "on" : "off") << std::endl;
         aurora_set_frame_worker_wait_callback(ServiceGuestTimingDuringAuroraFrameWait);

@@ -1,5 +1,9 @@
 #include "netplay_ui.h"
 
+#include "frame_input.h"
+
+#include <cfloat>
+
 #include "netplay/game_layout.h"
 #include "netplay/game_menus.h"
 #include "netplay/world_map_nav.h"
@@ -31,6 +35,9 @@
 
 // Defined in hle/vi.cpp: whether an aurora frame is open for drawing.
 extern std::atomic_bool g_auroraFrameActive;
+
+// hle/input/pad.cpp: the local GameCube ports now.
+void PAD_HLE_SampleLocalPads(FrameInput::GcPad* pads);
 
 namespace NetplayUi {
 namespace {
@@ -1226,23 +1233,32 @@ void DrawSession(ImDrawList* list) {
         return;
     }
     const GameLayout::View view = GameLayout::GameView();
-    Canvas c{list, view, 1.0f};
+    // A status line in a bar near the top, in the overlay's own font (Brawl has none of NSMBW's menu fonts).
+    const auto banner = [&](const std::string& text) {
+        const float y = 190.0f, size = 26.0f * view.scale;
+        list->AddRectFilled(ImVec2(view.centerX - 290 * view.scale, view.centerY - (y + 20) * view.scale),
+                            ImVec2(view.centerX + 290 * view.scale, view.centerY - (y - 20) * view.scale),
+                            IM_COL32(20, 40, 90, 180), 10 * view.scale);
+        const ImVec2 extent = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0.0f, text.c_str());
+        list->AddText(ImGui::GetFont(), size, ImVec2(view.centerX - extent.x * 0.5f, view.centerY - y * view.scale - extent.y * 0.5f),
+                      IM_COL32(255, 255, 255, 255), text.c_str());
+    };
     if (status.lostSlot >= 0) {
-        // The game is frozen: read the remote directly.
+        // The game is frozen: read the controller directly (A on a GameCube pad or a Wii Remote, 2 too).
         static uint32_t prevHold = ~0u;
         WiiRemoteInput::KpadSample sample;
         uint32_t hold = 0;
         if (WiiRemoteInput::ReadKpadSample(0, sample)) {
             hold = sample.hold;
         }
+        FrameInput::GcPad pads[4]{};
+        PAD_HLE_SampleLocalPads(pads);
+        if (pads[0].button & 0x0100u) {
+            hold |= kA;
+        }
         const bool confirm = prevHold != ~0u && (hold & ~prevHold & (kTwo | kA)) != 0;
         prevHold = hold;
-        ++g_ui.frame;
-        Veil(c);
-        Window(c, 300);
-        Text(c, "Lost the connection to", 0, 50);
-        Text(c, SlotName(status.lostSlot) + ".", 0, 15);
-        Button(c, "OK", 0, -150 + 43.0f, 232, true, true, g_ui.frame);
+        banner("Lost the connection to " + SlotName(status.lostSlot) + ". Press A to leave.");
         if (confirm) {
             NetplayStart::EndSession();
         }
@@ -1257,11 +1273,7 @@ void DrawSession(ImDrawList* list) {
     if (line.empty()) {
         return;
     }
-    const float y = 190.0f;
-    list->AddRectFilled(ImVec2(view.centerX - 290 * view.scale, view.centerY - (y + 20) * view.scale),
-                        ImVec2(view.centerX + 290 * view.scale, view.centerY - (y - 20) * view.scale),
-                        IM_COL32(20, 40, 90, 180), 10 * view.scale);
-    Text(c, line, 0, y, 26);
+    banner(line);
 }
 
 // ---------------------------------------------------------------- logic
@@ -1702,6 +1714,19 @@ void Draw() {
         g_tapScreen.store(false, std::memory_order_release);
         DrawSession(list);
         return;
+    }
+    // A started room restarts this device into the session whatever is on screen (Brawl's rooms live in the F10
+    // menu, not on these screens).
+    if (const NetplayLobby::Snapshot lobby = NetplayLobby::Get(); lobby.phase == Phase::Restarting && !g_ui.restarting) {
+        NetplayLobby::Plan plan;
+        if (NetplayLobby::TakePlan(plan)) {
+            g_ui.restarting = true;
+            if (!NetplayStart::Restart(plan)) {
+                g_ui.restarting = false;
+                NetplayLobby::Stop();
+                RT_LOGF(RT_TAG_RUNTIME, "netplay: couldn't start the session on this device\n");
+            }
+        }
     }
     if (LobbyTest()) {
         return;

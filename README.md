@@ -36,6 +36,7 @@ Rendered at 4K (shown here at 1080p).
 - Saves in `UserData\NAND`, compatible in layout with a Wii's
 - A virtual SD card (`UserData\SD`), so the game's own SD features and SD-based mods work
 - Gecko codes and Project+-style mods (in progress, see below)
+- Online play between Brawl Recompiled players (see below)
 - Windows and Linux
 
 **No game data is included**: the game's files are read from your own copy of the game.
@@ -52,7 +53,7 @@ Brawl mods are installed the way they are on a Wii's SD card:
   `UserData\Cache\sd_card.raw`, rebuilt only when the folder changes); files the game writes to the card are
   copied back into the folder when it exits. A card over 2 GiB is an SDHC card, which Brawl reads only with a
   mod's SDHC support (Project+ has it). A Dolphin `sd.raw` placed at `UserData\sd.raw` is used directly instead.
-- **Gecko codes**: the `RSBE01.GCT` of the card folder chosen on the launcher's Mods page ("Codes to load",
+- **Gecko codes**: the `RSBE01.GCT` of the card folder chosen on the launcher's Mods page ("Build to play",
   `[mods] sd_codes` in `Config.toml`), else the first folder with one (`UserData\SD\Project+\RSBE01.GCT`), else
   `UserData\Codes\RSBE01.gct`, is installed with USB Loader GX's code handler, honouring a `gc.txt` beside it
   (code list address, hook type, pokes) exactly as the mods' own loaders do: the handler runs once before the
@@ -61,7 +62,8 @@ Brawl mods are installed the way they are on a Wii's SD card:
   replaces (every fighter in Project+, the character select and the whole melee engine in Project+Ex and REX)
   run in the interpreter too, at full speed.
 
-Several builds can share one card; "Codes to load" picks the one that runs. The builds tried, each copied from
+Several builds can share one card; "Build to play" picks the one that runs, and "Vanilla Brawl (no mods)" plays
+the unmodded game whatever the card holds (no codes and no card). The builds tried, each copied from
 its Wii (console / "hackless") download into `UserData\SD` as the folder named here:
 
 | Build | Card folder | Get it from |
@@ -74,8 +76,24 @@ its Wii (console / "hackless") download into `UserData\SD` as the folder named h
 
 Only that folder is needed (the downloads' `apps`, `private`, `codes` and loader files are for a real Wii). The
 card image grows with what is in the folder (REX alone is 8 GB), so the first start after adding a build takes a
-few minutes while it is built. Costumes, stages and movesets from [Brawl Vault](https://forums.kc-mm.com/Gallery/)
+few minutes while it is built (the title card shows how far it is). Costumes, stages and movesets from [Brawl Vault](https://forums.kc-mm.com/Gallery/)
 install into a build's `pf` folder exactly as on a Wii.
+
+## Online play
+
+Press F10 in the game and open **Online**:
+
+- **Host a room** for 2 to 4 players, then **Start** once everyone is in.
+- **Find rooms** lists rooms on your network and on [Tailscale](https://tailscale.com). To join over the internet
+  without Tailscale, type the host's address and click **Find**; the host forwards UDP port 52130 to their PC.
+- Starting a room hands everyone the host's save and restarts every game into the match together.
+
+Every player needs the same build: vanilla, or the same mod (the Mods page; online with a mod is new, and works best
+when everyone's `UserData\SD` folder is a copy of the same download). The games run in lockstep: each
+frame's controller input is all that is sent, and the games check every frame that they still match. A player's
+own controller (port 1) is their player number in the room. Each frame waits for every player's input, so a slow
+connection adds input delay (2 to 8 frames, picked from the ping when the room starts). Cross-play with Dolphin
+(Brawl Online, Slippi-style netplay) is not possible: those run an emulator, and the games would not stay in step.
 
 ## Building from source
 

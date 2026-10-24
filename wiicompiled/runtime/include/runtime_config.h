@@ -83,6 +83,9 @@ struct RuntimeUserConfig {
     // corrected accelerometer, buttons) to wii_accel_trace.csv next to Config.toml.
     std::optional<bool> wiiAccelTrace;
     std::optional<bool> networkEnabled;
+    std::optional<std::string> sdCodes;
+    std::optional<std::string> onlineName;
+    std::optional<std::string> onlineServer;  // [online] server: the online server's "host[:port]"  // [online] name: this player's name in rooms  // [mods] sd_codes: the SD folder whose codes load; "vanilla" = no mods
     std::optional<bool> discordPresenceEnabled;
     // The application ID of the WiiCompiled Discord application. This is only
     // used by the base product; Retro Rewind supplies its own ID through the
@@ -616,6 +619,9 @@ inline RuntimeUserConfig ParseConfigDocument(const toml::value& document) {
     config.wiiAccelOffsetZ = FindConfigValue<double>(document, "controller", "wii_accel_offset_z");
     config.wiiAccelTrace = FindConfigValue<bool>(document, "controller", "wii_accel_trace");
     config.networkEnabled = FindConfigValue<bool>(document, "network", "enabled");
+    config.sdCodes = FindConfigValue<std::string>(document, "mods", "sd_codes");
+    config.onlineName = FindConfigValue<std::string>(document, "online", "name");
+    config.onlineServer = FindConfigValue<std::string>(document, "online", "server");
     config.discordPresenceEnabled = FindConfigValue<bool>(document, "discord", "enabled");
     config.discordClientId = FindConfigValue<std::string>(document, "discord", "client_id");
 
@@ -760,6 +766,23 @@ inline bool WriteSetting(std::string_view section, std::string_view key, std::st
 
 inline std::string FormatString(std::string_view value) {
     return toml::format(toml::value(std::string(value)));
+}
+
+inline std::string OnlineServer(std::string fallback) {
+    return Get().onlineServer.value_or(std::move(fallback));
+}
+
+inline std::string OnlineName() {
+    return Get().onlineName.value_or("");
+}
+
+inline bool SetOnlineName(const std::string& name) {
+    Mutable().onlineName = name;
+    std::string quoted = "\"";
+    for (char c : name) {
+        if (c != '"' && c != '\\' && static_cast<unsigned char>(c) >= 0x20) quoted += c;
+    }
+    return WriteSetting("online", "name", quoted + "\"");
 }
 
 inline bool SetResolutionMultiplier(float value) {
@@ -1163,6 +1186,15 @@ inline std::string GraphicsApi(std::string fallback = "auto") {
 
 inline std::string DisplayMode(std::string fallback = "borderless") {
     return Get().displayMode.value_or(std::move(fallback));
+}
+
+inline std::string ModsSdCodes() {
+    return Get().sdCodes.value_or("");
+}
+
+// The launcher's "Vanilla (no mods)": no codes and no SD card, whatever UserData/SD holds.
+inline bool ModsVanilla() {
+    return ModsSdCodes() == "vanilla";
 }
 
 inline bool NetworkEnabled(bool fallback = true) {

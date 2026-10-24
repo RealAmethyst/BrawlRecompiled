@@ -1,6 +1,14 @@
 #include "netplay/net_socket.h"
 
+#include "runtime_config.h"
 #include "runtime_log.h"
+
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <random>
 
 #include <cstdio>
 #include <cstring>
@@ -220,10 +228,233 @@ bool UdpSocket::IsOpen() const {
     return m_socket != -1;
 }
 
+// ---- the online server's relay (Relay in net_socket.h) ----
+namespace {
+
+constexpr uint8_t kRelayRegister = 0xB1, kRelayRegistered = 0xB2, kRelayForward = 0xB3, kRelayList = 0xB5,
+                  kRelayListReply = 0xB6;
+constexpr uint16_t kRelayVersion = 1;
+constexpr uint16_t kRelayDefaultPort = 52200;
+// The public server, once there is one; Config.toml [online] server or BRAWL_ONLINE_SERVER overrides it.
+constexpr const char* kDefaultOnlineServer = "";
+constexpr char kCodeLetters[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";  // no 0/O or 1/I to mix up
+
+struct RelayState {
+    std::mutex mutex;
+    bool loaded = false;
+    std::string serverText;
+    Address server;
+    int64_t lastResolve = -100000;
+    uint32_t id = 0;
+    int64_t lastRegistered = -100000;
+    uint8_t listMax = 0, listPlayers = 0;
+    std::string listName, listBuild;
+    bool listRequested = false;
+    std::vector<Relay::ListedRoom> listed;
+};
+
+RelayState& R() {
+    static RelayState state;
+    return state;
+}
+
+int64_t NowMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+
+// This game's id: made once and kept with its settings, so it is the same game after the restart into a match.
+uint32_t LoadRelayId() {
+    const auto path = RuntimeConfigFile::ApplicationDataDirectory() / "Netplay" / "online_id";
+    std::error_code ec;
+    if (std::ifstream in(path); in) {
+        uint32_t id = 0;
+        if (in >> std::hex >> id && (id & 0xFFFFFFu) != 0) return id & 0xFFFFFFu;
+    }
+    std::random_device random;
+    uint32_t id = 0;
+    while ((id & 0xFFFFFFu) == 0) id = random();
+    id &= 0xFFFFFFu;
+    std::filesystem::create_directories(path.parent_path(), ec);
+    std::ofstream(path) << std::hex << id << "\n";
+    return id;
+}
+
+void LoadRelayLocked(RelayState& r) {
+    if (r.loaded) return;
+    r.loaded = true;
+    const char* env = std::getenv("BRAWL_ONLINE_SERVER");
+    r.serverText = env != nullptr ? env : RuntimeConfigFile::OnlineServer(kDefaultOnlineServer);
+    r.id = LoadRelayId();
+}
+
+// The server's address, resolved now and then (a name may move); invalid when none is set or it can't be found.
+Address RelayServerLocked(RelayState& r) {
+    LoadRelayLocked(r);
+    if (r.serverText.empty()) return {};
+    const int64_t now = NowMs();
+    if (!r.server.Valid() ? now - r.lastResolve > 10000 : now - r.lastResolve > 300000) {
+        r.lastResolve = now;
+        Address resolved;
+        if (ResolveAddress(r.serverText, kRelayDefaultPort, resolved)) {
+            r.server = resolved;
+        } else {
+            RT_LOGF(RT_TAG_RUNTIME, "online: can't find the server %s\n", r.serverText.c_str());
+        }
+    }
+    return r.server;
+}
+
+void PutU24(std::vector<uint8_t>& out, uint32_t v) {
+    out.push_back(static_cast<uint8_t>(v));
+    out.push_back(static_cast<uint8_t>(v >> 8));
+    out.push_back(static_cast<uint8_t>(v >> 16));
+}
+
+uint32_t GetU24(const uint8_t* p) {
+    return p[0] | (static_cast<uint32_t>(p[1]) << 8) | (static_cast<uint32_t>(p[2]) << 16);
+}
+
+void PutStr8(std::vector<uint8_t>& out, const std::string& text) {
+    const size_t n = std::min<size_t>(text.size(), 63);
+    out.push_back(static_cast<uint8_t>(n));
+    out.insert(out.end(), text.begin(), text.begin() + static_cast<std::ptrdiff_t>(n));
+}
+
+bool GetStr8(const uint8_t* data, size_t size, size_t& pos, std::string& out) {
+    if (pos >= size || pos + 1 + data[pos] > size) return false;
+    out.assign(reinterpret_cast<const char*>(data + pos + 1), data[pos]);
+    pos += 1 + data[pos];
+    return true;
+}
+
+} // namespace
+
+namespace Relay {
+
+bool Enabled() {
+    RelayState& r = R();
+    std::lock_guard<std::mutex> lock(r.mutex);
+    LoadRelayLocked(r);
+    return !r.serverText.empty();
+}
+
+bool Connected() {
+    RelayState& r = R();
+    std::lock_guard<std::mutex> lock(r.mutex);
+    return NowMs() - r.lastRegistered < 6000;
+}
+
+bool IsRelayAddress(const Address& address) {
+    return (address.ip >> 24) == 240;
+}
+
+Address OwnAddress() {
+    RelayState& r = R();
+    std::lock_guard<std::mutex> lock(r.mutex);
+    LoadRelayLocked(r);
+    return Address{(240u << 24) | r.id, 1};
+}
+
+std::string Code() {
+    uint32_t id = OwnAddress().ip & 0xFFFFFFu;
+    std::string code(5, 'A');
+    for (int i = 4; i >= 0; --i, id >>= 5) code[static_cast<size_t>(i)] = kCodeLetters[id & 31];
+    return code;
+}
+
+bool CodeToAddress(std::string_view code, Address& out) {
+    if (ParseAddress(code, 1, out) && IsRelayAddress(out)) return true;
+    uint32_t id = 0;
+    int letters = 0;
+    for (char c : code) {
+        if (c == ' ' || c == '-') continue;
+        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        const char* at = c != '\0' ? std::strchr(kCodeLetters, c) : nullptr;
+        if (at == nullptr) return false;
+        id = (id << 5) | static_cast<uint32_t>(at - kCodeLetters);
+        ++letters;
+    }
+    if (letters != 5 || id == 0 || id > 0xFFFFFFu) return false;
+    out = Address{(240u << 24) | id, 1};
+    return true;
+}
+
+void SetListing(uint8_t maxPlayers, uint8_t players, const std::string& name, const std::string& build) {
+    RelayState& r = R();
+    std::lock_guard<std::mutex> lock(r.mutex);
+    r.listMax = maxPlayers;
+    r.listPlayers = players;
+    r.listName = name;
+    r.listBuild = build;
+}
+
+std::vector<ListedRoom> Listed() {
+    RelayState& r = R();
+    std::lock_guard<std::mutex> lock(r.mutex);
+    return r.listed;
+}
+
+void RequestList() {
+    RelayState& r = R();
+    std::lock_guard<std::mutex> lock(r.mutex);
+    r.listRequested = true;
+}
+
+} // namespace Relay
+
+// Keeps this socket registered with the server (every 2 s) and asks for the room list when wanted.
+void UdpSocket::RelayTick() {
+    RelayState& r = R();
+    Address server;
+    std::vector<uint8_t> reg, list;
+    {
+        std::lock_guard<std::mutex> lock(r.mutex);
+        server = RelayServerLocked(r);
+        if (!server.Valid()) return;
+        const int64_t now = NowMs();
+        if (now - m_lastRelayRegister >= 2000) {
+            m_lastRelayRegister = now;
+            reg = {kRelayRegister, static_cast<uint8_t>(kRelayVersion), static_cast<uint8_t>(kRelayVersion >> 8)};
+            PutU24(reg, r.id);
+            reg.push_back(r.listMax != 0 ? 1 : 0);
+            if (r.listMax != 0) {
+                reg.push_back(r.listMax);
+                reg.push_back(r.listPlayers);
+                PutStr8(reg, r.listName);
+                PutStr8(reg, r.listBuild);
+            }
+        }
+        if (r.listRequested) {
+            r.listRequested = false;
+            list = {kRelayList};
+        }
+    }
+    if (!reg.empty()) SendRaw(server, reg.data(), reg.size());
+    if (!list.empty()) SendRaw(server, list.data(), list.size());
+}
+
 bool UdpSocket::SendTo(const Address& to, const void* data, size_t size) {
     if (!IsOpen() || !to.Valid()) {
         return false;
     }
+    if (Relay::IsRelayAddress(to)) {
+        RelayTick();
+        Address server;
+        {
+            std::lock_guard<std::mutex> lock(R().mutex);
+            server = RelayServerLocked(R());
+        }
+        if (!server.Valid() || size > 1400) return false;
+        std::vector<uint8_t> packet{kRelayForward};
+        PutU24(packet, to.ip & 0xFFFFFFu);
+        packet.insert(packet.end(), static_cast<const uint8_t*>(data), static_cast<const uint8_t*>(data) + size);
+        return SendRaw(server, packet.data(), packet.size());
+    }
+    return SendRaw(to, data, size);
+}
+
+bool UdpSocket::SendRaw(const Address& to, const void* data, size_t size) {
     const sockaddr_in target = ToSockaddr(to);
     const auto sent = ::sendto(Native(m_socket), static_cast<const char*>(data), static_cast<int>(size), 0,
                                reinterpret_cast<const sockaddr*>(&target), sizeof(target));
@@ -242,6 +473,7 @@ int UdpSocket::ReceiveFrom(Address& from, void* buffer, size_t capacity, int tim
     if (!IsOpen()) {
         return -1;
     }
+    RelayTick();
     if (!m_bound) {
         // Nothing can arrive before the first send gives the socket a port.
         if (timeoutMs > 0) {
@@ -280,7 +512,43 @@ int UdpSocket::ReceiveFrom(Address& from, void* buffer, size_t capacity, int tim
     }
     from.ip = ntohl(source.sin_addr.s_addr);
     from.port = ntohs(source.sin_port);
-    return static_cast<int>(received);
+    // From the online server: another game's packet (handed on as from its relay address), or the server's own.
+    RelayState& r = R();
+    Address server;
+    {
+        std::lock_guard<std::mutex> lock(r.mutex);
+        server = r.server;
+    }
+    auto* bytes = static_cast<uint8_t*>(buffer);
+    if (!server.Valid() || from != server || received < 1) {
+        return static_cast<int>(received);
+    }
+    if (bytes[0] == kRelayForward && received >= 4) {
+        from = Address{(240u << 24) | GetU24(bytes + 1), 1};
+        std::memmove(bytes, bytes + 4, static_cast<size_t>(received - 4));
+        return static_cast<int>(received - 4);
+    }
+    std::lock_guard<std::mutex> lock(r.mutex);
+    if (bytes[0] == kRelayRegistered) {
+        if (NowMs() - r.lastRegistered > 6000) RT_LOGF(RT_TAG_RUNTIME, "online: connected to %s\n", r.serverText.c_str());
+        r.lastRegistered = NowMs();
+    } else if (bytes[0] == kRelayListReply && received >= 2) {
+        const size_t size = static_cast<size_t>(received);
+        std::vector<Relay::ListedRoom> rooms;
+        size_t pos = 2;
+        for (uint8_t i = 0; i < bytes[1]; ++i) {
+            Relay::ListedRoom room;
+            if (pos + 5 > size) break;
+            room.host = Address{(240u << 24) | GetU24(bytes + pos), 1};
+            room.maxPlayers = bytes[pos + 3];
+            room.players = bytes[pos + 4];
+            pos += 5;
+            if (!GetStr8(bytes, size, pos, room.name) || !GetStr8(bytes, size, pos, room.build)) break;
+            if ((room.host.ip & 0xFFFFFFu) != r.id) rooms.push_back(std::move(room));
+        }
+        r.listed = std::move(rooms);
+    }
+    return 0;
 }
 
 std::vector<LocalInterface> LocalInterfaces() {

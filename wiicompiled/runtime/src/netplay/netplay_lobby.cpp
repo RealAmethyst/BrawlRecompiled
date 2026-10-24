@@ -1,5 +1,7 @@
 #include "netplay_lobby.h"
 
+#include "hle/gecko.h"
+
 #include "nand_path.h"
 #include "netplay/net_socket.h"
 #include "runtime_config.h"
@@ -34,9 +36,9 @@ using Clock = std::chrono::steady_clock;
 using namespace std::chrono_literals;
 
 constexpr uint32_t kMagic = 0x4C50574Eu;  // "NWPL"
-constexpr uint8_t kVersion = 1;
+constexpr uint8_t kVersion = 2;  // 2: Brawl (joins carry the build)
 constexpr size_t kChunk = 1024;
-constexpr size_t kMaxChunks = 128;  // 128 KiB of save data at most
+constexpr size_t kMaxChunks = 1024;  // 1 MiB of (packed) save data at most
 constexpr auto kTimeout = 6s;
 
 enum Type : uint8_t {
@@ -53,10 +55,14 @@ enum Type : uint8_t {
     kGo = 11,
 };
 
-// The save-related NAND files every device must start from.
+// The save-related NAND files every device must start from: Brawl's save (both copies of each part) and the Wii's
+// settings.
 const char* const kNandFiles[] = {
-    "title/00010000/534d4e45/data/wiimj2d.sav",
-    "title/00010000/534d4e45/data/banner.bin",
+    "title/00010000/52534245/data/autosv0.bin",
+    "title/00010000/52534245/data/autosv1.bin",
+    "title/00010000/52534245/data/advsv0.bin",
+    "title/00010000/52534245/data/advsv1.bin",
+    "title/00010000/52534245/data/banner.bin",
     "title/00000001/00000002/data/setting.txt",
 };
 
@@ -189,6 +195,15 @@ std::vector<uint8_t> Header(Type type, uint64_t roomId) {
 
 // NSMBW_NET_TAILSCALE_ONLY=1 (Android: debug.nsmbw.tsonly): no broadcasts, and anything not from a
 // Tailscale address is ignored, as if the devices were on different networks. For testing.
+// BRAWL_ONLINE_ONLY=1 (testing two games on one PC): only packets through the online server count.
+bool OnlineOnly() {
+    static const bool only = [] {
+        const char* value = std::getenv("BRAWL_ONLINE_ONLY");
+        return value != nullptr && std::string(value) == "1";
+    }();
+    return only;
+}
+
 bool TailscaleOnly() {
     static const bool only = [] {
         const char* value = std::getenv("NSMBW_NET_TAILSCALE_ONLY");
@@ -376,6 +391,53 @@ std::vector<std::string> TailscalePeers() {
 }
 #endif
 
+// Brawl's save is ~2 MB, nearly all zeros: runs of zeros go as {0, length}, the rest as {1, length, bytes}.
+std::vector<uint8_t> PackZeros(const std::vector<uint8_t>& raw) {
+    std::vector<uint8_t> out;
+    auto put = [&](uint8_t type, size_t length, const uint8_t* bytes) {
+        out.push_back(type);
+        const uint32_t n = static_cast<uint32_t>(length);
+        out.insert(out.end(), reinterpret_cast<const uint8_t*>(&n), reinterpret_cast<const uint8_t*>(&n) + 4);
+        if (bytes != nullptr) out.insert(out.end(), bytes, bytes + length);
+    };
+    size_t literal = 0, i = 0;
+    while (i < raw.size()) {
+        size_t zeros = 0;
+        while (i + zeros < raw.size() && raw[i + zeros] == 0) ++zeros;
+        if (zeros >= 16) {
+            if (i > literal) put(1, i - literal, raw.data() + literal);
+            put(0, zeros, nullptr);
+            i += zeros;
+            literal = i;
+        } else {
+            i += std::max<size_t>(zeros, 1);
+        }
+    }
+    if (raw.size() > literal) put(1, raw.size() - literal, raw.data() + literal);
+    return out;
+}
+
+bool UnpackZeros(const std::vector<uint8_t>& packed, std::vector<uint8_t>& raw) {
+    raw.clear();
+    for (size_t pos = 0; pos < packed.size();) {
+        if (pos + 5 > packed.size()) return false;
+        const uint8_t type = packed[pos];
+        uint32_t n = 0;
+        std::memcpy(&n, packed.data() + pos + 1, 4);
+        pos += 5;
+        if (type == 0 && n <= 64u * 1024 * 1024) {
+            raw.insert(raw.end(), n, 0);
+        } else if (type == 1 && n <= packed.size() - pos) {
+            raw.insert(raw.end(), packed.begin() + pos, packed.begin() + pos + n);
+            pos += n;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
+// `blob` is the files back to back, packed (PackZeros).
 bool LoadNandFiles(std::vector<uint8_t>& blob, std::vector<std::pair<std::string, uint32_t>>& manifest) {
     const auto root = RuntimeNandPath::DiscoverNandRootPath();
     blob.clear();
@@ -389,15 +451,26 @@ bool LoadNandFiles(std::vector<uint8_t>& blob, std::vector<std::pair<std::string
         manifest.emplace_back(path, static_cast<uint32_t>(bytes.size()));
         blob.insert(blob.end(), bytes.begin(), bytes.end());
     }
+    std::vector<uint8_t> packed = PackZeros(blob), check;
+    if (!UnpackZeros(packed, check) || check != blob) {  // self-check of the packer
+        RT_LOGF(RT_TAG_RUNTIME, "netplay: packing the save failed its check\n");
+        return false;
+    }
+    blob = std::move(packed);
     return blob.size() <= kMaxChunks * kChunk;
 }
 
-void FillPlanFiles(Plan& plan, const std::vector<uint8_t>& blob, const std::vector<std::pair<std::string, uint32_t>>& manifest) {
+bool FillPlanFiles(Plan& plan, const std::vector<uint8_t>& packed, const std::vector<std::pair<std::string, uint32_t>>& manifest) {
+    std::vector<uint8_t> blob;
+    size_t total = 0;
+    for (const auto& entry : manifest) total += entry.second;
+    if (!UnpackZeros(packed, blob) || blob.size() != total) return false;
     size_t offset = 0;
     for (const auto& [path, size] : manifest) {
         plan.nandFiles[path] = std::vector<uint8_t>(blob.begin() + offset, blob.begin() + offset + size);
         offset += size;
     }
+    return true;
 }
 
 std::vector<Member> HostMembersLocked(const State& s) {
@@ -440,6 +513,7 @@ std::vector<uint8_t> StartBody(const State& s, const HostMember& member) {
         w.U32(size);
     }
     w.U64(s.blobHash);
+    w.U32(static_cast<uint32_t>(s.blob.size()));  // the files packed (PackZeros): what is sent
     return w.data;
 }
 
@@ -502,10 +576,13 @@ void HostPacketLocked(State& s, const Netplay::Address& from, uint8_t type, uint
     if (type == kJoin) {
         const std::string name = r.Str();
         const uint32_t nonce = r.U32();
+        const std::string build = r.Str();
         Writer reply;
         if (member == s.members.end()) {
-            if (s.phase != Phase::Hosting || 1 + s.members.size() >= s.maxPlayers) {
-                reply.U8(s.phase != Phase::Hosting ? 2 : 1);  // started / full
+            // Everyone must run the same game: vanilla, or the same mod's codes (Gecko::BuildIdentity).
+            const bool sameBuild = !r.bad && build == Gecko::BuildIdentity();
+            if (s.phase != Phase::Hosting || 1 + s.members.size() >= s.maxPlayers || !sameBuild) {
+                reply.U8(!sameBuild ? 3 : s.phase != Phase::Hosting ? 2 : 1);  // other build / started / full
                 reply.U8(0);
                 reply.U32(nonce);
                 Send(s, from, kJoinReply, s.roomId, reply.data);
@@ -720,7 +797,10 @@ void MemberPacketLocked(State& s, const Netplay::Address& from, uint8_t type, ui
         }
         if (result != 0) {
             s.phase = Phase::Failed;
-            s.message = result == 1 ? "That room is full." : "That room has already started.";
+            s.message = result == 1   ? "That room is full."
+                        : result == 3 ? "That room plays a different build. Pick the same one (vanilla or the same mod) "
+                                        "in the launcher's Mods tab."
+                                      : "That room has already started.";
             return;
         }
         s.localSlot = slot;
@@ -789,15 +869,16 @@ void MemberPacketLocked(State& s, const Netplay::Address& from, uint8_t type, ui
             total += size;
         }
         const uint64_t hash = r.U64();
-        if (r.bad || total > kMaxChunks * kChunk) {
+        const uint32_t packed = r.U32();
+        if (r.bad || packed > kMaxChunks * kChunk || total > 64u * 1024 * 1024) {
             return;
         }
         plan.host = Netplay::ToString(s.hostAddress);
         s.plan = plan;
         s.manifest = manifest;
         s.blobHash = hash;
-        s.blob.assign(total, 0);
-        s.received.assign((total + kChunk - 1) / kChunk, false);
+        s.blob.assign(packed, 0);
+        s.received.assign((packed + kChunk - 1) / kChunk, false);
         s.phase = Phase::Starting;
         s.message = "Getting the host's save...";
         RT_LOGF(RT_TAG_RUNTIME, "netplay: the host started session %llu (%u players, delay %u)\n",
@@ -839,6 +920,11 @@ void MemberTickLocked(State& s) {
             for (const auto& target : s.unicastTargets) {
                 Send(s, target, kDiscover, 0, shared.data);
             }
+            // The online server's public rooms: ask each host for its room, through the server.
+            Netplay::Relay::RequestList();
+            for (const auto& room : Netplay::Relay::Listed()) {
+                Send(s, room.host, kDiscover, 0, shared.data);
+            }
         }
         std::erase_if(s.rooms, [&](const FoundRoom& f) { return now - f.lastSeen > 4s; });
         return;
@@ -848,6 +934,7 @@ void MemberTickLocked(State& s) {
         Writer w;
         w.Str(Netplay::DeviceName());
         w.U32(s.nonce);
+        w.Str(Gecko::BuildIdentity());
         Send(s, s.hostAddress, kJoin, s.joinRoomId, w.data);
         if (now - s.startedAt > kTimeout) {
             s.phase = Phase::Failed;
@@ -864,10 +951,10 @@ void MemberTickLocked(State& s) {
         if (s.phase == Phase::Starting && !s.memberReady &&
             std::all_of(s.received.begin(), s.received.end(), [](bool b) { return b; })) {
             // Everything arrived: check it and keep it.
-            if (XXH3_64bits(s.blob.data(), s.blob.size()) != s.blobHash) {
+            if (XXH3_64bits(s.blob.data(), s.blob.size()) != s.blobHash ||
+                !FillPlanFiles(s.plan, s.blob, s.manifest)) {
                 std::fill(s.received.begin(), s.received.end(), false);
             } else {
-                FillPlanFiles(s.plan, s.blob, s.manifest);
                 s.memberReady = true;
                 s.message = "Waiting for everyone...";
             }
@@ -906,7 +993,8 @@ void Thread() {
         Netplay::Address from;
         const int got = s.socket.ReceiveFrom(from, buffer.data(), buffer.size(), 5);
         std::lock_guard<std::mutex> lock(s.mutex);
-        if (got > 0 && (!TailscaleOnly() || Netplay::IsTailscaleIp(from.ip))) {
+        if (got > 0 && (!TailscaleOnly() || Netplay::IsTailscaleIp(from.ip)) &&
+            (!OnlineOnly() || Netplay::Relay::IsRelayAddress(from))) {
             Reader r{buffer.data(), static_cast<size_t>(got)};
             const uint32_t magic = r.U32();
             const uint8_t version = r.U8();
