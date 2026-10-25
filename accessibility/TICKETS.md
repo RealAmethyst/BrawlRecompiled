@@ -126,8 +126,14 @@ Decisions (2026-10-25):
   the A Play hint, frequency changes); Erase Data with its yes/no dialog; Controls and Group > Names name lists.
 - Decisions (2026-10-25): slider values as position percent; spoken on every step; Rumble controller tab announces
   every connected controller on entry and the changed one on A.
-- Remaining: the name keyboard, the controller setup scene (scButton), Sound Test, the Wii Remote name save/load
-  menus (their dialogs are covered by A11Y-18).
+- Name keyboard (`keyboard.cpp`, shared by every name entry): key under the cursor with its label and place (Delete
+  and Switch characters name icon-only keys; decision 2026-10-25), each typed or cycled character, "Deleted X", the
+  character set after a switch, and the name on the OK key.
+- Controller setup (`button_setup.cpp`, scene scButton): controller choice, mapping list rows (button, action,
+  description, place), Tap Jump / Shake Smash, Default / Test / Save, the action being chosen, the restore / save
+  prompts with YES / NO, and the saved message. Button names follow the icons (Classic's stick row inferred to be the
+  right stick, spoken as "Stick").
+- Remaining: Sound Test, the Wii Remote name save/load menus (their dialogs are covered by A11Y-18), the test battle.
 
 ### A11Y-16 Story: boot and title screen speech
 

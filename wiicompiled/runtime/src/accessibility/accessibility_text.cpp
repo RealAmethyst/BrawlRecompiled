@@ -213,6 +213,8 @@ std::string DiscMessageEntry(std::string_view path, uint32_t index) {
     }
 }
 
+std::string Prepare(const std::string& text) { return Speakable(text).value_or(std::string()); }
+
 std::string GuestText(uint32_t address, uint32_t length) {
     if (length > kMaxEntryBytes) {
         LogOnce("text rejected: too long");

@@ -71,3 +71,32 @@ controller_types = ["GameCube Controller", "Classic Controller", "Wii Remote", "
 # The A-button hint beside the song list: MenStageEditSave.0 with the A glyph.
 play_hint = "A, Play"
 
+
+[keyboard]
+# The name keyboard (MuName): key 0 (an arrow tab, no text), key 12 (a cycling-arrows icon, no text), key 13
+# (MenSelchrEntryW05 "OK!"); keys 1-11 by character set, as their labels read (MenSelchrW*).
+delete = "Delete"
+switch = "Switch characters"
+ok = "OK!"
+deleted = "Deleted {text}"
+letters = ["@()^:;", "ABC", "DEF", "GHI", "JKL", "MNO", "PQRS", "TUV", "WXYZ", "!?&%", "•,./~"]
+numbers = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "−+×=", "0"]
+accented = ["À", "Ç", "È", "Ì", "Ò", "Ñß", "Ù", "¡¿£€", "_,′°", ":;()", "↑↓→←"]
+# The character set after Switch characters (no caption on screen; the keys change).
+set_names = { letters = "Letters", numbers = "Numbers", accented = "Accented letters" }
+
+[button_setup]
+# scButton (menu/option/Button_en.brres), in the game's controller order: atlas InfButton01Cont06Jp.
+controllers = ["Nintendo GameCube Controller", "Wii Remote with Nunchuk", "Wii Remote", "Classic Controller"]
+# Each controller's mapping rows, by their button icons (InfPauseButton00, NnBtn01, ClBtn01 atlases).
+gamecube = ["L", "R", "Z", "Y", "X", "A", "B", "C-Stick", "D-pad Up", "D-pad Left and Right", "D-pad Down"]
+nunchuk = ["D-pad Up", "D-pad Left and Right", "D-pad Down", "A", "B", "A+B", "1", "2", "1+2", "C", "Z"]
+wii_remote = ["D-pad", "A", "Minus", "2", "1", "1+2", "B", "A+B"]
+classic = ["L", "R", "ZL", "ZR", "x", "y", "a", "b", "Stick", "D-pad Up", "D-pad Left and Right", "D-pad Down"]
+# InfButton07Font.
+default = "Default"
+test = "Test"
+save = "Save"
+# InfButton11Yes, InfButton11No.
+yes = "YES"
+no = "NO"

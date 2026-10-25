@@ -219,3 +219,19 @@ confirmed. First recorded 2026-10-25 against upstream `7f3ac07` and decomp `d515
 - Free pointer; hover update `0x806B626C` stores the region at `task+0x244` (0 none; 2..n+1 icons; 53 Change, 54
   Random, 55 Back; page 2 custom). Page `+0x228`; per page `+0x22C` icon id list, `+0x230` count. Kind = u16 at
   `(*(0x806B9298+8*page))[id*4]`; name = `stage_name[byte 3 of 0x80407AAC+4*kind]` (same names as the art).
+
+## Name keyboard and controller setup
+
+- MuName (sora_menu_name): open `0x80674614`, key cursor move `0x80674C28` (writes `+0x40` only on a change), action
+  `0x80674E84` (the only place the typed UTF-8 text at `*(+4)` changes). Sets: ids at `+0x24` (u32), count `+0x38`,
+  index `+0x3C`; ids 0 hiragana, 1 katakana, 2 letters, 3 numbers, 4 accented. Keys 0 Delete (icon), 1-11 characters,
+  12 switch (icon), 13 "OK!". `+0x7C` = 0 while the last character is still cycling.
+- scButton: `muButtonTask` processDefault `0x9403573C`; data `*(task+0x40)`: state `+0xB0`, controller `+0xB4` (0
+  GameCube, 1 Wii Remote with Nunchuk, 2 Wii Remote, 3 Classic; order verified from the model), MuMsg `+0x164`
+  (`button` table), mapping bytes `+0x19C`, toggles `+0x1A8` (0x80 Tap Jump, 0x40 Shake Smash; set = ON), list item
+  `+0x1AC`, YES/NO byte `+0x1BC` (1 YES). List records per controller at `*(0x940425F0+8*type)` (12 bytes, id first).
+  Action names/descriptions: byte pairs at `0x94042658`. Row action print `0x940359F8`. After saving, the menu
+  reopens on Controls (proc 10).
+- Art captions verified from decoded textures: controller names (InfButton01Cont06Jp), Default/Test/Save
+  (InfButton07Font), YES/NO (InfButton11Yes/No), OFF/ON (InfButton08On), key labels (MenSelchrW3_*), "OK!"
+  (MenSelchrEntryW05); row button icons per controller from the model's `pos%02d` bones.

@@ -20,6 +20,9 @@ std::string MessageEntry(uint32_t msbin, uint32_t index);
 // for text the game shows from a table it has not loaded at that moment. Files are read once and kept.
 std::string DiscMessageEntry(std::string_view path, uint32_t index);
 
+// Host-side UTF-8 game text (copied out of guest memory) as speakable text: markup removed, full-width forms folded.
+std::string Prepare(const std::string& text);
+
 // `length` bytes of game text at guest `address` (raw message text, markup included), as speakable text.
 std::string GuestText(uint32_t address, uint32_t length);
 
