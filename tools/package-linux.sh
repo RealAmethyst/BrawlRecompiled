@@ -18,6 +18,17 @@ cp "$build/usa/build/_deps/png-build/libpng16.so.16" "$engine/"   # the one libr
 cp -L "$build/sdl-shared/libSDL3.so.0" "$engine/"                 # the launcher's controller list
 cp "$build/usa/build/dsp_coef.bin" "$build/usa/build/cacert.pem" "$root/Play/portable.txt" "$engine/"
 cp -r "$root/Play/wii_bootstrap" "$engine/"
+# Screen-reader speech (built unless MKW_SCREEN_READER_SPEECH is off): Prism, loaded at run time, and the speech wording.
+if [[ -f $build/usa/build/libprism.so ]]; then
+    cp "$build/usa/build/libprism.so" "$engine/"
+    cp -r "$build/usa/build/accessibility" "$engine/"
+    prism=$build/usa/build/mkw_prism-prefix/src/mkw_prism
+    cp "$prism/LICENSE" "$engine/licenses/Prism-LICENSE.txt"
+    cp "$prism/NOTICE" "$engine/licenses/Prism-NOTICE.txt"
+    for dir in "$prism"/LICENSES/*/; do
+        for f in "$dir"*; do name=$(basename "$f"); cp "$f" "$engine/licenses/Prism-$(basename "$dir")-${name%.*}.txt"; done
+    done
+fi
 mkdir -p "$engine/startup" && cp "$root/launcher/art/smash_ball.png" "$engine/startup/"   # the title card's Smash Ball
 cp "$root/tools/CREDITS.txt" "$stage/CREDITS.txt"
 cp "$root/wiicompiled/LICENSE" "$stage/LICENSE.txt"

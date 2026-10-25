@@ -128,7 +128,7 @@ Source: <https://github.com/higan-emu/libco>. Full license text:
 ## Fetched at build time and redistributed in release builds
 
 These are pinned in `aurora-main/extern/CMakeLists.txt`, `aurora-main/CMakeLists.txt`,
-`aurora-main/cmake/AuroraDawnProvider.cmake`, and (for Mbed TLS) `runtime/CMakeLists.txt`. They are
+`aurora-main/cmake/AuroraDawnProvider.cmake`, and (for Mbed TLS and Prism) `runtime/CMakeLists.txt`. They are
 not stored in this repository; the build downloads them - each fetch is pinned to an exact version
 with a checked SHA-256 - and links or redistributes the resulting binaries. Their license texts are
 included in the installer's `licenses/` folder. The Windows installer bundles the pinned source
@@ -154,6 +154,7 @@ trees themselves (fetched by `Launcher/Prepare-Dependencies.ps1`) so end-user bu
 | Tracy Profiler | pinned commit | BSD-3-Clause | <https://github.com/wolfpld/tracy> |
 | C++/WinRT | - | MIT (Microsoft) | <https://github.com/microsoft/cppwinrt> |
 | nodtool (disc image extraction) | v2.0.0-alpha.10 | MIT OR Apache-2.0 | <https://github.com/encounter/nod> |
+| Prism (screen-reader speech, Linux; shipped as `libprism.so`) | 0.18.3 | MPL-2.0 (bundled parts: Apache-2.0, MIT, BSD, public domain; see its `NOTICE`) | <https://github.com/ethindp/prism> |
 
 ### Dual-licensed components - elections made by this project
 

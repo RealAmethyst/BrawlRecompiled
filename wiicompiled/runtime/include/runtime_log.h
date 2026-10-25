@@ -24,6 +24,7 @@
 #define RT_TAG_NAND "nand"
 #define RT_TAG_RIIVOLUTION "riivolution"
 #define RT_TAG_VI "vi"
+#define RT_TAG_ACCESSIBILITY "accessibility"
 
 // Stream form:  RT_LOG(RT_TAG_OS) << "OSCreateThread failed" << std::endl;
 #define RT_LOG(tag) (std::cerr << "[" tag "] ")

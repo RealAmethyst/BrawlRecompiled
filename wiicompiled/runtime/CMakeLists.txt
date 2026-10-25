@@ -190,6 +190,50 @@ if(NOT MKW_PLATFORM_WINDOWS)
     endif()
 endif()
 
+# Screen-reader speech (src/accessibility/speech.cpp). Prism is built as its own project, so its C++23 and option
+# defaults (BUILD_SHARED_LIBS among them) stay out of this one, with only the Orca backend: speech goes to a running
+# screen reader, never a synthesiser. The game loads libprism.so at run time, so this adds no link dependency. Building
+# it needs glibmm-2.68 and giomm-2.68 and a download; without them, or in an offline prebuilt build, speech is off.
+option(MKW_SCREEN_READER_SPEECH "Speak through the player's running screen reader (Linux: Orca)" ON)
+if(MKW_SCREEN_READER_SPEECH AND MKW_PLATFORM_LINUX AND MKW_BUILD_PRODUCTS)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(MKW_PRISM_ORCA_DEPS QUIET glibmm-2.68 giomm-2.68)
+    endif()
+    if(MKW_NATIVE_PREBUILT_DIR OR FETCHCONTENT_FULLY_DISCONNECTED)
+        message(STATUS "Screen-reader speech off: Prism is not built in an offline or prebuilt build")
+    elseif(NOT MKW_PRISM_ORCA_DEPS_FOUND)
+        message(WARNING "Screen-reader speech off: glibmm-2.68 and giomm-2.68 (pkg-config) are needed to build Prism")
+    else()
+        include("${CMAKE_CURRENT_LIST_DIR}/cmake/PrismPin.cmake")
+        include(ExternalProject)
+        ExternalProject_Add(mkw_prism
+            URL "https://github.com/ethindp/prism/archive/refs/tags/v${MKW_PRISM_VERSION}.tar.gz"
+            URL_HASH SHA256=${MKW_PRISM_SHA256}
+            DOWNLOAD_EXTRACT_TIMESTAMP FALSE
+            EXCLUDE_FROM_ALL TRUE
+            CMAKE_ARGS
+                -DCMAKE_BUILD_TYPE=Release
+                -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+                -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+                -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+                -DPRISM_BACKEND_DEFAULT=OFF
+                -DPRISM_ENABLE_ORCA_BACKEND=ON
+                -DPRISM_ENABLE_SHIMS=OFF
+                -DPRISM_ENABLE_LEGACY_BACKENDS=OFF
+                -DPRISM_ENABLE_DEMOS=OFF
+                -DPRISM_ENABLE_TESTS=OFF
+            INSTALL_COMMAND ""
+            BUILD_BYPRODUCTS <BINARY_DIR>/libprism.so
+        )
+        block(SCOPE_FOR VARIABLES PROPAGATE MKW_PRISM_INCLUDE_DIRS MKW_PRISM_LIBRARY)
+            ExternalProject_Get_Property(mkw_prism SOURCE_DIR BINARY_DIR)
+            set(MKW_PRISM_INCLUDE_DIRS "${SOURCE_DIR}/include" "${BINARY_DIR}/generated/include")
+            set(MKW_PRISM_LIBRARY "${BINARY_DIR}/libprism.so")
+        endblock()
+    endif()
+endif()
+
 set(MKW_TRANSLATED_COMPILE_JOBS 0 CACHE STRING
     "Cap on concurrently compiling translated shard TUs via a Ninja job pool (0 = uncapped). \
 Scheduling only - never affects output bytes, so it is deliberately outside the canonical flag fingerprint.")

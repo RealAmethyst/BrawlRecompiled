@@ -104,6 +104,25 @@ if(MKW_PLATFORM_MACOS)
     endif()
 endif()
 
+if(MKW_PRISM_LIBRARY)
+    # The speech layer's own wording (src/accessibility/accessibility_text.cpp), copied beside the products whenever
+    # it changes, not only when a product relinks.
+    file(GLOB MKW_ACCESSIBILITY_STRINGS CONFIGURE_DEPENDS "${MKW_RUNTIME_SOURCE_DIR}/assets/accessibility/*.toml")
+    set(MKW_ACCESSIBILITY_STRINGS_STAMP "${CMAKE_BINARY_DIR}/accessibility_strings.stamp")
+    add_custom_command(OUTPUT "${MKW_ACCESSIBILITY_STRINGS_STAMP}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/accessibility"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${MKW_ACCESSIBILITY_STRINGS} "${CMAKE_BINARY_DIR}/accessibility"
+        COMMAND ${CMAKE_COMMAND} -E touch "${MKW_ACCESSIBILITY_STRINGS_STAMP}"
+        DEPENDS ${MKW_ACCESSIBILITY_STRINGS}
+        VERBATIM)
+    add_custom_target(mkw_accessibility_strings DEPENDS "${MKW_ACCESSIBILITY_STRINGS_STAMP}")
+
+    # Only Prism's header is needed to compile; speech.cpp loads the library at run time.
+    add_dependencies(mkw_runtime_common mkw_prism)
+    target_include_directories(mkw_runtime_common PRIVATE ${MKW_PRISM_INCLUDE_DIRS})
+    target_compile_definitions(mkw_runtime_common PRIVATE MKW_SCREEN_READER_SPEECH)
+endif()
+
 if(MKW_CPPWINRT_INCLUDE_DIR)
     if(NOT EXISTS "${MKW_CPPWINRT_INCLUDE_DIR}/winrt/base.h")
         message(FATAL_ERROR
@@ -119,6 +138,8 @@ foreach(source IN LISTS SOURCES)
     string(REPLACE "\\" "/" source_normalized "${source}")
     if(source_normalized MATCHES "/hle/gx/")
         set(runtime_group "gx_bridge")
+    elseif(source_normalized MATCHES "/accessibility/")
+        set(runtime_group "accessibility")
     elseif(source_name MATCHES "network|socket|dns|dwc|ios")
         set(runtime_group "network_ios")
     elseif(source_name MATCHES "os_|system|memory|fiber|scheduler")
@@ -270,6 +291,14 @@ function(mkw_configure_product target)
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     "${runtime_dll_path}" $<TARGET_FILE_DIR:${target}>)
         endforeach()
+    endif()
+
+    if(MKW_PRISM_LIBRARY)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MKW_PRISM_LIBRARY}" $<TARGET_FILE_DIR:${target}>)
+    endif()
+    if(MKW_PRISM_LIBRARY)
+        add_dependencies(${target} mkw_accessibility_strings)
     endif()
 
     set(MKW_WII_BOOTSTRAP_SOURCE_DIR "${MKW_RUNTIME_SOURCE_DIR}/assets/wii")

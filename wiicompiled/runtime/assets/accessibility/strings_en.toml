@@ -1,0 +1,51 @@
+# Screen-reader wording owned by the accessibility layer (src/accessibility). Text the game has in its own message
+# files is read from the game and never repeated here; this file holds only what the game draws as art (titles and
+# button labels baked into textures) and the layer's own phrases. Arrays follow the game's cursor order.
+
+# A menu item's place in its list: {index} is 1-based, {total} the number of items the player can reach.
+position = "{index} of {total}"
+
+[main_menu.titles]
+# MenMainTitle_TopN frames: 1-6, 7, 8, 11, 20-25 and 27 (texture MenMainTtlJ).
+select_mode = "Select Mode"
+group = "Group"
+solo = "Solo"
+options = "Options"
+screen = "Screen"
+deflicker = "Deflicker"
+rumble = "Rumble"
+controls = "Controls"
+sound = "Sound"
+my_music = "My Music"
+erase_data = "Erase Data"
+
+[main_menu.items]
+# MenMainFrTop10, 11, 15, 12, 13, 14.
+top = ["Group", "Solo", "Nintendo Wi-Fi Connection", "Vault", "Options", "Data"]
+# MenMainFrMul01, 02, 05, 04, 03, 06.
+group = ["Brawl", "Special Brawl", "Tourney", "Rotation", "Rules", "Names"]
+# MenMainSg00, 10, 02, 04, 05, 06.
+solo = ["Classic", "Adventure Mode", "All-Star", "Events", "Stadium", "Training"]
+# MenMainOp00, 01, 02, 03, 04, 05, 07.
+options = ["Screen", "Deflicker", "Rumble", "Controls", "Sound", "My Music", "Erase Data"]
+# The Screen setting's choices, in value order: MenMainOption03Font1, Font2.
+screen = ["4:3 Standard", "16:9 Widescreen"]
+# The Deflicker setting's value, Off then On: MenMainWave05.0, .1.
+deflicker = ["Off", "On"]
+# MenMainDelete03Font01 to Font05.
+erase_data = ["P1 High Score", "Brawl Records", "Adventure", "Vault Data", "Erase All"]
+
+[boot]
+# The wrist-strap reminder: MenBoot02_En, MenBoot00_En, MenBoot01_En (on-screen reading order not verified).
+strap = [
+    "Put on and tighten the wrist strap. Hold the Wii Remote securely and do not let go of it. Use the Wii Remote Jacket.",
+    "Allow adequate room around you during game play.",
+    "When using a controller connected to the Wii Remote, put the wrist strap through the connector hook.",
+]
+now_loading = "Now Loading."      # nowloading
+four_ways_to_play = "4 Ways to Play!"  # MenCont05
+
+[title]
+logo = "Super Smash Bros. Brawl"        # the title logo model
+press_any_button = "Press Any Button"   # press_any_button
+copyright = "© 2008 Nintendo / HAL Laboratory, Inc. Characters: © Nintendo / HAL Laboratory, Inc. / Pokémon. / Creatures Inc. / GAME FREAK inc. / SHIGESATO ITOI / APE inc. / INTELLIGENT SYSTEMS / Konami Digital Entertainment Co., Ltd. / SEGA"  # enTitleFront_copy
