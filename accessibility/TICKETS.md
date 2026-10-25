@@ -26,7 +26,7 @@ before any accessibility work starts.
 
 ### A11Y-3 Task: native Linux translation and compile
 
-- Status: awaiting verification (scripted build not yet tested in game)
+- Status: done (2026-10-26: every speech build since is made by the script and has been played)
 - Upstream translates on Windows (`tools/build-brawl.ps1`) and compiles for Linux in WSL from that output
   (`tools/build-linux.sh`, which rewrites Windows paths with `wslpath`). No native-Linux translate step exists.
 - Steps that worked, all under a local work folder (the NAS share cannot hold symlinks):
@@ -108,7 +108,7 @@ Decisions (2026-10-25):
 
 ### A11Y-14 Story: main menu speech (Select Mode, Group, Solo)
 
-- Status: awaiting verification
+- Status: done (listening confirmation 2026-10-26: "this is working")
 - Parent: A11Y-11. Hooks in `runtime/src/accessibility/main_menu.cpp`.
 - Behavior: on opening, the displayed title (mod string; the title is art) interrupts, then the selected item
   follows queued: name (mod string; art), description (the game's `main` message table), position among reachable
@@ -119,7 +119,7 @@ Decisions (2026-10-25):
 
 ### A11Y-15 Story: Options speech
 
-- Status: awaiting verification (deployed 2026-10-25)
+- Status: done (listening confirmation 2026-10-26: "this is working")
 - Parent: A11Y-11. Options list; Screen and Deflicker values; Sound (balance as percent from the sound-effects end,
   spoken on every step; Sound Test row); Rumble (tabs, each connected controller with On/Off, the Names tab's names
   with On/Off, toggles); My Music (stage picker through the stage-select speech, then songs with frequency percent,
@@ -137,7 +137,7 @@ Decisions (2026-10-25):
 
 ### A11Y-16 Story: boot and title screen speech
 
-- Status: awaiting verification (built and deployed 2026-10-25)
+- Status: done (listening confirmation 2026-10-26: "this is working")
 - Parent: A11Y-11. Hooks in `runtime/src/accessibility/title_screens.cpp`: wrist-strap reminder (art, three
   passages, order unverified), ESRB online notice (game text), NOW LOADING (art), "4 Ways to Play!" (art), title
   screen: logo, Press Any Button, copyright lines (art).
@@ -148,7 +148,7 @@ Decisions (2026-10-25):
 
 ### A11Y-18 Story: message windows and stage select
 
-- Status: awaiting verification (deployed 2026-10-25)
+- Status: done (listening confirmation 2026-10-26: "this is working")
 - MuNoticeWnd (main.dol, `notice_window.cpp`): every yes/no, one-button, message and busy window speaks its body and
   selected answer; covers first-boot save prompts and save errors, Vault, results, Wi-Fi and Subspace notices.
 - Stage select (`stage_select.cpp`): the hovered stage's name (game `stage_name` text, same names as the art) and its
@@ -162,9 +162,17 @@ Decisions (2026-10-25):
   message; Prism excluded from ALL), stale strings in the build folder (now copied on change), plus exception guards,
   a stale-panel check, an exception-safe enter flag, bounds and log-spam fixes, and a packaging name fix.
 
+### A11Y-19 Feature: the remaining menus
+
+- Status: ready (next by priority, 2026-10-26)
+- Parent: A11Y-11. Character select (fighter, costume, player slots, CPU/team settings), the rest of the stage select
+  (Random, Change, Back, custom stages), the rules screens (proc id 30), Vault, Data, Sound Test, the Wii Remote name
+  save/load menus, results screens, and the remaining Solo modes' menus.
+- Each screen: RE first, art captions verified from the textures, event hooks, independent review, listening test.
+
 ### A11Y-12 Feature: Steam Audio spatial audio
 
-- Status: blocked on A11Y-4 and A11Y-13
+- Status: blocked on A11Y-13 (priority after A11Y-19)
 - Positional game sounds rendered with Steam Audio HRTF, including elevation (above and below).
 
 ### A11Y-13 Spike: the audio pipeline
@@ -175,3 +183,8 @@ Decisions (2026-10-25):
   including `SoundArchive::ReadSound3DParam`). By the time a voice reaches AX it carries only volume and pan, so
   find where the game still has the emitter and listener positions, so Steam Audio can render from real positions.
   Unverified until traced.
+
+## A11Y-20 Epic: audio descriptions for the Subspace Emissary cutscenes
+
+- Status: blocked on a design discussion with the accessibility designer (to be scheduled after A11Y-12).
+- A large task; scope and approach not decided.
