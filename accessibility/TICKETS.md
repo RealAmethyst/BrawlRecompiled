@@ -119,12 +119,15 @@ Decisions (2026-10-25):
 
 ### A11Y-15 Story: Options speech
 
-- Status: awaiting verification (built and deployed 2026-10-25)
-- Parent: A11Y-11. Options list, Screen and Deflicker settings, Erase Data list and its yes/no dialog (dialog text is
-  game text). Rumble, Controls, Sound and My Music announce their titles only.
-- Acceptance: Options items with descriptions and positions; Screen and Deflicker speak the new value when changed;
-  Erase Data speaks each question and the selected answer, and the list item again when the dialog closes.
-- Remaining: Rumble toggles and names, Controls (`sora_menu_name` flow), Sound slider (direction unverified), My Music.
+- Status: awaiting verification (deployed 2026-10-25)
+- Parent: A11Y-11. Options list; Screen and Deflicker values; Sound (balance as percent from the sound-effects end,
+  spoken on every step; Sound Test row); Rumble (tabs, each connected controller with On/Off, the Names tab's names
+  with On/Off, toggles); My Music (stage picker through the stage-select speech, then songs with frequency percent,
+  the A Play hint, frequency changes); Erase Data with its yes/no dialog; Controls and Group > Names name lists.
+- Decisions (2026-10-25): slider values as position percent; spoken on every step; Rumble controller tab announces
+  every connected controller on entry and the changed one on A.
+- Remaining: the name keyboard, the controller setup scene (scButton), Sound Test, the Wii Remote name save/load
+  menus (their dialogs are covered by A11Y-18).
 
 ### A11Y-16 Story: boot and title screen speech
 
@@ -134,7 +137,17 @@ Decisions (2026-10-25):
   screen: logo, Press Any Button, copyright lines (art).
 - Decisions (2026-10-25): the title screen speaks logo, prompt and copyright; every screen of the idle loop is
   announced each time it appears; movies and the demo battle stay silent.
-- Not covered: `scBoot` save-data message windows (first boot or errors), "SKIP MOVIE" hint (not verified shown).
+- Strap screen order (decision 2026-10-25): both right-hand tips, then the bottom instruction.
+- Not covered: "SKIP MOVIE" hint (not verified shown). Save-data windows: see A11Y-18.
+
+### A11Y-18 Story: message windows and stage select
+
+- Status: awaiting verification (deployed 2026-10-25)
+- MuNoticeWnd (main.dol, `notice_window.cpp`): every yes/no, one-button, message and busy window speaks its body and
+  selected answer; covers first-boot save prompts and save errors, Vault, results, Wi-Fi and Subspace notices.
+- Stage select (`stage_select.cpp`): the hovered stage's name (game `stage_name` text, same names as the art) and its
+  place on the page. Random, Change, Back and the custom-stage page are silent (captions not verified).
+- Speech stays silent once Gecko codes patch the game (`GuestCodePatch::Active`).
 
 ### A11Y-17 Task: review fixes for the speech layer
 

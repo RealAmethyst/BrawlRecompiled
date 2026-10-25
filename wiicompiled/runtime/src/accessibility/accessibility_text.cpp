@@ -4,7 +4,13 @@
 #include "runtime_config.h"
 #include "runtime_log.h"
 
+#include <algorithm>
+#include <fstream>
+#include <iterator>
+#include <map>
 #include <mutex>
+#include <stdexcept>
+#include <vector>
 #include <optional>
 #include <set>
 #include <string>
@@ -15,9 +21,9 @@ namespace AccessibilityText {
 namespace {
 
 // A message table starts with one big-endian u32 offset per entry, from the table's start; the first offset is
-// therefore the table size. An entry runs to the next entry's offset (the last to the end of the file) and ends at
-// its first NUL (Message::getPrintIndexData 0x8006B134). The file's size is not known in memory, so the last entry is
-// read up to its NUL within kMaxEntryBytes. These bounds reject a pointer that is not a message table.
+// therefore the table size. An entry runs to the next entry's offset (the last to the end of the file; its size is not
+// known in memory, so up to kMaxEntryBytes) and ends at the first NUL outside markup: a markup code's payload may hold
+// NUL bytes (colour 0C 00 00 00 FF). These bounds reject a pointer that is not a message table.
 constexpr uint32_t kMaxOffsetTableBytes = 0x10000;
 constexpr uint32_t kMaxEntryBytes = 0x1000;
 
@@ -39,7 +45,7 @@ std::optional<size_t> MarkupLength(const std::string& text, size_t i) {
     }
 }
 
-// The speakable form of a raw entry: markup dropped (a ruby keeps its base text), tabs and line breaks as spaces,
+// The speakable form of a raw entry, up to a NUL outside markup: markup dropped (a ruby keeps its base text), tabs and line breaks as spaces,
 // full-width ASCII forms (U+FF01..U+FF5E) and the ideographic space folded to ASCII, runs of spaces collapsed.
 std::optional<std::string> Speakable(const std::string& raw) {
     std::string text;
@@ -62,6 +68,7 @@ std::optional<std::string> Speakable(const std::string& raw) {
             text += raw[i++];
             continue;
         }
+        if (byte == 0) break;
         const auto length = MarkupLength(raw, i);
         if (!length || i + *length > raw.size()) return std::nullopt;
         if (byte == 0x09 || byte == 0x0A) {
@@ -80,6 +87,53 @@ std::optional<std::string> Speakable(const std::string& raw) {
     }
     while (!collapsed.empty() && collapsed.back() == ' ') collapsed.pop_back();
     return collapsed;
+}
+
+// Entry `index` of a message table read through `read32` / `read8` (offsets from the table's start). `tableSize`, when
+// known, bounds the last entry; otherwise it is read up to its NUL within kMaxEntryBytes.
+template <typename Read32, typename Read8>
+std::string EntryText(Read32 read32, Read8 read8, uint32_t index, std::optional<uint32_t> tableSize) {
+    const uint32_t tableBytes = read32(0);
+    if (tableBytes < 4 || tableBytes > kMaxOffsetTableBytes || tableBytes % 4 != 0) {
+        LogOnce("message table rejected: bad offset table");
+        return {};
+    }
+    const uint32_t count = tableBytes / 4;
+    if (index >= count) {
+        LogOnce("message table rejected: entry out of range");
+        return {};
+    }
+    const uint32_t start = read32(4 * index);
+    const uint32_t end = index + 1 < count ? read32(4 * (index + 1))
+                                           : std::min(tableSize.value_or(start + kMaxEntryBytes), start + kMaxEntryBytes);
+    if (start < tableBytes || end < start || end - start > kMaxEntryBytes) {
+        LogOnce("message table rejected: bad entry bounds");
+        return {};
+    }
+    std::string raw;
+    for (uint32_t offset = start; offset < end;) {
+        const uint8_t c = read8(offset);
+        if (c == 0) break;
+        size_t length = 1;
+        if (c < 0x20) {
+            // Markup: its length may depend on its next two bytes, and its payload is copied whole, NULs included.
+            std::string head(1, static_cast<char>(c));
+            for (uint32_t k = 1; k <= 2 && offset + k < end; ++k) head += static_cast<char>(read8(offset + k));
+            const auto markup = MarkupLength(head, 0);
+            if (!markup) {
+                LogOnce("message entry rejected: unknown markup");
+                return {};
+            }
+            length = *markup;
+        }
+        for (size_t k = 0; k < length && offset < end; ++k) raw += static_cast<char>(read8(offset++));
+    }
+    auto text = Speakable(raw);
+    if (!text) {
+        LogOnce("message entry rejected: unknown markup");
+        return {};
+    }
+    return std::move(*text);
 }
 
 const toml::value* Strings() {
@@ -123,38 +177,101 @@ void LogOnce(const std::string& message) {
 
 std::string MessageEntry(uint32_t msbin, uint32_t index) {
     try {
-        const uint32_t tableBytes = Memory::Read32(msbin);
-        if (tableBytes < 4 || tableBytes > kMaxOffsetTableBytes || tableBytes % 4 != 0) {
-            LogOnce("message table rejected: bad offset table");
-            return {};
-        }
-        const uint32_t count = tableBytes / 4;
-        if (index >= count) {
-            LogOnce("message table rejected: entry out of range");
-            return {};
-        }
-        const uint32_t start = Memory::Read32(msbin + 4 * index);
-        const uint32_t end = index + 1 < count ? Memory::Read32(msbin + 4 * (index + 1)) : start + kMaxEntryBytes;
-        if (start < tableBytes || end < start || end - start > kMaxEntryBytes) {
-            LogOnce("message table rejected: bad entry bounds");
-            return {};
-        }
-        std::string raw;
-        for (uint32_t address = msbin + start; address < msbin + end; ++address) {
-            const char c = static_cast<char>(Memory::Read8(address));
-            if (c == '\0') break;
-            raw += c;
-        }
-        auto text = Speakable(raw);
-        if (!text) {
-            LogOnce("message entry rejected: unknown markup");
-            return {};
-        }
-        return std::move(*text);
+        return EntryText([&](uint32_t offset) { return Memory::Read32(msbin + offset); },
+                         [&](uint32_t offset) { return Memory::Read8(msbin + offset); }, index, std::nullopt);
     } catch (const Memory::AccessViolation&) {
         LogOnce("message table rejected: unmapped address");
         return {};
     }
+}
+
+std::string DiscMessageEntry(std::string_view path, uint32_t index) {
+    static std::mutex mutex;
+    static std::map<std::string, std::vector<uint8_t>, std::less<>> files;
+    std::lock_guard lock(mutex);
+    auto file = files.find(path);
+    if (file == files.end()) {
+        std::vector<uint8_t> bytes;
+        const auto fullPath = RuntimeConfigFile::ResolvedDvdRoot() / "files" / std::string(path);
+        std::ifstream in(fullPath, std::ios::binary);
+        if (in) bytes.assign(std::istreambuf_iterator<char>(in), {});
+        if (bytes.empty()) LogOnce("disc message table unavailable: " + std::string(path));
+        file = files.emplace(std::string(path), std::move(bytes)).first;
+    }
+    const std::vector<uint8_t>& bytes = file->second;
+    if (bytes.empty()) return {};
+    try {
+        const auto read8 = [&](uint32_t offset) { return bytes.at(offset); };
+        const auto read32 = [&](uint32_t offset) {
+            return static_cast<uint32_t>(bytes.at(offset)) << 24 | static_cast<uint32_t>(bytes.at(offset + 1)) << 16 |
+                   static_cast<uint32_t>(bytes.at(offset + 2)) << 8 | bytes.at(offset + 3);
+        };
+        return EntryText(read32, read8, index, static_cast<uint32_t>(bytes.size()));
+    } catch (const std::out_of_range&) {
+        LogOnce("disc message table rejected: read past its end");
+        return {};
+    }
+}
+
+std::string GuestText(uint32_t address, uint32_t length) {
+    if (length > kMaxEntryBytes) {
+        LogOnce("text rejected: too long");
+        return {};
+    }
+    std::string raw;
+    try {
+        for (uint32_t i = 0; i < length; ++i) raw += static_cast<char>(Memory::Read8(address + i));
+    } catch (const Memory::AccessViolation&) {
+        LogOnce("text rejected: unmapped address");
+        return {};
+    }
+    auto text = Speakable(raw);
+    if (!text) {
+        LogOnce("text rejected: unknown markup");
+        return {};
+    }
+    return std::move(*text);
+}
+
+std::string GuestUtf16(uint32_t address, size_t maxUnits) {
+    std::string text;
+    try {
+        for (size_t i = 0; i < maxUnits; ++i) {
+            const uint32_t unit = Memory::Read16(address + 2 * static_cast<uint32_t>(i));
+            if (unit == 0) break;
+            if (unit >= 0xD800 && unit <= 0xDFFF) return {};  // names hold no surrogate pairs; reject rather than guess
+            if (unit < 0x80) {
+                text += static_cast<char>(unit);
+            } else if (unit < 0x800) {
+                text += static_cast<char>(0xC0 | (unit >> 6));
+                text += static_cast<char>(0x80 | (unit & 0x3F));
+            } else {
+                text += static_cast<char>(0xE0 | (unit >> 12));
+                text += static_cast<char>(0x80 | ((unit >> 6) & 0x3F));
+                text += static_cast<char>(0x80 | (unit & 0x3F));
+            }
+        }
+    } catch (const Memory::AccessViolation&) {
+        LogOnce("UTF-16 text rejected: unmapped address");
+        return {};
+    }
+    return Speakable(text).value_or(std::string());  // names are typed in full-width forms
+}
+
+std::string GuestCString(uint32_t address, size_t maxBytes) {
+    std::string raw;
+    try {
+        for (size_t i = 0; i < maxBytes; ++i) {
+            const char c = static_cast<char>(Memory::Read8(address + static_cast<uint32_t>(i)));
+            if (c == '\0') return Speakable(raw).value_or(std::string());
+            raw += c;
+        }
+    } catch (const Memory::AccessViolation&) {
+        LogOnce("text rejected: unmapped address");
+        return {};
+    }
+    LogOnce("text rejected: no end within its bound");
+    return {};
 }
 
 std::string String(std::string_view key) {
@@ -182,6 +299,12 @@ std::string Position(size_t index, size_t total) {
                                        std::pair<std::string_view, size_t>{"{total}", total}}) {
         if (const size_t at = text.find(field); at != std::string::npos) text.replace(at, field.size(), std::to_string(value));
     }
+    return text;
+}
+
+std::string Percent(unsigned value) {
+    std::string text = String("percent");
+    if (const size_t at = text.find("{value}"); at != std::string::npos) text.replace(at, 7, std::to_string(value));
     return text;
 }
 

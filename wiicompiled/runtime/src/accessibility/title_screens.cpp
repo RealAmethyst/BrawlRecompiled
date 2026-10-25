@@ -13,7 +13,8 @@
 // (scTitle). Each hook wraps the function that shows that screen; all live in sora_menu_title, a module loaded on
 // demand, so with Gecko codes active they never fire.
 //
-// Everything here except the ESRB notice is art, spoken from the accessibility strings.
+// Everything here except the ESRB notice is art, spoken from the accessibility strings. The strap screen's two tips take
+// turns on screen (a colour animation, no event), so both are read when it opens, before the instruction at the bottom.
 
 extern "C" void func_940E2398(CpuContext* ctx);  // muStrapTask: show the wrist-strap reminder
 extern "C" void func_940E2DEC(CpuContext* ctx);  // muESRBTask: show the online notice
@@ -40,13 +41,14 @@ uint32_t EsrbEntry(uint8_t language) {
 }
 
 void SayScreen(const std::string& text) {
-    if (!text.empty()) Speech::Say(text, true);
+    if (!text.empty() && !AccessibilityText::SilencedByMods()) Speech::Say(text, true);
 }
 
 } // namespace TitleScreenSpeech
 
 extern "C" void BootStrapShow_940e2398(CpuContext* ctx) {
     func_940E2398(ctx);
+    if (AccessibilityText::SilencedByMods()) return;
     for (size_t line = 0; line < TitleScreenSpeech::kStrapLines; ++line) {
         const std::string text = AccessibilityText::StringAt("boot.strap", line);
         if (!text.empty()) Speech::Say(text, line == 0);
@@ -83,6 +85,7 @@ extern "C" void BootControllerScreenShow_940e27a4(CpuContext* ctx) {
 // The logo interrupts as the screen's title; the prompt and the copyright lines follow it.
 extern "C" void TitleShow_940e3e90(CpuContext* ctx) {
     func_940E3E90(ctx);
+    if (AccessibilityText::SilencedByMods()) return;
     TitleScreenSpeech::SayScreen(AccessibilityText::String("title.logo"));
     for (const char* key : {"title.press_any_button", "title.copyright"}) {
         const std::string text = AccessibilityText::String(key);

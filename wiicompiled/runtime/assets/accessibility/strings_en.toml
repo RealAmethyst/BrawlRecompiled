@@ -4,9 +4,13 @@
 
 # A menu item's place in its list: {index} is 1-based, {total} the number of items the player can reach.
 position = "{index} of {total}"
+# A slider's position, 0 to 100 (the game draws sliders without numbers).
+percent = "{value} percent"
+on = "On"
+off = "Off"
 
 [main_menu.titles]
-# MenMainTitle_TopN frames: 1-6, 7, 8, 11, 20-25 and 27 (texture MenMainTtlJ).
+# MenMainTitle_TopN frames: 1-6, 7, 8, 11, 20-25, 27 and 16 (texture MenMainTtlJ).
 select_mode = "Select Mode"
 group = "Group"
 solo = "Solo"
@@ -18,6 +22,7 @@ controls = "Controls"
 sound = "Sound"
 my_music = "My Music"
 erase_data = "Erase Data"
+names = "Names"
 
 [main_menu.items]
 # MenMainFrTop10, 11, 15, 12, 13, 14.
@@ -32,15 +37,21 @@ options = ["Screen", "Deflicker", "Rumble", "Controls", "Sound", "My Music", "Er
 screen = ["4:3 Standard", "16:9 Widescreen"]
 # The Deflicker setting's value, Off then On: MenMainWave05.0, .1.
 deflicker = ["Off", "On"]
+# The Sound screen's rows: the balance slider, named by its end labels as they read left to right
+# (MenMainSound04SoundJ, MenMainSound05MusicJ), and MenMainSound08ST.
+sound = ["Sound Effects, Music", "Sound Test"]
+# Rumble's tabs: MenMainWave00font01, font02.
+rumble_tabs = ["Controller", "Names"]
 # MenMainDelete03Font01 to Font05.
 erase_data = ["P1 High Score", "Brawl Records", "Adventure", "Vault Data", "Erase All"]
 
 [boot]
-# The wrist-strap reminder: MenBoot02_En, MenBoot00_En, MenBoot01_En (on-screen reading order not verified).
+# The wrist-strap reminder, in reading order: the right-hand tips MenBoot00_En then MenBoot01_En (they take turns on
+# screen), then the instruction along the bottom, MenBoot02_En.
 strap = [
-    "Put on and tighten the wrist strap. Hold the Wii Remote securely and do not let go of it. Use the Wii Remote Jacket.",
     "Allow adequate room around you during game play.",
     "When using a controller connected to the Wii Remote, put the wrist strap through the connector hook.",
+    "Put on and tighten the wrist strap. Hold the Wii Remote securely and do not let go of it. Use the Wii Remote Jacket.",
 ]
 now_loading = "Now Loading."      # nowloading
 four_ways_to_play = "4 Ways to Play!"  # MenCont05
@@ -49,3 +60,14 @@ four_ways_to_play = "4 Ways to Play!"  # MenCont05
 logo = "Super Smash Bros. Brawl"        # the title logo model
 press_any_button = "Press Any Button"   # press_any_button
 copyright = "© 2008 Nintendo / HAL Laboratory, Inc. Characters: © Nintendo / HAL Laboratory, Inc. / Pokémon. / Creatures Inc. / GAME FREAK inc. / SHIGESATO ITOI / APE inc. / INTELLIGENT SYSTEMS / Konami Digital Entertainment Co., Ltd. / SEGA"  # enTitleFront_copy
+
+[rumble]
+# One connected controller on the Controller tab (drawn as a picture per row): {number} is its row, 1 to 4.
+controller = "Controller {number}"
+# Controller pictures by type: GameCube, Classic, Wii Remote, Wii Remote and Nunchuk (MenMainWave02Cont*).
+controller_types = ["GameCube Controller", "Classic Controller", "Wii Remote", "Wii Remote and Nunchuk"]
+
+[my_music]
+# The A-button hint beside the song list: MenStageEditSave.0 with the A glyph.
+play_hint = "A, Play"
+

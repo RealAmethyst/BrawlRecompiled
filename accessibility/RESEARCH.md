@@ -186,3 +186,36 @@ confirmed. First recorded 2026-10-25 against upstream `7f3ac07` and decomp `d515
 - Avalonia emits focus from `WindowBaseAutomationPeer.FocusChanged` through `AtSpiServer.EmitFocusChange`, focused=1
   only, with no matching focused=0 for the previous element. Root cause not established.
 - Conclusion: Avalonia 12.1.4's AT-SPI support does not make the launcher usable with Orca today.
+
+## Shared message window (MuNoticeWnd, main.dol)
+
+- Constructor `0x800BF204`, destructor `0x800BF2CC`, vtable `0x80456D54`. Fields: `+0xFC` type (0 no buttons, 1 two
+  buttons, 2 one button, 3 busy), `+0x100` selection (1 = first label, left; 0 = second, or B), `+0x104` state,
+  `+0x4C`/`+0x50` message table and entry, `+0x118`/`+0x11C` copied text. Created by `0x800BEEB8` (table + entry) or
+  `0x800BF048` (text). Every slot prints through `0x800BF850(win, slot, text, length, flag)`: body slot 0 (types 0,
+  3) or 1 (types 1, 2); labels slots 2, 3 (type 1), 4 (type 2). States: 0 open (enter `0x800BFB14`), 1 input (process
+  `0x800BFCF4`), 2 close (enter `0x800BFF34`). Callers include scBoot, Vault, stage and character select, results,
+  Wi-Fi, Subspace and the name screens.
+- scBoot (`muBootNandTask`): first boot asks `nand_boot` entry 0 (Yes 14 / No 15), then "Creating..." (1), then 2.
+
+## Options details
+
+- Sound: balance u16 0-100 at `proc+0x66C`; left adds 1, right subtracts 1; `fn_80076F30` (direct call, also used by
+  load paths) applies music = min(1, 2(100-v)/100), effects = min(1, 2v/100). No number shown.
+- Rumble: pad state `proc+0x66C+4*pad` (-1 none, 0 GameCube, 1 Classic, 2 Wii Remote, 3 Nunchuk); rumble byte
+  `*(GameGlobal+0x24)+0x820+pad`, shown on only when 1 and not Classic; toggles inlined in the input override
+  `0x9401D3A8`. Names: 120 records at `*(GameGlobal+0x28)`, 0x124 each, UTF-16 name at `+0xE0` (6 units), rumble
+  flag `+0xEC`; selected index `proc+0x68C`.
+- My Music: state `proc+0x664` (0 stage picker, task at `+0x694`); group `+0x670`; song ids `+0x698`, count `+0x6D4`;
+  group 4 merges 4 and 5 split at `+0x688`. Frequency getter `fn_80078D30`, setter `fn_80078CD8` (hooked); titles
+  `snd_title` via the song info record (`fn_800791FC`, `+0x10`).
+- Name list (`muNameTask`, sora_menu_name, resident; Controls and Names): list at `+0x1F0` (s16 record at `+2`, -1/-2
+  "New entry"), count `+0x3D8`, row `+0x1EC`, scroll `+0x1EE`, state `+0x9C` (2 list); redraw `0x80677354`.
+  "@New entry" (main.dol): '@' draws as an icon in the menu font, not a character (inferred).
+- Message-table markup payloads can hold NUL bytes (`0C 00 00 00 FF`); an entry ends at a NUL outside markup.
+
+## Stage select (muSelectStageTask, sora_menu_sel_stage, resident)
+
+- Free pointer; hover update `0x806B626C` stores the region at `task+0x244` (0 none; 2..n+1 icons; 53 Change, 54
+  Random, 55 Back; page 2 custom). Page `+0x228`; per page `+0x22C` icon id list, `+0x230` count. Kind = u16 at
+  `(*(0x806B9298+8*page))[id*4]`; name = `stage_name[byte 3 of 0x80407AAC+4*kind]` (same names as the art).
