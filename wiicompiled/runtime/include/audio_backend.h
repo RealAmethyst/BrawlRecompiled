@@ -16,6 +16,7 @@ public:
 
     // Wii AI DMA frames are big-endian and ordered right, left. SDL expects
     // native-endian interleaved left, right samples.
+    // Both pass each block through AudioDescription::ProcessOutput before queueing it.
     bool PushWiiAiSamplesBE16(const uint8_t* data, size_t bytes);
     bool PushSamplesLE16(const int16_t* samples, size_t sampleCount);
 

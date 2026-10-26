@@ -102,6 +102,7 @@ struct RuntimeUserConfig {
     // "dpad_up,left_shoulder") as values; pressing either bound button counts.
     std::array<std::optional<std::string>, 12> controllerButtons;
     std::optional<bool> rumbleEnabled;
+    std::optional<bool> audioDescriptionEnabled;  // [accessibility] audio_description
     std::optional<int32_t> muteHotkey;
     std::map<std::string, std::string> controllerExpressions;
     // NSMBW: [keyboard] action = "comma-separated SDL scancode names" (keybinds.h).
@@ -515,6 +516,7 @@ inline RuntimeUserConfig ParseConfigDocument(const toml::value& document) {
     }
 
     config.rumbleEnabled = FindConfigValue<bool>(document, "controller", "rumble");
+    config.audioDescriptionEnabled = FindConfigValue<bool>(document, "accessibility", "audio_description");
     if (auto value = FindConfigInt(document, "audio", "mute_key")) {
         config.muteHotkey = *value;
     }
@@ -922,6 +924,11 @@ inline bool RumbleEnabled(bool fallback = true) {
 inline bool SetRumbleEnabled(bool value) {
     Mutable().rumbleEnabled = value;
     return WriteSetting("controller", "rumble", value ? "true" : "false");
+}
+
+// Audio description for the game's movies (src/accessibility/audio_description.cpp), when its pack is installed.
+inline bool AudioDescriptionEnabled(bool fallback = true) {
+    return Get().audioDescriptionEnabled.value_or(fallback);
 }
 
 inline int32_t MuteHotkey(int32_t fallback) {
