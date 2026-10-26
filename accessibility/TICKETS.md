@@ -46,7 +46,7 @@ before any accessibility work starts.
   defaults plus `[paths] dvd_root = "../../Disc/DATA"`, and a `play.sh` that starts the engine without the
   launcher.
 - Scripted: `bash tools/build-linux.sh --translate --jobs N` runs the native translation and forces the bundled
-  dependencies (uncommitted working-tree change). A clean run from an empty work folder succeeded (2 min 40 s with
+  dependencies (commit fc7e9a4). A clean run from an empty work folder succeeded (2 min 40 s with
   12 jobs). Its binary is not byte-identical to the hand-built one tested in A11Y-4 (768 bytes larger); the hand
   build used 16 translator threads and the script 12. Cause not investigated; the scripted binary is untested.
 - Candidate upstream contribution: native-Linux translation in `tools/build-linux.sh`. Upstream's contribution
@@ -164,25 +164,184 @@ Decisions (2026-10-25):
 
 ### A11Y-19 Feature: the remaining menus
 
-- Status: ready (next by priority, 2026-10-26)
+- Status: in progress (2026-10-26; Steam Audio, A11Y-12/13, follows once the menus are done)
 - Parent: A11Y-11. Character select (fighter, costume, player slots, CPU/team settings), the rest of the stage select
   (Random, Change, Back, custom stages), the rules screens (proc id 30), Vault, Data, Sound Test, the Wii Remote name
   save/load menus, results screens, and the remaining Solo modes' menus.
 - Each screen: RE first, art captions verified from the textures, event hooks, independent review, listening test.
+- Order (2026-10-26): character select (A11Y-21), then the rules screens, the rest of the stage select and the match
+  results (research started 2026-10-26), then the Solo menus, Vault, Data, Sound Test and the name save/load menus.
+
+### A11Y-21 Story: character select speech
+
+- Status: awaiting verification (2026-10-26)
+- Parent: A11Y-19. Scene scSelChar, module `sora_menu_sel_char` (resident). Findings: `RESEARCH.md`, Character select.
+- Decisions (2026-10-26):
+  - Every human player's hand speaks. With two or more humans on the screen each line starts with the acting
+    player's label ("P2, ..."); with one human there is no prefix.
+  - Carrying a token across the grid speaks each fighter the preview shows as "name, row r, column c" (the game's
+    layout; a short last row is centred, and its columns are the screen columns it sits under; where it sits half a
+    column over, the nearest column to the left). Leaving a fighter (gap or off the grid) is silent.
+  - Dropping the token adds no speech (the announcer calls the name), except Random, which has no call and speaks
+    "Random".
+  - Costume changes speak "Costume n of N" (no costume names exist; N from the game's costume table).
+  - Teams speak as "Red team", "Green team", "Blue team" (the card shows the letter R, G or B on the team colour).
+  - Opening speaks the mode name from the top bar ("Brawl", "Team Battle"...), then the rules line ("2-minute KO
+    fest!") queued after it.
+  - Another player's card is named by its place ("Card 3, CPU Level 5"); the player's own card needs no name.
+  - Picking up or calling back a token is silent (the game's sound confirms it).
+- Implementation: `runtime/src/accessibility/character_select.cpp`, wording in `strings_en.toml` `[character_select]`.
+  Hover targets: tokens (with the fighter under them), Back, the mode name, Rules, the rule arrows and value, the ready
+  banner, card parts (fighter and costume or team, name, name tab, handicap or stamina, CPU level, Zelda / Sheik and
+  Pokémon halves); events: fighter preview, Random drop, player kind, costume, team, Zelda / Sheik, Pokémon, team
+  battle, rule value, ready banner (queued), the CPU level / handicap / stamina / name lists. Top bar speech in the Group
+  modes (selection modes 0-3) only.
+- Not covered: Solo and Wi-Fi top-bar items (targets 9-26, titles); the Rules sub-screen opened from here; whether
+  some mode shows LEAVE instead of BACK. The name list's "New entry" keyboard is the shared name keyboard (A11Y-15).
+  Free hands over fighter icons say nothing (the game shows nothing either).
+- Independent review (2026-10-26) found and these were fixed: the first frame's hover (the hand starts on its name
+  tab) interrupted the opening, now queued after it; every drop spoke "Token, fighter" (the dropped token sits under
+  the hand), now silent while the drop settles; Rotation's Winner Out / Loser Out toggle was silent (the flag is stored
+  before the setter runs); bare "P2" / "Card 3" lines; X / Y could name the wrong player; "List Full" spoken while
+  "New entry" shows. Also: a mod replacing a resident module (Project+, REX replace this one) did not silence speech;
+  `GuestCodePatch::ReplacedModule()` now does. Open doubts: two players acting in one frame can cut each other off (the
+  game's update order); pressing a portrait half falls through to the card, which then speaks again.
+- Build: engine `64e832aa` (sha256 prefix) deployed 2026-10-26; previous `2afc6fd9` kept as a backup.
+  Compiles; all 17 hooks registered in the translation; strings file parses. Listening test pending.
+
+### A11Y-22 Story: rules screens speech
+
+- Status: awaiting verification (2026-10-26)
+- Parent: A11Y-19. muRuleTask (sora_menu_rule): Rules, More Rules, Item Switch, Random Stage Switch, from Group > Rules
+  and from the character select. Research: scratch report, to be folded into `RESEARCH.md` with the implementation.
+- Decisions (2026-10-26): settings speak "name, value, description, n of N"; Item Switch items "name, On/Off, category,
+  description, n of N"; grids use n of N, not rows and columns.
+- Decisions (2026-10-26, later): a value change speaks the new value, then its description; TURN ALL speaks "All
+  on" / "All off" (mod wording).
+
+- Implementation: `runtime/src/accessibility/rules.cpp`. Review (2026-10-26): no defects; the Melee section label
+  ("MELEE NORMAL STAGES") stays silent because which Turn All model shows it is unverified.
+- Build: engine `605c7857` deployed 2026-10-26 (previous `64e832aa` kept as a backup); compiles, all hooks
+  registered, strings parse; independently reviewed and the findings fixed. Listening test pending.
+
+### A11Y-23 Story: the rest of the stage select
+
+- Status: awaiting verification (2026-10-26)
+- Parent: A11Y-19. Random, Change, Back / Leave, the custom stages page, the "Stage Select" title.
+- Decisions (2026-10-26): Change's caption names the page it switches to; pressing it speaks the page now shown, in
+  the button's words ("Melee Stages"). Custom stage rows: "name, date, time, n of N". A random pick speaks the stage
+  the game reveals.
+- Decisions (2026-10-26, later): the uncaptioned scroll controls are "Up arrow", "Down arrow", "Scroll bar", "Page
+  up", "Page down".
+
+- Implementation: `stage_select.cpp` (extended). My Music's extra entry speaks "Menu" (art) and now counts in N.
+- Build: engine `605c7857` deployed 2026-10-26 (previous `64e832aa` kept as a backup); compiles, all hooks
+  registered, strings parse; independently reviewed and the findings fixed. Listening test pending.
+
+### A11Y-24 Story: match results speech
+
+- Status: awaiting verification (2026-10-26)
+- Parent: A11Y-19. ifVsResultTask (main.dol) after a Group match.
+- Decisions (2026-10-26): "Winner, <name>" when the winner line appears (also No Contest and teams); when the table
+  appears, every player in place order ("1, P1, Mario, KOs +3, Falls -1, SDs 0, Total +2"); the KO page reads who you
+  KO'd, who KO'd you and self-destructs on entering; the statistics list speaks its first entry, then the entry that
+  becomes the top row on each scroll step.
+- Decisions (2026-10-26, later): when the statistics list can scroll no further, the remaining visible statistics are
+  read, queued.
+
+- Implementation: `results.cpp`. Review fixes: the KO'd column showed a time where the screen shows "--:--"; No
+  Contest no longer says "Winner" (the banner is blanked).
+- Build: engine `605c7857` deployed 2026-10-26 (previous `64e832aa` kept as a backup); compiles, all hooks
+  registered, strings parse; independently reviewed and the findings fixed. Listening test pending.
+
+### A11Y-25 Story: Solo menus speech
+
+- Status: awaiting verification (2026-10-26)
+- Parent: A11Y-19. The Solo character select variants (titles, difficulty, level, stock, Multi-Man type, Home-Run
+  co-op choice), Events (sora_menu_event), Stadium (proc 25) and its Multi-Man list.
+- Decisions (2026-10-26): event rows "name, fighter, description, record, n of N".
+
+- Decisions (2026-10-26, later): difficulty icons "Normal, selected, 2 of 5"; event rows add the record's difficulty
+  ("1:23 45, Hard"). The prefix rule now also covers the top bar in Group and Solo modes.
+- Implementation: `character_select.cpp` (Solo paths), `events.cpp`. Not covered: the Events "Names" button hint and
+  the P2 "press START" prompt; Wi-Fi modes.
+- Build: engine `605c7857` deployed 2026-10-26 (previous `64e832aa` kept as a backup); compiles, all hooks
+  registered, strings parse; independently reviewed and the findings fixed. Listening test pending.
+
+### A11Y-26 Story: Vault and Data menus, Sound Test, name save / load
+
+- Status: awaiting verification (2026-10-26)
+- Parent: A11Y-19. Vault, Trophies & Stickers, Data, Records menus; Notices, Brawl Records, Movies, Subspace movies,
+  Sound Test; the Wii Remote name save / load screens (muNameTask).
+- Decisions (2026-10-26): Sound Test songs "title, source game, n of N" (credits left out).
+
+- Implementation: `main_menu.cpp` (Vault, Trophies & Stickers, Data, Records; name-list returns), `data_screens.cpp`
+  (Stadium, Notices, Brawl Records, Movies, Sound Test; captures MuMsg::printf only while Notices or Brawl Records is
+  open), `name_remote.cpp`. The "Transfer Names" hint stays silent (when it is shown is unverified). Sound Test's song
+  row speaks the song's place in its series.
+- Build: engine `605c7857` deployed 2026-10-26 (previous `64e832aa` kept as a backup); compiles, all hooks
+  registered, strings parse; independently reviewed and the findings fixed. Listening test pending.
+
+### A11Y-27 Story: the Vault's sub-screens
+
+- Status: ready (after Steam Audio, decision 2026-10-26)
+- Parent: A11Y-19. Trophy Gallery, Hoard, Coin Launcher, Sticker Center, Sticker Album, Album, Replays (its delete
+  dialog is not a MuNoticeWnd), Challenges, Masterpieces, Chronicle, Stage Builder. Album, Replays and the Stage Builder
+  list share one list engine in sora_menu_collect_viewer. Group Records' pages too.
 
 ### A11Y-12 Feature: Steam Audio spatial audio
 
-- Status: blocked on A11Y-13 (priority after A11Y-19)
+- Status: ready: next session's first item unless the maintainer names other work (2026-10-26). First step: present
+  the implementation plan (Steam Audio dependency, mixer changes, the PB map, settings) with A11Y-28 and get the
+  go-ahead before building.
 - Positional game sounds rendered with Steam Audio HRTF, including elevation (above and below).
+- Decisions (2026-10-26): the listener is the game's camera (as the game pans today, plus height); every sound the
+  game treats as positional (fighters, items, stage) gets HRTF, while menu sounds, music and the announcer stay as they
+  are; loudness stays the game's own (distance, fades, ducking), only the direction changes; elevation strength is
+  adjustable, with a "true angles" setting; the settings (HRTF on/off, elevation) live in a new in-game menu,
+  Options > Accessibility (decision 2026-10-26: it belongs under Options); its form and upstream impact are designed
+  with the accessibility designer before it is built.
+- Decision (2026-10-26, after the trace): sounds the game starts as positional but gives no 3D effect (478
+  sequences, BRSAR 3D flags 0) are placed too, with their own on/off setting. Sounds with no game distance volume
+  (flags 0x4) keep the game's loudness and gain only a direction.
+- Note: the game does not pan most positional sounds today (7498 wave sounds, every fighter sound and voice, have
+  flags 0x5: volume and surround pan, which stereo ignores), so HRTF adds a direction they never had.
 
 ### A11Y-13 Spike: the audio pipeline
 
-- Status: ready
-- Question: where positional information exists for each sound voice. The runtime emulates the Wii AX audio
-  library (`wiicompiled/runtime/src/hle/audio`); the game links NW4R snd (its symbols are in the decomp map,
-  including `SoundArchive::ReadSound3DParam`). By the time a voice reaches AX it carries only volume and pan, so
-  find where the game still has the emitter and listener positions, so Steam Audio can render from real positions.
-  Unverified until traced.
+- Status: done (2026-10-26)
+- Question: where positional information exists for each sound voice, and how Steam Audio can render from real
+  positions.
+- Findings (2026-10-26, details in `RESEARCH.md` once the spike closes): the game uses NW4R Sound3D for fighters, items
+  and stage sounds; the listener is the gameplay camera (rebuilt each frame by the sndSystem update `0x800737E4`); each
+  3D sound's world position is in guest memory every frame; `Sound3DManager::Update` (`0x801C6238`) computes volume
+  from the 3D distance but zeroes the vertical axis for pan, so elevation is lost only at that last step. The runtime
+  mixes AX voices at 32 kHz stereo in 3 ms frames (`ax_mix.cpp` `ProcessVoice`, a per-voice mono buffer before the
+  stereo mix: the insertion point); a voice is known there only by its parameter block. Steam Audio v4.8.1
+  (Apache-2.0) binaural effect fits per voice.
+- Trace (2026-10-26): every 3D wave and sequence sound maps to the parameter blocks the mixer processes (sound,
+  player, channel, voice, AX voice, PB), each hop verified; the game's distance gain is in the PB volume envelope and
+  its pan only in the main L/R volumes (constant-power), so the pan-free level is sqrt(L^2+R^2). Proposed design: no
+  guest hooks; at the AX command-list dispatch a native callback walks the voice manager, validates back-pointers and
+  builds a PB -> listener-space direction map handed to the mix worker; voices that fail a check stay in the vanilla
+  mix; guest memory is never written (netplay compares it). Open run-time checks: output mode (expected stereo), PB
+  address normalisation, streams started as positional. Details to be folded into `RESEARCH.md`.
+
+### A11Y-28 Story: Options > Accessibility settings screen
+
+- Status: ready, together with A11Y-12 (2026-10-26); design questions open.
+- Parent: A11Y-10. Holds the HRTF settings first (on/off, elevation strength with a "true angles" choice, placing the
+  sounds that have no 3D effect on/off); more accessibility settings later.
+- Decision (2026-10-26): it lives under Options as an item named for accessibility.
+- Research (2026-10-26, `RESEARCH.md` "Options screen construction"): a real eighth game button needs heavy guest-data
+  surgery (no free model, label art or proc; the cut Language item left only placeholders). Recommended: a screen the
+  runtime draws itself, like the port's Online menu (ImGui, disc fonts, guest input blocked while open, settings saved
+  through the runtime config file), entered as an eighth Options entry at cursor 7 ("E2") with the runtime drawing its
+  highlight; fallback "E3": an X / Y button on the Options screen.
+- Open for the designer: look for sighted players; position of the entry; wording (entry, description, title, rows,
+  values); shown to everyone or only with a screen reader; languages; whether E3 is acceptable if E2 proves fragile.
+- Open technically: a mapping-aware input read while guest input is blocked; screen-space placement; a sighted check
+  of the Data screen after visiting cursor 7 (model 36 side effect).
 
 ## A11Y-20 Epic: audio descriptions for the Subspace Emissary cutscenes
 
