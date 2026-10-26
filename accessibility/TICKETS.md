@@ -345,5 +345,44 @@ Decisions (2026-10-25):
 
 ## A11Y-20 Epic: audio descriptions for the Subspace Emissary cutscenes
 
-- Status: blocked on a design discussion with the accessibility designer (to be scheduled after A11Y-12).
-- A large task; scope and approach not decided.
+- Status: in progress (2026-10-26). The designer prioritised it ahead of A11Y-12; first goal is the in-game playback
+  and a repeatable production workflow, proven on `OPMovie`.
+- Decisions (designer, 2026-10-26): descriptions are pre-recorded (Azure neural voice Aria, +10%) by the
+  audio-describer agent and approved by listening; the `OPMovie` version 2 description is approved ("perfect"). In game,
+  description plays on by default for any movie that has one; a config setting until A11Y-28 provides a switch and a
+  description volume. While a description plays, all game sound (movie and any music the game starts with it) is
+  lowered slightly; the in-game levels reproduce the approved preview mix exactly (movie 6 dB down for the whole
+  described movie, 2 dB more under a clip, clips +2 dB). A pause holds the description and resume continues it where
+  it stopped. The description audio is not committed: it ships later as a separate download that the runtime uses
+  when present.
+- 2026-10-26: all 171 disc movies (`movie/*.thp`: Subspace Emissary cutscenes, opening `OPMovie`, character endings
+  `End_*`, `HowtoPlay`, trailers) converted to MKV outside the repository: H.264 video (CRF 14, full range kept) and
+  FLAC audio. ffmpeg's `adpcm_thp` decoder is not used for audio: it rounds differently from the game and rejects the
+  final packet of most files. A private decoder follows `THPAudioDecode` (`0x8025F508`): per-frame history at
+  block +72/+74 (channel 1 +76/+78), coefficients +8 (channel 1 +40), data +80 (channel 1 + channel size),
+  `clamp16((c1*h1 + c2*h2 + (nibble << scale << 11) + 1024) >> 11)`. Checked: video frame counts and audio sample
+  totals match every source file. `13-00_end` and `33-01_end` have no audio track.
+- The THP files carry no text. Character name cards are overlays drawn by `sora_adv_menu_telop` from
+  `movie/param/<us|jp>/<movie>.pac`; schedule traced (`RESEARCH.md`, Movies). The 35 US movies with cards got an
+  English SRT track (default on) with the card text as drawn, timed from the `MVPM` schedule; verified on `01-00`.
+- Not done: `HowtoPlay` (and possibly the trailers) has instructions drawn into the video, not transcribed.
+- Design input from the first listening review (`OPMovie`): ducking must be barely noticeable, with the description
+  raised instead; names need a pronunciation list (Pikachu was mispronounced; `movies/pronunciation.tsv`).
+
+### A11Y-29 Feature: in-game audio description playback
+
+- Parent: A11Y-20. Status: done. The designer confirmed it in game on 2026-10-26 ("works perfectly"), build
+  `8ea9ca5d` with the `OPMovie` description installed in `Play/engine/accessibility/audio-description/`.
+- Implementation: `runtime/src/accessibility/audio_description.cpp` (hooks on the movie player's open, play, pause and
+  stop; pack loader; movie clock), `runtime/include/audio_description_mix.h` (mixer), both output paths of
+  `audio_backend.cpp`, Config.toml `[accessibility] audio_description` (default on). Production and packing:
+  `accessibility/AUDIO_DESCRIPTION.md`, `accessibility/tools/ad_pack.py`. Facts: `RESEARCH.md`, "Movie player".
+- Checks done: offline self-test (`ad_mix_check selftest`: clip timing, pause fade-hold-resume, loop, stop fade, clip
+  limiter; it fails on a broken fade or loop handling); offline mix of `OPMovie` with the runtime's mixer and clock
+  matches the approved preview within 0.4 LU in all 47 description windows (-14.6 LUFS overall); independent code
+  review, its findings fixed (end-of-movie clock, fades on pause/stop/loop, UTF-8 paths, exception safety, overlap
+  checks, pack TOML escaping); the accessibility unit compiles warning-free.
+- Acceptance (in game, by the designer): the opening from the title screen and from the Vault describes in sync with
+  the picture, at the approved balance; a movie without a description sounds unchanged; skipping stops the
+  description; after the movie the game's sound is back at full level.
+- Still to check: pausing (the opening cannot be paused); do it with the first described Subspace Emissary cutscene.

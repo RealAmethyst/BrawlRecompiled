@@ -663,3 +663,50 @@ textures in `mu_menumain_en.pac` and `main_en.msbin`. Verified unless marked.
 - Open: entry placement and the mapping from 3D menu-camera units to `GameLayout` space (4:3 and 16:9); a host input
   path honouring the player's mapping and Wii Remotes while guest input is blocked; main-menu idle under long blocks;
   in-memory `main` table against the disc file; the entry's wording, look, visibility and languages (designer).
+
+## Movies and Subspace Emissary name cards (verified 2026-10-26)
+
+- Disc folder `movie/`: 171 THP files (Subspace Emissary cutscenes `NN-NN[variant]`, `OPMovie`, `End_<fighter>`,
+  `HowtoPlay`, trailers). Video 576x416 (most), 640x464 (`OPMovie`, `HowtoPlay`, short linking clips) or 224x160
+  (`ADV_ending`, `13-00_end`, `33-01_end`), 29.97 fps; audio stereo 32 kHz DSP-ADPCM, absent in `13-00_end` and
+  `33-01_end`. No text or subtitle stream; `HowtoPlay` has its instructions drawn into the video.
+- Audio decode `THPAudioDecode` (`0x8025F508`): per-frame block: +0 channel size, +4 sample count, +8 coefficients
+  (channel 1 +40), +72/+74 history 1/2 (channel 1 +76/+78), data +80 (channel 1 at +80 + channel size); sample =
+  `clamp16((c1*h1 + c2*h2 + (nibble << scale << 11) + 1024) >> 11)` (computed as a 64-bit `<< 5`, `+ 0x8000`, high
+  half). ffmpeg's `adpcm_thp` drops the rounding term, carries history across frames, and fails the last packet.
+- Name cards: the movie scene (`sora_scene`, update `0x806DA5EC`, setup `0x806D9C18`) loads
+  `movie/param/<us|jp>/<movie>.pac` (LZ77 ARC; `getLanguage` picks the folder). ARC type 1 index 10 is `MVPM`
+  (108 bytes, scene `+88`); type 2 index 1 is a brres of full-screen IA8 576x416 card textures; index 0 the model.
+- `MVPM +24`: four 16-byte entries {start frame, fade-in, duration, fade-out}; start `99999999` = unused. When the
+  movie frame (player `+76`) reaches entry k's start and no card is up, the scene creates `sora_adv_menu_telop`
+  (`0x941165DC`) with {texture index k, end = start + duration, fade-in x2, fade-out x2, archive}. The task picks
+  texture k in stored `Textures(NW4R)` order (`0x8018D4D0`; index 0 if out of range), fades in, hides when the movie
+  frame + 1 reaches the end, then fades out (task `+96` is the movie frame, written by the scene each update).
+- US disc: 35 movies have cards, one to three each, all with zero fades and 60 frames shown (75 for the Zelda/Peach
+  card in `01-00`). Checked against the video: `01-00` frames 383, 634 and 874 show Zelda and Peach, Mario, Kirby.
+
+## Movie player (verified 2026-10-26)
+
+Every movie (title opening and How to Play from module 24, the Vault from module 2, Classic and All-Star endings from
+19, the Subspace Emissary ending from 37, its cutscenes from 40) goes through main.dol's RVL SDK THPPlayer (AX-voice
+variant) behind the `mvMoviePlayer` wrapper, whose state is all in globals.
+
+- Wrapper: open `0x8007EC08` (r4 = "/movie/<name>.thp", copied to `0x8049DDD0`; stops and closes a movie already
+  open, then THPPlayerOpen `0x8007BD90`; six callers), setup task `0x8007F404` (prepare, autoplay), play `0x8007F148`,
+  draw `0x8007EF70` (returns the frame drawn, applies the pause flag), setPause `0x8007F1D4` / resetPause `0x8007F238`
+  (flag `0x805A024E`), pause-and-redecode `0x8007F280` (Subspace finish and skip), setVolume `0x8007F2C8` (the Vault and
+  Subspace scenes pass MVPM `+107`, 75 in every sampled param), dtor `0x8007EA78`.
+- SDK, called only from the wrapper: Play `0x8007C944` (state 1 or 4 to 2, returns 1), Pause `0x8007CB08` (2 to 4,
+  stops both voices, returns 1), Stop `0x8007C9DC`, Close `0x8007C168`, Prepare `0x8007C61C` (resets the audio frame
+  count at `0x8007C800`), PlayControl `0x8007CB98` (VI post-retrace callback).
+- THPPlayer at `0x8049DC00` (0x1B0 bytes): +0x3C file header copy (THPPlayerOpen `0x8007BEE8`, checked against "THP"),
+  so +0x4C frame rate (f32) and +0x50 frame count; +0xA0 open; +0xA4 state (0 stop, 1 prepared, 2 playing, 3 played,
+  4 paused, 5 error); +0xA6 bit 0 loop; +0xA7 has audio; +0xC0 first frame read (0: every prepare starts at frame 0);
+  +0xE4 audio frames played, advanced by the AX callback `0x8007DDA0` at `0x8007DF00` as the voice passes each frame's
+  end. Without the loop bit, state 3 is entered when +0xE4 + +0xC0 reaches the frame count (`0x8007CE4C`-`0x8007CE90`).
+- Timeline: VI retraces drive the video (one 29.97 fps frame per two retraces), held to at most a frame or two ahead
+  of the audio frames played. Pause stops the voices; the frame and audio counts freeze and resume keeps them.
+- Sound: one or two AX voices (`AXAcquireVoice` per channel; pointers at work `*(0x805A01F8)+0x7F8/+0x7FC`), PCM16
+  looping over 40 ms ring buffers refilled each AX frame; no AI DMA path. In 18 Subspace movies (45 of 118 US params
+  set MVPM +104) the scene starts game BGM partway through (`setBGMVol(MVPM+106)` and `0x800741EC(MVPM+88, MVPM+96)`
+  once the frame reaches MVPM +92; that this starts BGM is inferred).
