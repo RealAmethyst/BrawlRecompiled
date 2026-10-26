@@ -34,5 +34,7 @@ void InterpretFromEnvironment();
 // A mod's replacement of a resident module links where the disc's translated functions are registered: every
 // translated function in [start, end) runs the bytes there in the interpreter from now on.
 void InterpretReplacedModule(uint32_t start, uint32_t end, const char* name);
+// True once a mod has replaced a resident module (InterpretReplacedModule): its code and layouts are the mod's.
+bool ReplacedModule();
 
 } // namespace GuestCodePatch

@@ -35,6 +35,7 @@ namespace {
 constexpr uint32_t kPage = 4096;
 
 std::atomic<bool> g_active{false};
+std::atomic<bool> g_replacedModule{false};                                     // a mod replaced a resident module
 std::atomic<bool> g_anyDirty{false};                                            // g_dirty is not empty
 std::mutex g_mutex;
 std::vector<std::pair<uint32_t, uint32_t>> g_ranges;                              // guarded code, [start, end)
@@ -89,6 +90,8 @@ namespace GuestCodePatch {
 
 bool Active() { return g_active.load(std::memory_order_acquire); }
 
+bool ReplacedModule() { return g_replacedModule.load(std::memory_order_acquire); }
+
 // Every translated function starting in [start, end) runs in the interpreter from now on, through module relinks.
 uint32_t InterpretRangeLocked(uint32_t start, uint32_t end) {
     uint32_t count = 0;
@@ -121,6 +124,7 @@ void InterpretFromEnvironment() {
 void InterpretReplacedModule(uint32_t start, uint32_t end, const char* name) {
     std::lock_guard<std::mutex> lock(g_mutex);
     const uint32_t count = InterpretRangeLocked(start, end);
+    g_replacedModule.store(true, std::memory_order_release);
     RT_LOGF(RT_TAG_MOD, "[mods] module %s replaced by a mod at 0x%08X-0x%08X: its %u translated function(s) now run "
             "the mod's code in the interpreter\n", name, start, end, count);
 }

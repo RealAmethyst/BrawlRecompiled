@@ -44,9 +44,9 @@ std::string Position(size_t index, size_t total);
 // "40 percent": a slider's position, which the game shows only as a position.
 std::string Percent(unsigned value);
 
-// True once a mod has patched the game's code (Gecko codes, SD mods): hooks then stay silent, since the functions and
-// layouts they read may no longer be the disc's.
-inline bool SilencedByMods() { return GuestCodePatch::Active(); }
+// True once a mod has patched the game's code (Gecko codes, SD mods) or replaced a resident module: hooks then stay
+// silent, since the functions and layouts they read may no longer be the disc's.
+inline bool SilencedByMods() { return GuestCodePatch::Active() || GuestCodePatch::ReplacedModule(); }
 
 // Logs a problem the first time it occurs only, so a broken source does not flood the log on every cursor move.
 void LogOnce(const std::string& message);
