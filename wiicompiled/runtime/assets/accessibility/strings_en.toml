@@ -277,3 +277,33 @@ modes = ["Music", "Sound Effects"]  # MenSoundtest03, 04
 category = "Category"           # MenSoundtest12
 title_label = "Title"           # MenSoundtest13
 number = "Number"           # MenSoundtest16 "No.", spelled out
+
+# Options, Accessibility: the runtime's own settings page (src/accessibility/accessibility_menu.cpp). None of this is
+# game text; the entry is the eighth Options item, after Erase Data.
+[accessibility_menu]
+entry = "Accessibility"
+entry_description = "Spatial audio and audio description for the movies."
+title = "Accessibility"
+hint = "Up and down choose a setting, left and right change it, B goes back."
+# The Height setting's choices, in order.
+heights = ["True angles", "Low", "Medium", "High"]
+
+[accessibility_menu.rows.spatial_audio]
+name = "Spatial audio"
+description = "Hear fighters, items and stage sounds from where they are on the screen, above and below too. Best with headphones."
+
+[accessibility_menu.rows.height]
+name = "Height"
+description = "How far above or below you a sound high or low on the screen seems. True angles keeps the camera's own view."
+
+[accessibility_menu.rows.no_3d_effect]
+name = "Sounds without 3D effect"
+description = "Also place the sounds the game plays without any direction or distance."
+
+[accessibility_menu.rows.audio_description]
+name = "Audio description"
+description = "Describe the movies when their descriptions are installed."
+
+[accessibility_menu.rows.description_volume]
+name = "Description volume"
+description = "How loud the movie descriptions are."

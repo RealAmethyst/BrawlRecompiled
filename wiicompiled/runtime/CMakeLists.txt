@@ -234,6 +234,102 @@ if(MKW_SCREEN_READER_SPEECH AND MKW_PLATFORM_LINUX AND MKW_BUILD_PRODUCTS)
     endif()
 endif()
 
+# Spatial audio (src/accessibility/spatial_audio.cpp): positional sounds through Steam Audio's HRTF. The SDK is Valve's
+# prebuilt release, downloaded once per build folder and pinned by hash; only its header, this platform's library and
+# the notices are extracted, and Steam Audio's licence text (not in the SDK archive) is fetched from the same release
+# tag. The game loads the library at run time, so this adds no link dependency, and without it the game plays its own
+# mix. MKW_STEAM_AUDIO_ARCHIVE may name an already downloaded copy of the archive. A failed download turns the feature
+# off instead of failing the build.
+option(MKW_SPATIAL_AUDIO "Positional sounds through an HRTF (Steam Audio), when the player turns it on" ON)
+set(MKW_STEAM_AUDIO_ARCHIVE "" CACHE FILEPATH "Local copy of the pinned Steam Audio SDK archive (optional)")
+if(MKW_SPATIAL_AUDIO AND MKW_BUILD_PRODUCTS)
+    if(MKW_PLATFORM_LINUX AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|amd64|x86_64|X86_64)$")
+        set(MKW_STEAM_AUDIO_PLATFORM "linux-x64")
+        set(MKW_STEAM_AUDIO_LIBRARY_NAME "libphonon.so")
+    elseif(MKW_PLATFORM_WINDOWS AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|amd64|x86_64|X86_64)$")
+        set(MKW_STEAM_AUDIO_PLATFORM "windows-x64")
+        set(MKW_STEAM_AUDIO_LIBRARY_NAME "phonon.dll")
+    endif()
+    include("${CMAKE_CURRENT_LIST_DIR}/cmake/SteamAudioPin.cmake")
+    set(_mkw_sa_dir "${CMAKE_BINARY_DIR}/_deps/steamaudio-${MKW_STEAM_AUDIO_VERSION}")
+    set(_mkw_sa_library "${_mkw_sa_dir}/steamaudio/lib/${MKW_STEAM_AUDIO_PLATFORM}/${MKW_STEAM_AUDIO_LIBRARY_NAME}")
+    set(_mkw_sa_header "${_mkw_sa_dir}/steamaudio/include/phonon.h")
+    set(_mkw_sa_notices "${_mkw_sa_dir}/steamaudio/THIRDPARTY.md")
+    set(_mkw_sa_license "${_mkw_sa_dir}/LICENSE.md")
+    set(_mkw_sa_offline OFF)
+    if(MKW_NATIVE_PREBUILT_DIR OR FETCHCONTENT_FULLY_DISCONNECTED)
+        set(_mkw_sa_offline ON)
+    endif()
+    set(_mkw_sa_error "")
+    if(NOT MKW_STEAM_AUDIO_PLATFORM)
+        set(_mkw_sa_error "no Steam Audio library is wired up for this platform yet")
+    endif()
+    # The SDK's files, extracted once.
+    if(NOT _mkw_sa_error AND NOT (EXISTS "${_mkw_sa_library}" AND EXISTS "${_mkw_sa_header}" AND EXISTS "${_mkw_sa_notices}"))
+        set(_mkw_sa_archive "${MKW_STEAM_AUDIO_ARCHIVE}")
+        if(NOT _mkw_sa_archive)
+            set(_mkw_sa_archive "${_mkw_sa_dir}/steamaudio_${MKW_STEAM_AUDIO_VERSION}.zip")
+        endif()
+        set(_mkw_sa_hash "")
+        if(EXISTS "${_mkw_sa_archive}")
+            file(SHA256 "${_mkw_sa_archive}" _mkw_sa_hash)
+        endif()
+        if(NOT _mkw_sa_hash STREQUAL MKW_STEAM_AUDIO_SHA256)
+            if(MKW_STEAM_AUDIO_ARCHIVE)
+                set(_mkw_sa_error "MKW_STEAM_AUDIO_ARCHIVE does not match the pinned hash: ${MKW_STEAM_AUDIO_ARCHIVE}")
+            elseif(_mkw_sa_offline)
+                set(_mkw_sa_error "Steam Audio is not downloaded in an offline or prebuilt build (set MKW_STEAM_AUDIO_ARCHIVE)")
+            else()
+                message(STATUS "Downloading Steam Audio ${MKW_STEAM_AUDIO_VERSION} (about 180 MB, once per build folder)")
+                file(DOWNLOAD
+                    "https://github.com/ValveSoftware/steam-audio/releases/download/v${MKW_STEAM_AUDIO_VERSION}/steamaudio_${MKW_STEAM_AUDIO_VERSION}.zip"
+                    "${_mkw_sa_archive}"
+                    EXPECTED_HASH SHA256=${MKW_STEAM_AUDIO_SHA256}
+                    TLS_VERIFY ON
+                    STATUS _mkw_sa_status)
+                list(GET _mkw_sa_status 0 _mkw_sa_code)
+                if(NOT _mkw_sa_code EQUAL 0)
+                    list(GET _mkw_sa_status 1 _mkw_sa_message)
+                    set(_mkw_sa_error "the Steam Audio download failed: ${_mkw_sa_message}")
+                    file(REMOVE "${_mkw_sa_archive}")
+                endif()
+            endif()
+        endif()
+        if(NOT _mkw_sa_error)
+            file(ARCHIVE_EXTRACT INPUT "${_mkw_sa_archive}" DESTINATION "${_mkw_sa_dir}"
+                PATTERNS "steamaudio/include/*" "steamaudio/lib/${MKW_STEAM_AUDIO_PLATFORM}/${MKW_STEAM_AUDIO_LIBRARY_NAME}"
+                         "steamaudio/THIRDPARTY.md")
+        endif()
+    endif()
+    # The licence text, from the release tag.
+    if(NOT _mkw_sa_error AND NOT EXISTS "${_mkw_sa_license}")
+        if(_mkw_sa_offline)
+            set(_mkw_sa_error "Steam Audio's licence text is not downloaded in an offline or prebuilt build")
+        else()
+            file(DOWNLOAD
+                "https://raw.githubusercontent.com/ValveSoftware/steam-audio/v${MKW_STEAM_AUDIO_VERSION}/LICENSE.md"
+                "${_mkw_sa_license}"
+                EXPECTED_HASH SHA256=${MKW_STEAM_AUDIO_LICENSE_SHA256}
+                TLS_VERIFY ON
+                STATUS _mkw_sa_status)
+            list(GET _mkw_sa_status 0 _mkw_sa_code)
+            if(NOT _mkw_sa_code EQUAL 0)
+                list(GET _mkw_sa_status 1 _mkw_sa_message)
+                set(_mkw_sa_error "the Steam Audio licence download failed: ${_mkw_sa_message}")
+                file(REMOVE "${_mkw_sa_license}")
+            endif()
+        endif()
+    endif()
+    if(_mkw_sa_error)
+        message(STATUS "Spatial audio off: ${_mkw_sa_error}")
+    else()
+        set(MKW_STEAM_AUDIO_INCLUDE_DIR "${_mkw_sa_dir}/steamaudio/include")
+        set(MKW_STEAM_AUDIO_LIBRARY "${_mkw_sa_library}")
+        set(MKW_STEAM_AUDIO_NOTICES "${_mkw_sa_notices}")
+        set(MKW_STEAM_AUDIO_LICENSE "${_mkw_sa_license}")
+    endif()
+endif()
+
 set(MKW_TRANSLATED_COMPILE_JOBS 0 CACHE STRING
     "Cap on concurrently compiling translated shard TUs via a Ninja job pool (0 = uncapped). \
 Scheduling only - never affects output bytes, so it is deliberately outside the canonical flag fingerprint.")

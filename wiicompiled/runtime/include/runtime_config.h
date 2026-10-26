@@ -103,6 +103,11 @@ struct RuntimeUserConfig {
     std::array<std::optional<std::string>, 12> controllerButtons;
     std::optional<bool> rumbleEnabled;
     std::optional<bool> audioDescriptionEnabled;  // [accessibility] audio_description
+    std::optional<int32_t> audioDescriptionVolume; // [accessibility] audio_description_volume (percent)
+    std::optional<bool> spatialAudioEnabled;       // [accessibility] spatial_audio
+    std::optional<std::string> spatialAudioHeight; // [accessibility] spatial_audio_height
+    std::optional<bool> spatialAudioNo3dEffect;    // [accessibility] spatial_audio_no_3d_effect
+    std::optional<bool> spatialAudioDiagnostics;   // [accessibility] spatial_audio_diagnostics
     std::optional<int32_t> muteHotkey;
     std::map<std::string, std::string> controllerExpressions;
     // NSMBW: [keyboard] action = "comma-separated SDL scancode names" (keybinds.h).
@@ -517,6 +522,13 @@ inline RuntimeUserConfig ParseConfigDocument(const toml::value& document) {
 
     config.rumbleEnabled = FindConfigValue<bool>(document, "controller", "rumble");
     config.audioDescriptionEnabled = FindConfigValue<bool>(document, "accessibility", "audio_description");
+    if (auto value = FindConfigInt(document, "accessibility", "audio_description_volume")) {
+        config.audioDescriptionVolume = *value;
+    }
+    config.spatialAudioEnabled = FindConfigValue<bool>(document, "accessibility", "spatial_audio");
+    config.spatialAudioHeight = FindConfigValue<std::string>(document, "accessibility", "spatial_audio_height");
+    config.spatialAudioNo3dEffect = FindConfigValue<bool>(document, "accessibility", "spatial_audio_no_3d_effect");
+    config.spatialAudioDiagnostics = FindConfigValue<bool>(document, "accessibility", "spatial_audio_diagnostics");
     if (auto value = FindConfigInt(document, "audio", "mute_key")) {
         config.muteHotkey = *value;
     }
@@ -929,6 +941,54 @@ inline bool SetRumbleEnabled(bool value) {
 // Audio description for the game's movies (src/accessibility/audio_description.cpp), when its pack is installed.
 inline bool AudioDescriptionEnabled(bool fallback = true) {
     return Get().audioDescriptionEnabled.value_or(fallback);
+}
+
+inline bool SetAudioDescriptionEnabled(bool value) {
+    Mutable().audioDescriptionEnabled = value;
+    return WriteSetting("accessibility", "audio_description", value ? "true" : "false");
+}
+
+// The description's loudness in percent of the approved mix level (100).
+inline int32_t AudioDescriptionVolume(int32_t fallback = 100) {
+    return Get().audioDescriptionVolume.value_or(fallback);
+}
+
+inline bool SetAudioDescriptionVolume(int32_t value) {
+    Mutable().audioDescriptionVolume = value;
+    return WriteSetting("accessibility", "audio_description_volume", std::to_string(value));
+}
+
+// Spatial audio (src/accessibility/spatial_audio.cpp): on/off, the Height setting ("true", "low", "medium", "high"),
+// whether sounds the game gives no 3D effect are placed too, and the diagnostic log of the voice map.
+inline bool SpatialAudioEnabled(bool fallback = false) {
+    return Get().spatialAudioEnabled.value_or(fallback);
+}
+
+inline bool SetSpatialAudioEnabled(bool value) {
+    Mutable().spatialAudioEnabled = value;
+    return WriteSetting("accessibility", "spatial_audio", value ? "true" : "false");
+}
+
+inline std::string SpatialAudioHeight(const std::string& fallback) {
+    return Get().spatialAudioHeight.value_or(fallback);
+}
+
+inline bool SetSpatialAudioHeight(const std::string& value) {
+    Mutable().spatialAudioHeight = value;
+    return WriteSetting("accessibility", "spatial_audio_height", FormatString(value));
+}
+
+inline bool SpatialAudioNo3dEffect(bool fallback) {
+    return Get().spatialAudioNo3dEffect.value_or(fallback);
+}
+
+inline bool SetSpatialAudioNo3dEffect(bool value) {
+    Mutable().spatialAudioNo3dEffect = value;
+    return WriteSetting("accessibility", "spatial_audio_no_3d_effect", value ? "true" : "false");
+}
+
+inline bool SpatialAudioDiagnostics(bool fallback = false) {
+    return Get().spatialAudioDiagnostics.value_or(fallback);
 }
 
 inline int32_t MuteHotkey(int32_t fallback) {

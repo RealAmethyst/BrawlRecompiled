@@ -120,8 +120,9 @@ std::string Utf8(const std::filesystem::path& path) {
     return RuntimeConfigFile::PathToUtf8(path);
 }
 
-// One clip as mono S16 at the output rate and mix level, or empty with the reason logged.
-std::vector<int16_t> LoadClip(const std::filesystem::path& path) {
+// One clip as mono S16 at the output rate and mix level (the player's description volume in percent of the approved
+// level), or empty with the reason logged.
+std::vector<int16_t> LoadClip(const std::filesystem::path& path, int volume) {
     SDL_AudioSpec spec{};
     Uint8* data = nullptr;
     Uint32 length = 0;
@@ -143,7 +144,9 @@ std::vector<int16_t> LoadClip(const std::filesystem::path& path) {
     std::memcpy(samples.data(), converted, samples.size() * sizeof(int16_t));
     SDL_free(converted);
     if (samples.empty()) Log("clip empty: " + Utf8(path));
-    return AudioDescriptionMix::PrepareClip(samples, kOutputRate);
+    AudioDescriptionMix::Levels levels;
+    levels.descriptionGain *= static_cast<float>(volume) / 100.0f;
+    return AudioDescriptionMix::PrepareClip(samples, kOutputRate, levels);
 }
 
 // cues.toml as a document; a UTF-8 byte order mark (some editors add one) is skipped, as for Config.toml.
@@ -164,7 +167,7 @@ toml::value ParseCueFile(const std::filesystem::path& file) {
 // The movie's description from the pack, or null with the reason logged. Any unusable cue disables the whole
 // description: a partial one would leave gaps the listener cannot tell from silence by design. Cues may not overlap
 // (a clip must end by the next cue, within kOverlapTolerance), since the next one would wait behind it.
-std::shared_ptr<const AudioDescriptionMix::Cues> LoadCues(const std::string& movie) {
+std::shared_ptr<const AudioDescriptionMix::Cues> LoadCues(const std::string& movie, int volume) {
     constexpr double kOverlapTolerance = 0.005;
     const auto directory = RuntimeConfigFile::ExecutableDirectory();
     if (!directory) {
@@ -205,7 +208,7 @@ std::shared_ptr<const AudioDescriptionMix::Cues> LoadCues(const std::string& mov
             }
             AudioDescriptionMix::Cue cue;
             cue.start = start;
-            cue.samples = LoadClip(folder / clip);
+            cue.samples = LoadClip(folder / clip, volume);
             if (cue.samples.empty()) return nullptr;
             cues->push_back(std::move(cue));
         }
@@ -241,10 +244,11 @@ void Open(const std::string& movie) {
     }
     auto load = std::make_shared<Load>();
     try {
-        std::thread([load, movie] {
+        const int volume = std::clamp(RuntimeConfigFile::AudioDescriptionVolume(100), 0, 200);
+        std::thread([load, movie, volume] {
             std::shared_ptr<const AudioDescriptionMix::Cues> cues;
             try {
-                cues = LoadCues(movie);
+                cues = LoadCues(movie, volume);
             } catch (const std::exception& e) {
                 Log(movie + ": " + e.what());
             } catch (...) {

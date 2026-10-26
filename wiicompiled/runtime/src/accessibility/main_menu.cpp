@@ -1,3 +1,4 @@
+#include "accessibility_menu.h"
 #include "accessibility_text.h"
 #include "hle_stubs.h"
 #include "memory.h"
@@ -180,7 +181,8 @@ constexpr uint32_t kNewEntryLabelPointer = 0x8059E09C;
 enum class Movement { SharedCursor, DescriptionMessage };
 // Where an item's place comes from: the navigation table (items the player can reach), the cursor itself (a fixed
 // list), or a single setting row.
-enum class Placement { NavigationTable, Sequential, Single, RumbleTabs };
+// Options numbers its items in cursor order, with the runtime's Accessibility entry as the eighth (accessibility_menu.cpp).
+enum class Placement { NavigationTable, Sequential, Single, RumbleTabs, Options };
 
 struct Screen {
     const char* titleKey;
@@ -211,7 +213,7 @@ constexpr Screen kGroupScreen{"main_menu.titles.group", "main_menu.items.group",
 constexpr Screen kSoloScreen{"main_menu.titles.solo", "main_menu.items.solo", 6, Movement::SharedCursor,
                              Placement::NavigationTable, [](uint16_t cursor) { return 12u + cursor; }};
 constexpr Screen kOptionsScreen{"main_menu.titles.options", "main_menu.items.options", 7, Movement::SharedCursor,
-                                Placement::NavigationTable,
+                                Placement::Options,
                                 [](uint16_t cursor) { return kOptionDescriptions[cursor]; }};
 constexpr Screen kScreenScreen{"main_menu.titles.screen", "main_menu.items.screen", 2, Movement::DescriptionMessage,
                                Placement::Sequential, [](uint16_t cursor) { return 60u + cursor; }};
@@ -296,6 +298,23 @@ uint32_t DescriptionTable() {
     if (table == 0 && Memory::TryRead32(g_descriptionPanel + kPanelMuMsgOffset, muMsg) && muMsg != 0)
         Memory::TryRead32(muMsg + kMuMsgMessageTableOffset, table);
     return table;
+}
+
+// An empty description entry (main_en.msbin 144), shown while the Options cursor is on the Accessibility entry.
+constexpr uint32_t kEmptyDescription = 144;
+
+// The Options screen is open with its cursor on the Accessibility entry.
+bool OptionsEntrySelected() {
+    if (!g_openScreen || g_openScreen->screen != &kOptionsScreen || !AccessibilityMenu::Available() ||
+        !IsOpen(g_openScreen->proc, kOptionsScreen))
+        return false;
+    uint16_t cursor = 0;
+    try {
+        cursor = Memory::Read16(g_openScreen->proc + kProcCursorOffset);
+    } catch (const Memory::AccessViolation&) {
+        return false;
+    }
+    return cursor == AccessibilityMenu::kEntryCursor;
 }
 
 // The cursor's 1-based place among the items reachable from it, and their count. A locked item (Solo's All-Star
@@ -434,6 +453,8 @@ std::string SelectedItem(const OpenScreen& open) {
         LogMemoryError(RT_TAG_ACCESSIBILITY, "main menu cursor", e);
         return {};
     }
+    if (&screen == &kOptionsScreen && cursor == AccessibilityMenu::kEntryCursor && AccessibilityMenu::Available())
+        return AccessibilityMenu::EntryLine();
     if (cursor >= screen.itemCount) {
         AccessibilityText::LogOnce(std::string("main menu cursor out of range on ") + screen.titleKey);
         return {};
@@ -453,6 +474,9 @@ std::string SelectedItem(const OpenScreen& open) {
             position = AccessibilityText::Position(place->first, place->second);
         break;
     case Placement::Sequential: position = AccessibilityText::Position(cursor + 1u, screen.itemCount); break;
+    case Placement::Options:
+        position = AccessibilityText::Position(cursor + 1u, AccessibilityMenu::OptionsItemCount());
+        break;
     case Placement::Single: position = AccessibilityText::Position(1, 1); break;
     case Placement::RumbleTabs:
         // The Names tab can only be reached while a name is registered.
@@ -686,7 +710,7 @@ extern "C" void MainMenuEraseDataEnter_9401c0a0(CpuContext* ctx) {
 // screen that opened last, still the same object, speaks.
 extern "C" void MainMenuMoveCursor_806a50f4(CpuContext* ctx) {
     const uint32_t proc = ctx->gpr[3];
-    func_806A50F4(ctx);
+    if (!AccessibilityMenu::MoveOptionsCursor(ctx)) func_806A50F4(ctx);
     if (ctx->gpr[3] != 1 || !g_openScreen || g_openScreen->screen->movement != Movement::SharedCursor) return;
     if (IsOpen(proc, *g_openScreen->screen)) AnnounceSelection();
 }
@@ -695,6 +719,15 @@ extern "C" void MainMenuMoveCursor_806a50f4(CpuContext* ctx) {
 // changes.
 extern "C" void MainMenuDescriptionMessage_9403a048(CpuContext* ctx) {
     CaptureDescriptionPanel(ctx->gpr[3]);
+    if (OptionsEntrySelected()) {
+        // The Options screen copies 7 descriptions to its stack and passes the 8th word past them for cursor 7: the
+        // panel shows the empty entry instead, or keeps its text when that entry is not empty in this game's table.
+        if (!AccessibilityText::MessageEntry(DescriptionTable(), kEmptyDescription).empty()) {
+            AccessibilityText::LogOnce("main menu: description entry 144 is not empty; the panel keeps its text");
+            return;
+        }
+        ctx->gpr[4] = kEmptyDescription;
+    }
     func_9403A048(ctx);
     if (g_screenEntering || !g_openScreen || g_openScreen->screen->movement != Movement::DescriptionMessage) return;
     if (IsOpen(g_openScreen->proc, *g_openScreen->screen)) AnnounceSelection();

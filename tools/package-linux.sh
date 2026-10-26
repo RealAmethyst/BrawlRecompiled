@@ -29,6 +29,13 @@ if [[ -f $build/usa/build/libprism.so ]]; then
         for f in "$dir"*; do name=$(basename "$f"); cp "$f" "$engine/licenses/Prism-$(basename "$dir")-${name%.*}.txt"; done
     done
 fi
+# Spatial audio (built unless MKW_SPATIAL_AUDIO is off or Steam Audio could not be fetched): Steam Audio, loaded at
+# run time, with its licence and the notices for what Valve built into it.
+if [[ -f $build/usa/build/libphonon.so ]]; then
+    cp "$build/usa/build/libphonon.so" "$engine/"
+    cp "$build/usa/build/steamaudio-LICENSE.md" "$engine/licenses/SteamAudio-LICENSE.txt"
+    cp "$build/usa/build/steamaudio-THIRDPARTY.md" "$engine/licenses/SteamAudio-THIRDPARTY.txt"
+fi
 mkdir -p "$engine/startup" && cp "$root/launcher/art/smash_ball.png" "$engine/startup/"   # the title card's Smash Ball
 cp "$root/tools/CREDITS.txt" "$stage/CREDITS.txt"
 cp "$root/wiicompiled/LICENSE" "$stage/LICENSE.txt"

@@ -10,6 +10,7 @@
 #include "ppc_runtime.h"
 #include "runtime_config.h"
 #include "runtime_log.h"
+#include "spatial_audio.h"
 
 #include <algorithm>
 #include <array>
@@ -350,6 +351,7 @@ private:
 
         m_mixLayout = layout;
         m_mixCmdListSize = m_cmdListSize;
+        m_spatial = SpatialAudio::PrepareFrame();
         if (deferred) {
             {
                 std::lock_guard<std::mutex> lock(m_mixMutex);
@@ -459,6 +461,11 @@ private:
         const bool newFilter = m_ucodeCrc != 0 ? UCodeUsesNewFilter(m_ucodeCrc) : layout != AXCommandLayout::Old;
         bool end = false;
         m_auxOutCount = 0;
+        m_spatialDeltaReady = false;
+        m_spatialDeltaUsed = false;
+        if (m_spatial) {
+            SpatialAudio::BeginMix();
+        }
         while (!end && idx < cmdListSize) {
             const uint16_t cmd = m_cmdList[idx++];
             uint16_t volume = 0;
@@ -651,15 +658,26 @@ private:
             ReadPB(pbAddr, pb);
             AXBuffers buffers = MixBuffers();
             const AXMixControl control = ConvertMixerControl(Hilo(pb.mixer_control_hi, pb.mixer_control_lo));
+            // A placed voice is mixed exactly as before; its main-bus share is also captured for spatial audio.
+            // Only before the frame's correction is final: a voice mixed after COMPRESSOR or OUTPUT stays vanilla.
+            const bool placed = m_spatial && !m_spatialDeltaReady && SpatialAudio::Placed(pbAddr);
+            std::array<int, kAxSamplesPerFrame> placedL{};
+            std::array<int, kAxSamplesPerFrame> placedR{};
             if (oldAxLayout && (pb.updates.num_updates[0] | pb.updates.num_updates[1] | pb.updates.num_updates[2]) != 0) {
                 const auto updates = LoadPBUpdates(pb);
                 for (uint32_t ms = 0; ms < 3; ++ms) {
                     ApplyPBUpdatesForMs(pb, updates, ms);
-                    ProcessVoice(pb, buffers, 32, control, BaseCoefficients(), newFilter);
+                    ProcessVoice(pb, buffers, 32, control, BaseCoefficients(), newFilter,
+                                 placed ? placedL.data() + ms * 32 : nullptr,
+                                 placed ? placedR.data() + ms * 32 : nullptr);
                     AdvanceBuffers(buffers, 32, 6);
                 }
             } else {
-                ProcessVoice(pb, buffers, kAxSamplesPerFrame, control, BaseCoefficients(), newFilter);
+                ProcessVoice(pb, buffers, kAxSamplesPerFrame, control, BaseCoefficients(), newFilter,
+                             placed ? placedL.data() : nullptr, placed ? placedR.data() : nullptr);
+            }
+            if (placed) {
+                SpatialAudio::AddVoice(pbAddr, placedL.data(), placedR.data());
             }
             WritePB(pbAddr, pb);
             pbAddr = Hilo(pb.next_pb_hi, pb.next_pb_lo);
@@ -957,6 +975,7 @@ private:
     }
 
     void RunCompressor(uint16_t threshold, uint16_t releaseFrames, uint32_t tableAddr) {
+        FinishSpatialVoices();
         bool triggered = false;
         for (uint32_t i = 0; i < kAxSamplesPerFrame; ++i) {
             const int64_t left = m_bus[kBusMainL][i];
@@ -986,11 +1005,25 @@ private:
                 static_cast<int>((static_cast<int64_t>(m_bus[kBusMainL][i]) * coef) >> 15);
             m_bus[kBusMainR][i] =
                 static_cast<int>((static_cast<int64_t>(m_bus[kBusMainR][i]) * coef) >> 15);
+            if (m_spatialDeltaUsed) {
+                m_spatialDelta[0][i] = static_cast<int>((static_cast<int64_t>(m_spatialDelta[0][i]) * coef) >> 15);
+                m_spatialDelta[1][i] = static_cast<int>((static_cast<int64_t>(m_spatialDelta[1][i]) * coef) >> 15);
+            }
         }
     }
 
+    // Once per command list, after the voices and before anything that scales or outputs the main buses: the spatial
+    // correction, which then follows the main buses' compressor and output volume.
+    void FinishSpatialVoices() {
+        if (!m_spatial || m_spatialDeltaReady) {
+            return;
+        }
+        m_spatialDeltaReady = true;
+        m_spatialDeltaUsed = SpatialAudio::EndVoices(m_spatialDelta[0].data(), m_spatialDelta[1].data());
+    }
+
     void ProcessVoice(AXPBWii& pb, const AXBuffers& buffers, uint32_t count, AXMixControl control,
-                      const int16_t* coeffs, bool newFilter) {
+                      const int16_t* coeffs, bool newFilter, int* captureL = nullptr, int* captureR = nullptr) {
         if (pb.running != 1) {
             return;
         }
@@ -1017,8 +1050,18 @@ private:
             }
             MixAdd(out, samples.data(), count, vd, dpop, (control & rampBit) != 0);
         };
+        // The capture repeats the main L/R mix from the same starting ramp into its own buffer, so it holds exactly
+        // what this voice added to the main buses.
+        VolumeData captureVolumeL = pb.mixer.main_left;
+        VolumeData captureVolumeR = pb.mixer.main_right;
+        int16_t captureDpopL = pb.dpop.main_left;
+        int16_t captureDpopR = pb.dpop.main_right;
         mix(MIX_MAIN_L, MIX_MAIN_L_RAMP, buffers[kBusMainL], pb.mixer.main_left, pb.dpop.main_left);
         mix(MIX_MAIN_R, MIX_MAIN_R_RAMP, buffers[kBusMainR], pb.mixer.main_right, pb.dpop.main_right);
+        if (captureL != nullptr && captureR != nullptr) {
+            mix(MIX_MAIN_L, MIX_MAIN_L_RAMP, captureL, captureVolumeL, captureDpopL);
+            mix(MIX_MAIN_R, MIX_MAIN_R_RAMP, captureR, captureVolumeR, captureDpopR);
+        }
         mix(MIX_MAIN_S, MIX_MAIN_S_RAMP, buffers[kBusMainS], pb.mixer.main_surround, pb.dpop.main_surround);
         mix(MIX_AUXA_L, MIX_AUXA_L_RAMP, buffers[kBusAuxAL], pb.mixer.auxA_left, pb.dpop.auxA_left);
         mix(MIX_AUXA_R, MIX_AUXA_R_RAMP, buffers[kBusAuxAR], pb.mixer.auxA_right, pb.dpop.auxA_right);
@@ -1231,6 +1274,7 @@ private:
     }
 
     void OutputSamples(uint32_t lrAddr, uint32_t surroundAddr, uint16_t volume, bool uploadAuxC) {
+        FinishSpatialVoices();
         std::array<uint16_t, kAxSamplesPerFrame> ramp{};
         GenerateVolumeRamp(ramp.data(), m_lastMainVolume, volume, ramp.size());
         m_lastMainVolume = volume;
@@ -1240,6 +1284,17 @@ private:
                                 m_bus[kBusAuxCL].data(), kAxSamplesPerFrame);
         }
         std::array<int16_t, kAxSamplesPerFrame * 2> pcm{};
+        // What the player hears when spatial audio placed something: the same output stage over the main buses plus
+        // the spatial correction. Guest memory still receives the game's own frame.
+        std::array<int16_t, kAxSamplesPerFrame * 2> heard{};
+        if (m_spatialDeltaUsed) {
+            for (uint32_t i = 0; i < kAxSamplesPerFrame; ++i) {
+                const int64_t left = static_cast<int64_t>(m_bus[kBusMainL][i]) + m_spatialDelta[0][i];
+                const int64_t right = static_cast<int64_t>(m_bus[kBusMainR][i]) + m_spatialDelta[1][i];
+                heard[i * 2] = ClampS16((right * ramp[i]) >> 15);
+                heard[i * 2 + 1] = ClampS16((left * ramp[i]) >> 15);
+            }
+        }
         for (uint32_t i = 0; i < kAxSamplesPerFrame; ++i) {
             const int16_t left = ClampS16((static_cast<int64_t>(m_bus[kBusMainL][i]) * ramp[i]) >> 15);
             const int16_t right = ClampS16((static_cast<int64_t>(m_bus[kBusMainR][i]) * ramp[i]) >> 15);
@@ -1249,6 +1304,10 @@ private:
             m_bus[kBusMainR][i] = right;
             pcm[i * 2] = right;
             pcm[i * 2 + 1] = left;
+        }
+        if (m_spatialDeltaUsed) {
+            SpatialAudio::StoreOutput(lrAddr, pcm.data(), heard.data());
+            m_spatialDeltaUsed = false;
         }
         // The AI frame (contiguous right/left interleaved) lands in guest memory directly
         // even from the worker: its only reader, PushAudioBlock, runs after Audio_HLE_Tick
@@ -1424,6 +1483,12 @@ private:
     bool m_mixStop = false;
     bool m_mixPending = false;
     bool m_mixBusy = false;
+    // Spatial audio for the command list being mixed (src/accessibility/spatial_audio.cpp): set on the guest thread at
+    // dispatch, like m_mixLayout; the correction to the main buses that only the player hears.
+    bool m_spatial = false;
+    bool m_spatialDeltaReady = false;
+    bool m_spatialDeltaUsed = false;
+    std::array<std::array<int, kAxSamplesPerFrame>, 2> m_spatialDelta{};
     bool m_mixWorkerEnabled = false;
     AXCommandLayout m_mixLayout = AXCommandLayout::New;
     uint32_t m_mixCmdListSize = 0;

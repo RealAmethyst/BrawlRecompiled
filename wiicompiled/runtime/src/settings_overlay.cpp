@@ -10,6 +10,7 @@ extern "C" uint8_t* aurora_load_png_rgba(const char* path, uint32_t* width, uint
 #include "netplay_ui.h"
 #include "settings_overlay.h"
 #include "online_menu.h"
+#include "accessibility_menu.h"
 #include "graphics_info.h"
 #include "hle/gecko.h"
 #include "audio_backend.h"
@@ -2271,6 +2272,7 @@ void Draw() noexcept {
     DrawControlsPanel();
     DrawStartupScreen();
     OnlineMenu::Draw();  // above the title card: the launcher can open it at start
+    AccessibilityMenu::Draw();
 }
 
 void SetBusyProgress(const char* label, float fraction) noexcept {

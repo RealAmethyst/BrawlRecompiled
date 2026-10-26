@@ -8,6 +8,7 @@
 #include "ax_dsp.h"
 #include "music_attenuation.h"
 #include "runtime_log.h"
+#include "spatial_audio.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -110,6 +111,10 @@ bool PushAudioBlock(uint32_t startAddr, uint32_t length) {
     }
 
     if (src) {
+        // Spatial audio replaces the block the player hears, never the one in guest memory.
+        if (const uint8_t* heard = SpatialAudio::HeardBlock(startAddr, src, bytes)) {
+            src = heard;
+        }
         MeterAudioBlock(src, bytes);
         return AudioBackend::Instance().PushWiiAiSamplesBE16(src, bytes);
     }

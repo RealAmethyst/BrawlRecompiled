@@ -123,6 +123,13 @@ if(MKW_PRISM_LIBRARY)
     target_compile_definitions(mkw_runtime_common PRIVATE MKW_SCREEN_READER_SPEECH)
 endif()
 
+if(MKW_STEAM_AUDIO_LIBRARY)
+    # Only Steam Audio's header is needed to compile; spatial_audio.cpp loads the library at run time.
+    target_include_directories(mkw_runtime_common PRIVATE "${MKW_STEAM_AUDIO_INCLUDE_DIR}")
+    target_compile_definitions(mkw_runtime_common PRIVATE MKW_SPATIAL_AUDIO
+        MKW_STEAM_AUDIO_LIBRARY_NAME="${MKW_STEAM_AUDIO_LIBRARY_NAME}")
+endif()
+
 if(MKW_CPPWINRT_INCLUDE_DIR)
     if(NOT EXISTS "${MKW_CPPWINRT_INCLUDE_DIR}/winrt/base.h")
         message(FATAL_ERROR
@@ -299,6 +306,16 @@ function(mkw_configure_product target)
     endif()
     if(MKW_PRISM_LIBRARY)
         add_dependencies(${target} mkw_accessibility_strings)
+    endif()
+    if(MKW_STEAM_AUDIO_LIBRARY)
+        # The library, its licence, and the notices for what Valve built into it (Steam Audio's THIRDPARTY.md); the
+        # packaging scripts move the two texts into licenses/.
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MKW_STEAM_AUDIO_LIBRARY}" $<TARGET_FILE_DIR:${target}>
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MKW_STEAM_AUDIO_LICENSE}"
+                $<TARGET_FILE_DIR:${target}>/steamaudio-LICENSE.md
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MKW_STEAM_AUDIO_NOTICES}"
+                $<TARGET_FILE_DIR:${target}>/steamaudio-THIRDPARTY.md)
     endif()
 
     set(MKW_WII_BOOTSTRAP_SOURCE_DIR "${MKW_RUNTIME_SOURCE_DIR}/assets/wii")
