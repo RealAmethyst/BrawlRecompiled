@@ -617,6 +617,55 @@ behaviour, and every offset was checked in this build's code. Verified unless ma
   `Voice+0xC8 × +0xCC`; where `+0x18` is set; fighter positions in world units; 3D streams (Voice callback `0x801CF238`,
   inferred); Brawl's own AX voices (`0x8007C9DC`, `0x8007D224`) stay vanilla.
 
+### Verification and implementation facts (2026-10-26, A11Y-12)
+
+Re-checked at the point of use in main.dol by an independent adversarial pass; the 33 anchor words below were then
+compared with the disc's main.dol byte for byte (all match). Corrections to the list above:
+
+- PB addresses are not physical: the command list (command 4 at `0x80200158`, head from the getter `0x80201EF0`,
+  `lwz r3,-14584(r13)` = `*(u32*)0x805A0B28`) and the `next` links (`0x8020217C`, PB + 0x140) carry the raw pointer
+  value. The map key is `*(0x805A0B28) + index*0x140`, compared exactly with the address `ProcessPBList` receives.
+  Globals: `0x805A0B28` PB array (stride 0x140), `0x805A0B2C` ITD buffers, `0x805A0B30` AXVPB array (stride 0x168),
+  `0x805A0B34` voice count (at most 96). r13 = `0x805A4420`, r2 = `0x805A9320` (`__init_registers` `0x8000422C`).
+- Listener: read it from Sound3DManager `+0xC` (what `Sound3DManager::Update` uses, `lwz 27,12(3)`); Brawl stores
+  sndSystem+0x294 there (`0x800732E8`/`F8`). MTX34 row-major, translation in column 3 (PSMTXMultVec `0x801ECD70`).
+  The same listener-space vector drives distance (full length) and pan (`atan2(x,-z)` on a horizontal copy); pan is
+  stored only with flag bit 1 (`0x801C6988`), surround pan only with bit 2 (`0x801C69A0`).
+- VoiceManager `0x804DD0EC`: active count `+4`, sentinel node `+8` (`0x804DD0F4`), free list count `+0x10` and
+  sentinel `+0x14`; node `{next +0, prev +4}`; Voice = node - 0x124, Voice size 0x12C; list in ascending priority.
+  Voice `+0x9C` channel count (1-2), `+0xA0` output count (1-4), `+0xAC` u8 active (set `0x801D0D80`, cleared after
+  FreeVoice), `+0xC8`/`+0xCC` f32 (default 1.0).
+- Channel's Voice back-pointer (`0x801BE774`) is stored after AllocVoice re-enables interrupts: a voice can be active
+  with a stale `Channel+0xDC` for a moment; the back-pointer check rejects it.
+- BasicSound `+0x24` is a heap copy of the actor's parameters (SetAmbientInfo `0x801BD5C0`), zeroed by the constructor
+  and at shutdown, which leaves `+0x18` stale: both are checked. A failed allocation leaves the sound non-3D.
+- Wave sounds have one output per channel (`li 9,1` at `0x801C9C34` through WaveSound::Prepare); a stereo wave is one
+  Channel, one Voice, two AxVoices (`+0xC`, `+0x1C`). Sequence voices' output count comes from SeqPlayer `+0xA4`
+  (not resolved statically).
+- Fail-closed anchors (word at address, the hop it creates): wave owner `0x801D49F4 3CC0801D`, `0x801D4A00 38C64EE8`,
+  `0x801D49FC 7FE7FB78`; WsdPlayer at sound+0xD8 `0x801D3920 387E00D8`, `0x801D3C28 386300D8`, vtable slot
+  `0x80466DC8 801D3C28`; sequence owner `0x8040AF9C 801C5744`, `0x801C5AEC 93610028`, track player
+  `0x801C2110 93E300B8`; SeqPlayer at sound+0xD8 `0x801C42A0 387E00D8`, `0x801C4994 386300D8`, vtable slot
+  `0x80466AC0 801C4994`; channel voice callback `0x801BE6CC 3CE0801C`, `0x801BE6E0 38E7E47C`, data
+  `0x801BE6DC 7FC8F378`; owner fields `0x801BDA20 908300D4`, `0x801BDA24 90A300D8`; back-pointer
+  `0x801BE774 907E00DC`; voice table `0x801D0D40 9019000C`; list walk `0x801D2FE8 83E30008`; active
+  `0x801D0D80 981400AC`; AXVPB context `0x801FF69C 93BE0014`; AxVoice links `0x801BAAA0 90830000`,
+  `0x801BB8BC 9312003C`; PB array `0x80201EF0 806DC708`, `0x80201EF4 4E800020`, `0x80200158 38000004`,
+  `0x80201C7C 806DC708`, `0x80201C80 1C000140`, `0x8020217C 38050140`; 3D manager `0x80079590 38BF026C`; listener
+  `0x800732E8 381C0294`, `0x800732F8 901C0278`. (The earlier proposed anchors were generic prologues.)
+- Gameplay camera: gfCameraManager pointer `0x8059FFC0` (r13-17504; manager 0x740 bytes, six gfCameras of 0x134),
+  camera 0 at +0. The listener's MTXLookAt (`0x80073940`) uses eye `+108..+116`, up `+132..+140`, target eye +
+  forward (`+120..+128`, a unit vector); it ignores the shake offsets (`+156`) the camera's own view matrix (`+0`)
+  includes. gfCamera::calc: base field of view `+208` (radians, default 30 degrees), zoom divisor `+212`, effective
+  vertical field of view `+216` = 2·atan(tan(+208/2)/+212) (stored `0x80018C30`), aspect `+228`, near `+220`, far
+  `+224`, perspective flag `+256`; setGX `0x80018DE4` passes +216 (as degrees) to C_MTXPerspective. Pause and photo
+  cameras write the same camera 0. Run-time values not logged yet.
+- Steam Audio 4.8.1's default HRTF accepts 24000, 44100 and 48000 Hz only (measured: 8, 16, 22.05, 32, 36, 40, 64 and
+  96 kHz fail with IPL_STATUS_INITIALIZATION), so voices are resampled 32 to 48 kHz and the binaural sum back.
+  iplBinauralEffectApply reports a remaining tail on every frame (tail size 0), so tails are rung out for a fixed 3
+  frames. The default HRTF is asymmetric: a frontal source is about 1.3 dB louder in the right ear. Cost measured with
+  the runtime's renderer (resampling included): about 0.11% of one core per voice (11% for 96).
+
 ## Options screen construction and an Accessibility entry
 
 Recorded 2026-10-26 from the disassembly of `sora_scene`, `sora_menu_rule` and `sora_menu_main`, the Options models and

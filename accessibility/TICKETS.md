@@ -291,9 +291,36 @@ Decisions (2026-10-25):
 
 ### A11Y-12 Feature: Steam Audio spatial audio
 
-- Status: ready: next session's first item unless the maintainer names other work (2026-10-26). First step: present
-  the implementation plan (Steam Audio dependency, mixer changes, the PB map, settings) with A11Y-28 and get the
-  go-ahead before building.
+- Status: in progress (2026-10-26). The designer approved the plan below.
+- Plan (approved 2026-10-26): Steam Audio 4.8.1 from Valve's official prebuilt SDK (`steamaudio_4.8.1.zip`, SHA-256
+  `4a0aa5ec1176f38f0b0993a37c2259d9e86f27e22d5e24f83ec4c3cb9a1d5449`), downloaded and pinned by the build like
+  Prism, loaded at run time; missing or failing library means the vanilla mix. (A source build needs flatbuffers,
+  pffft, zlib and libmysofa fetched by Valve's own script: harder to pin.) No guest hooks or writes: the voice map is
+  built at the AX command-list dispatch (A11Y-13 design) and the mixer renders mapped voices binaurally. First build
+  is a logging pass (A11Y-13 measurement plan) before the rendering is audible; the 96-sample frame size is
+  benchmarked offline first.
+- Decisions (2026-10-26, plan review): spatial audio is off by default; the Height setting has four steps, True
+  angles, Low, Medium, High (top of the screen about 30, 45 and 60 degrees up), default Medium.
+- Implementation (2026-10-26): `runtime/include/spatial_audio.h`, `spatial_audio_mix.h` (32/48 kHz
+  resamplers and renderer, no guest memory), `spatial_audio_steam.h`, `runtime/src/accessibility/spatial_audio.cpp`
+  (voice map, settings, Steam Audio loading, output swap, diagnostics), `ax_mix.cpp` (capture of placed voices'
+  main-bus share, correction through compressor and output volume), `audio.cpp` (the heard block replaces the guest
+  block on the host side only), `cmake/SteamAudioPin.cmake`, CMake download with fallback, `tools/package-linux.sh`.
+  Config.toml `[accessibility]`: `spatial_audio`, `spatial_audio_height`, `spatial_audio_no_3d_effect`,
+  `spatial_audio_diagnostics` (walk and counters only, sound unchanged).
+- Checks done: offline `accessibility/tools/spatial_mix_check.cpp` (resampler round trip flat to 14 kHz, images
+  -109 dB, front-centre loudness kept, a right source panned left by the game heard right by 14.5 dB, tails end,
+  reset leaves nothing); runtime compiles warning-free; anchors match the disc; independent review of the mixer
+  change (no guest-visible difference found; its findings on re-enable state, frame-end guard, pooled-sound restart,
+  swap counters, CMake fallback and packaging fixed). Windows: CMake branch only, not built or tested.
+- Logging pass (build `645cf919`, the designer's session 2026-10-26 19:18, spatial audio turned on from the page):
+  Steam Audio loaded (96 voices); output mode 0 (stereo); camera field of view 30 degrees; listener = sndSystem+0x294
+  as expected; PB array `0x80497F00` (MEM1). In matches every placed PB was mixed (placed but not mixed 0), every
+  output block was replaced (3334 of 3334 per report, none stale or differing); placements lost while the voice still
+  played 0-7 per ~10 s; one non-channel voice per frame (the music stream) and a few stream-owned channels stay
+  vanilla. Logged sounds were all waves with one output (flags 0x5 fighters, 0x4 stage, one 0xF). Fighter x reaches
+  about +/-70 world units, which is only about 15-17 degrees left or right from the camera (true geometry).
+- Deployed `d511d434` (log digit-grouping fix). Awaiting: the designer's listening verdict.
 - Positional game sounds rendered with Steam Audio HRTF, including elevation (above and below).
 - Decisions (2026-10-26): the listener is the game's camera (as the game pans today, plus height); every sound the
   game treats as positional (fighters, items, stage) gets HRTF, while menu sounds, music and the announcer stay as they
@@ -329,7 +356,7 @@ Decisions (2026-10-25):
 
 ### A11Y-28 Story: Options > Accessibility settings screen
 
-- Status: ready, together with A11Y-12 (2026-10-26); design questions open.
+- Status: in progress, together with A11Y-12 (2026-10-26).
 - Parent: A11Y-10. Holds the HRTF settings first (on/off, elevation strength with a "true angles" choice, placing the
   sounds that have no 3D effect on/off); more accessibility settings later.
 - Decision (2026-10-26): it lives under Options as an item named for accessibility.
@@ -338,10 +365,25 @@ Decisions (2026-10-25):
   runtime draws itself, like the port's Online menu (ImGui, disc fonts, guest input blocked while open, settings saved
   through the runtime config file), entered as an eighth Options entry at cursor 7 ("E2") with the runtime drawing its
   highlight; fallback "E3": an X / Y button on the Options screen.
-- Open for the designer: look for sighted players; position of the entry; wording (entry, description, title, rows,
-  values); shown to everyone or only with a screen reader; languages; whether E3 is acceptable if E2 proves fragile.
-- Open technically: a mapping-aware input read while guest input is blocked; screen-space placement; a sighted check
-  of the Data screen after visiting cursor 7 (model 36 side effect).
+- Decisions (designer, 2026-10-26): approach (b) with E2, styled like the Online menu; the entry is the fourth item
+  of the bottom row, right of Erase Data (Right from Erase Data, Down from Controls); shown to everyone; English
+  first, all wording in the localization file; if E2 proves fragile, report and decide together (no silent fallback
+  to E3). Rows: Spatial audio (On/Off, default Off), Height (True angles, Low, Medium, High; default Medium), Sounds
+  without 3D effect (On/Off), Audio description (On/Off, the existing setting), Description volume (percent).
+  Entry, row and description wording as proposed in the plan; the designer reviews it by listening.
+- Decisions (designer, 2026-10-26): "Sounds without 3D effect" starts Off; Description volume 0 to 200 percent in
+  steps of 10 (100 is the approved level).
+- Implementation (2026-10-26): `runtime/src/accessibility/accessibility_menu.cpp` (new hook on the menu
+  input reader `0x806A4E04`: A on cursor 7 opens the page; while open, the game's decoded menu input drives the page
+  and the Options screen gets none, so mappings, Wii Remotes and keyboard bindings work without blocking guest
+  input), `main_menu.cpp` (moveCursor: moves onto and off cursor 7 done like the game's, cursor sound and repeat reset
+  included; setMsg: entry 144 at cursor 7, only if empty; Options positions out of 8), `settings_overlay.cpp` (draws
+  the page), strings in `strings_en.toml` `[accessibility_menu]`. Audio description volume: Config.toml
+  `audio_description_volume` (percent, applied when a movie's clips load).
+- The entry is drawn on the Options screen one button step right of Erase Data, at the position projected from the
+  game's own button models (gfCamera 0), highlighted at cursor 7, with its description beneath (build `d511d434`).
+- Open: sighted check of the drawn entry and of the Data screen after visiting cursor 7 (model 36 side effect);
+  listening test of the page.
 
 ## A11Y-20 Epic: audio descriptions for the Subspace Emissary cutscenes
 
