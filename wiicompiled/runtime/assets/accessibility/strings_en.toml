@@ -24,6 +24,13 @@ my_music = "My Music"
 erase_data = "Erase Data"
 names = "Names"
 
+# MenMainTitle_TopN lambert35 frames 10, 19, 12, 28, 30 (MenMainTtlJ.04, .13, .06, .21, .23).
+vault = "Vault"
+trophies_stickers = "Trophies & Stickers"
+data = "Data"
+records = "Records"
+movies = "Movies"
+
 [main_menu.items]
 # MenMainFrTop10, 11, 15, 12, 13, 14.
 top = ["Group", "Solo", "Nintendo Wi-Fi Connection", "Vault", "Options", "Data"]
@@ -44,6 +51,16 @@ sound = ["Sound Effects, Music", "Sound Test"]
 rumble_tabs = ["Controller", "Names"]
 # MenMainDelete03Font01 to Font05.
 erase_data = ["P1 High Score", "Brawl Records", "Adventure", "Vault Data", "Erase All"]
+
+# Vault buttons by cursor (models 22-28 = archive models MenMainIcon0401, 0406, 0404, 0402, 0405, 0408, 0403):
+# MenMainColl01_1 to 01_7 ("MASTER-PIECES" is broken over two lines).
+vault = ["Trophies & Stickers", "Stage Builder", "Album", "Challenges", "Replays", "Masterpieces", "Chronicle"]
+# Models 175-179 (MenMainIcon0411, 0414, 0412, 0415, 0413): MenMainColl02_6, 02_7, 02_9, 02_10, 02_8.
+trophies_stickers = ["Trophy Gallery", "Trophy Hoard", "Coin Launcher", "Sticker Center", "Sticker Album"]
+# Models 36-38 (MenMainIcon0601-0603): MenMainData06, 08, 07.
+data = ["Movies", "Sound Test", "Records"]
+# Models 108-110 (MenMainIcon0621-0623): MenMainData15, 16, 17.
+records = ["Group Records", "Brawl Records", "Notices"]
 
 [boot]
 # The wrist-strap reminder, in reading order: the right-hand tips MenBoot00_En then MenBoot01_En (they take turns on
@@ -100,3 +117,163 @@ save = "Save"
 # InfButton11Yes, InfButton11No.
 yes = "YES"
 no = "NO"
+
+[character_select]
+# The name plates under each card (MenSelchrChrNm), by MuSelchkind 0-41; 40 is no fighter (a blank plate).
+fighters = [
+    "Mario", "Donkey Kong", "Link", "Samus", "Zero Suit Samus", "Yoshi", "Kirby", "Fox", "Pikachu", "Luigi",
+    "Captain Falcon", "Ness", "Bowser", "Peach", "Zelda", "Sheik", "Ice Climbers", "Marth", "Mr. Game & Watch",
+    "Falco", "Ganondorf", "Wario", "Meta Knight", "Pit", "Olimar", "Lucas", "Diddy Kong", "Pokémon Trainer",
+    "Charizard", "Squirtle", "Ivysaur", "King Dedede", "Lucario", "Ike", "R.O.B.", "Jigglypuff", "Toon Link", "Wolf",
+    "Snake", "Sonic", "", "Random",
+]
+# A fighter's place in the grid (no caption on screen): {row} from the top, {column} from the left.
+grid_place = "row {row}, column {column}"
+# The acting player while two or more humans share the screen, as the cards label them (MenSelchrCard.1-4).
+player = "P{number}"
+# Another player's card, by its place from the left (no caption on screen).
+card = "Card {number}"
+# A player's token (the coin, MenSelchrCoin; its label is the player's).
+token = "Token"
+# A card's costume: costumes have pictures only, so their place in the fighter's list.
+costume = "Costume {index} of {total}"
+# Team colours in the game's order, named for the flag letters R, B, G (MenSelchrCardFragR, B, G).
+teams = ["Red team", "Blue team", "Green team"]
+# The rules line's value 0 (an infinity sign drawn from two halves, MenSelmapNm.10, .11).
+infinity = "∞"
+back = "Back"                    # MenSelchrBack03
+rules = "Rules"                  # MenMainTtlJ.08 on MenSelchrRulebase
+left_arrow = "Left arrow"        # MenSelchrRallow: lowers the rule value
+right_arrow = "Right arrow"      # raises it
+ready = "Ready to Fight!"        # MenSelchrReady01_2
+name_entry = "Choose name"       # MenSelchrCentry: a pencil icon, no text
+cpu_level = "CPU Level {value}"  # MenSelchrCardCplv "CPU Lv." and the digit
+handicap = "Handicap {value}"    # MenSelchrCardHandicap and the digits
+stamina = "Stamina {value}"      # MenSelchrCardHp and the digits
+new_entry = "New entry"          # the name list's top and bottom rows (dammyn)
+
+# The Solo modes' titles by the PAT0 frame of MenSelchrTitleS_TopN__0 (frames from table 0x806A0B20): the mode name
+# (MenSelchrRtitle.01-.08) and, on frames 4, 7, 9, 11, 13 and 14, "Co-op" beside it (MenSelchrRtitle.25).
+solo_titles = [
+    "", "Classic", "All-Star", "Events", "Events Co-op", "Training", "Target Smash!!", "Target Smash!! Co-op",
+    "Home-Run Contest", "Home-Run Contest Co-op", "Multi-Man Brawl", "Multi-Man Brawl Co-op", "Boss Battles",
+    "Boss Battles Co-op", "All-Star Co-op",
+]
+# The difficulty captioned under the enlarged icon (MenSelchrSngl04.1, cut into EASY, NORMAL, HARD, VERY + HARD,
+# INTENSE; the same order as simple_result's "Cleared On ..." lines).
+difficulties = ["Easy", "Normal", "Hard", "Very Hard", "Intense"]
+level = "Level {value}"          # Target Smash: MenSelchrSngl04.2 "LEVEL" and the digit
+stock = "Stock {value}"          # MenSelchrSngl03 and the digits MenSelchrSngl07nm
+# The current difficulty, level or stock (shown enlarged and captioned, or by stock icons; no word on screen).
+selected = "selected"
+# The Home-Run play order by its CLR animation: "Play" (MenSelchrSngl1004), then Sngl1003 or Sngl1002.
+home_run = ["Play Cooperatively", "Play Alternately"]
+
+[character_select.modes]
+# The mode name in the top bar (MenSelchrPanelRule3.1-5).
+brawl = "Brawl"
+team_battle = "Team Battle"
+special_brawl = "Special Brawl"
+winner_out = "Winner Out"
+loser_out = "Loser Out"
+
+[stage_select]
+# The VS stage select's title (MenSelmapBack07; My Music shows none).
+title = "Stage Select"
+# The pages by the words their Change caption shows: page 0 MenSelmapIcon_Change.3, 1 .1, 2 .2 (frame table
+# 0x806B9140). The Change button names the page it switches to; a page change speaks the page now shown.
+pages = ["Normal Stages", "Melee Stages", "Custom Stages"]
+random = "Random"            # MenSelmapFrontRandam2
+back = "Back"                # MenSelmapBack03 (Back model VIS0 frame 0)
+leave = "Leave"              # MenSelmapBack08 (frame 1, Wi-Fi modes)
+menu = "Menu"                # My Music's menu entry: preview name MenSelmapFrontStname.100
+# The custom list's scroll controls have no text: up / down triangles (MenSelmapEdit01Allw), the thumb and the
+# track. Named for what A does on them.
+up_arrow = "Up arrow"        # one row up (wraps)
+down_arrow = "Down arrow"    # one row down (wraps)
+scroll_bar = "Scroll bar"    # the thumb: A holds it, then the pad scrolls
+page_up = "Page up"          # the track above the thumb: six rows up
+page_down = "Page down"      # the track below the thumb: six rows down
+
+[results]
+# The WINNER banner over the winner's name (letter textures InfResultNameW, bones w i n n2 e r).
+winner = "Winner"
+# A player's place card numeral (InfResultRank1-4) before their name tag: {place} 1-4, {label} the tag.
+place = "{place} {label}"
+# A column or statistic and its value as the screen shows it: "KOs +3", "Ground Time 30 sec.".
+entry = "{label} {value}"
+# A player's KO page: whom they KO'd and who KO'd them (fighter icons), then the Self-Destructs line.
+ko_page = "{kos_label}: {kos}. {falls_label}: {falls}. {self_destructs}"
+# A ready player's card (InfResultP2_01Ready).
+ready = "Ready for the Next Battle"
+
+[results.columns]
+# The column labels beside the numbers (InfResultHitnum, textures InfResultP1.01-.09; PAT0 frame by rule).
+kos = "KOs"                          # InfResultP1.01
+falls = "Falls"                      # InfResultP1.02
+self_destructs = "SDs"               # InfResultP1.03
+coins_collected = "Coins Collected"  # InfResultP1.04
+coins_lost = "Coins Lost"            # InfResultP1.05
+finishes = "Finishes"                # InfResultP1.06
+misses = "Misses"                    # InfResultP1.07
+knocked_out_at = "KO'd"              # InfResultP1.08
+total = "Total"                      # InfResultP1.09
+
+[rules]
+# Rules page rows in cursor order (MenMainRule00font.01, .02, .04, .05, .06, .07, .08); the second row reads
+# STOCK in a stock match (MenMainRule00font.03).
+rules_items = ["Rules", "Time Limit", "Handicap", "Damage Ratio", "Stage Choice", "Item Switch", "More Rules"]
+stock = "Stock"
+# Value strips: MenMainRule03Sel01 (style), Sel02 (handicap), Sel03 (stage choice), in value order.
+styles = ["Time", "Stock", "Coin"]
+handicap = ["Off", "On", "Auto"]
+stage_choice = ["Choose", "Random", "Turns", "Ordered", "Loser's Pick"]
+# More Rules rows in cursor order (MenMainAddRulefont01, 02, 03, 04, 06, 05).
+more_rules_items = ["Stock Time Limit", "Team Attack", "Pause", "Score Display", "Damage Gauge", "Random Stage Switch"]
+# A Turn All button's caption: MenMainSwitch08All and the MenMainSwitch05On / Off beside it, which is what the press
+# will do. turn_all alone is used only when the ON / OFF cannot be verified.
+turn_all_on = "Turn All On"
+turn_all_off = "Turn All Off"
+turn_all = "Turn All"
+custom_stages = "Custom Stages"  # MenMainSwitch12Panel
+# What a Turn All press did (no caption on screen; the button's own words are TURN ALL ON / OFF).
+all_on = "All on"
+all_off = "All off"
+
+[rules.titles]
+# The main menu's title bar on the Rules pages: MenMainTitle_TopN frames 14 and 15 (MenMainTtlJ.08, .09).
+rules = "Rules"
+more_rules = "More Rules"
+# The pages' own title art: MenMainSwitch06Title, MenMainSwitch10Panel.
+item_switch = "Item Switch"
+stage_switch = "Random Stage Switch"
+
+[names]
+# The Names screen's erase dialog buttons, left then right (MenMainButton02Yes, MenMainButton03No; drawn by model
+# MenMainIcon0144_TopN, nodes yes / no).
+yes = "YES"
+no = "NO"
+
+[events]
+title = "Events"                 # MenEvent00Ttl
+co_op = "Co-op"                  # MenEvent08Hutariicon: the badge shown with the co-op events
+# The difficulty choice, left to right (MenEvent07Lvsel02).
+difficulties = ["Easy", "Normal", "Hard"]
+
+[stadium]
+title = "Stadium"  # MenStadiumPanel05Title
+# The Multi-Man Brawl list by cursor: MenKumiteTtl01-06.
+multi_man = ["10-Man Brawl", "100-Man Brawl", "3-Minute Brawl", "15-Minute Brawl", "Endless Brawl", "Cruel Brawl"]
+
+[notices]
+title = "Notices"  # MenMainDataCmnTitle.08
+
+[brawl_records]
+title = "Brawl Records"  # MenMainDataCmnTitle.02
+
+[sound_test]
+title = "Sound Test"            # MenSoundtest06
+modes = ["Music", "Sound Effects"]  # MenSoundtest03, 04
+category = "Category"           # MenSoundtest12
+title_label = "Title"           # MenSoundtest13
+number = "Number"           # MenSoundtest16 "No.", spelled out

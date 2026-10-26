@@ -6,15 +6,18 @@
 #include "speech.h"
 #include "stage_select_speech.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <utility>
 
-// Screen-reader speech for the main menu (scene muMenuMain): Select Mode, Group, Solo, Options and its screens. Event
-// hooks only, each wrapping the game's own function: a screen's enter (it opens), the shared cursor move and the
-// description panel's setMsg (the selection changed), and for Erase Data its message prints and per-frame process
-// (its yes/no dialog has no toggle function of its own).
+// Screen-reader speech for the main menu (scene muMenuMain): Select Mode, Group, Solo, Options and its screens, Vault,
+// Trophies & Stickers, Data and Records (the screens with lists of their own, from Stadium to Sound Test, are in
+// data_screens.cpp). Event hooks only, each wrapping the game's own function: a screen's enter (it opens), the shared
+// cursor move and the description panel's setMsg (the selection changed), and for Erase Data its message prints and
+// per-frame process (its yes/no dialog has no toggle function of its own).
 //
 // The screens are muProc objects in sora_menu_main, a module loaded on demand. With Gecko codes active (Project+ and
 // other SD mods) on-demand modules are linked in the heap instead of at their translated home, so these enter hooks
@@ -30,9 +33,14 @@ extern "C" void func_9401CDEC(CpuContext* ctx);  // muProcOptVib enter
 extern "C" void func_9401E068(CpuContext* ctx);  // muProcOptBtn enter (Options > Controls)
 extern "C" void func_9402EF70(CpuContext* ctx);  // muProcName enter (Group > Names)
 extern "C" void func_80677354(CpuContext* ctx);  // muNameTask: redraw the name list (sora_menu_name, resident)
+extern "C" void func_8067773C(CpuContext* ctx);  // muNameTask: state 2 (the list has focus) enter
 extern "C" void func_9401B4A8(CpuContext* ctx);  // muProcOptSound enter
 extern "C" void func_9401E5B8(CpuContext* ctx);  // muProcOptSong enter
 extern "C" void func_9401C0A0(CpuContext* ctx);  // muProcOptDel enter
+extern "C" void func_94017A4C(CpuContext* ctx);  // muProcColl enter (Vault)
+extern "C" void func_9402F6B4(CpuContext* ctx);  // muProcFigure enter (Vault > Trophies & Stickers)
+extern "C" void func_940181E0(CpuContext* ctx);  // muProcData enter
+extern "C" void func_9401FDCC(CpuContext* ctx);  // muProcRecord enter (Data > Records)
 extern "C" void func_9401C170(CpuContext* ctx);  // muProcOptDel process (vtable +0x14)
 extern "C" void func_9401D3A8(CpuContext* ctx);  // muProcOptVib moveCursor override (vtable +0x20)
 extern "C" void func_9401E6D4(CpuContext* ctx);  // muProcOptSong process (vtable +0x14)
@@ -44,7 +52,33 @@ extern "C" void func_800B91B8(CpuContext* ctx);  // MuMsg::printIndex
 extern "C" void func_80076F30(CpuContext* ctx);  // sndSystem: apply the music / sound-effects balance
 extern "C" void func_80078CD8(CpuContext* ctx);  // sndSystem: set a song's My Music frequency
 
+// Shared with data_screens.cpp, whose screens are muMenuMain procs too.
+namespace MainMenuSpeech {
+
+// Whether `proc` is muMenuMain's current proc: the scene manager's current scene (*(0x805A0060)+4) is muMenuMain, and
+// its proc array (+0x35C) holds `proc` at its current id (+0x3D0). A proc that handed over to another proc or scene (a
+// screen of data_screens.cpp, the button setup scene) is no longer current.
+bool IsCurrentProc(uint32_t proc) {
+    constexpr uint32_t kSceneManagerPointer = 0x805A0060;
+    constexpr uint32_t kManagerCurrentSceneOffset = 0x4;
+    constexpr uint32_t kMenuMainProcsOffset = 0x35C;
+    constexpr uint32_t kMenuMainCurrentProcOffset = 0x3D0;
+    constexpr uint32_t kMenuMainProcCount = 29;
+    try {
+        const uint32_t scene = Memory::Read32(Memory::Read32(kSceneManagerPointer) + kManagerCurrentSceneOffset);
+        if (scene == 0 || AccessibilityText::GuestCString(Memory::Read32(scene), 16) != "muMenuMain") return false;
+        const uint32_t id = Memory::Read32(scene + kMenuMainCurrentProcOffset);
+        return id < kMenuMainProcCount && Memory::Read32(scene + kMenuMainProcsOffset + 4 * id) == proc;
+    } catch (const Memory::AccessViolation&) {
+        return false;
+    }
+}
+
+} // namespace MainMenuSpeech
+
 namespace {
+
+using MainMenuSpeech::IsCurrentProc;
 
 // muProc layout (sora_menu_rule fn_18_11C4 builds the shared base).
 constexpr uint32_t kProcCursorOffset = 0x42;     // u16: the selected item (on Screen and Deflicker, the value)
@@ -124,11 +158,20 @@ constexpr uint32_t kMaxSoundRecords = 1024;
 // has focus). The "New entry" label is main.dol text (fn_800B96B0; English pointer at 0x8059E09C, "@New entry").
 constexpr uint32_t kProcNameTaskOffset = 0x71C;
 constexpr uint32_t kNameTaskStateOffset = 0x9C;
+// The state the task left, kept until the new state's enter has run (dispatcher 0x806772E4 copies +0x9C into +0xA0
+// after calling the enter from table 0x8067B7E0).
+constexpr uint32_t kNameTaskPreviousStateOffset = 0xA0;
 constexpr uint32_t kNameTaskListOffset = 0x1F0;
 constexpr uint32_t kNameTaskCountOffset = 0x3D8;
 constexpr uint32_t kNameTaskRowOffset = 0x1EC;
 constexpr uint32_t kNameTaskScrollOffset = 0x1EE;
 constexpr uint32_t kNameTaskListState = 2;
+// The states whose process returns 2, handing focus back to the list (sora_menu_name, process functions in table
+// 0x8067B7E0; 1 is the opening). After the list-full step (3), the keyboard (6, after 5), state 8, the cancelled
+// "press 1 and 2" prompt (10) and the transfer screen's Back (16) the list's entry interrupts; after a message (14
+// nothing saved, 19 loaded, 23 saved) or the lost-connection window (24) it queues, so the message is not cut off.
+constexpr uint32_t kNameInterruptingStates[] = {3, 6, 8, 10, 16};
+constexpr uint32_t kNameMessageStates[] = {14, 19, 23, 24};
 constexpr uint32_t kNameTaskMaxEntries = 122;
 constexpr uint32_t kNewEntryLabelPointer = 0x8059E09C;
 
@@ -158,6 +201,8 @@ void NameListDetails(uint32_t proc, uint16_t cursor);
 
 // main_en.msbin entries, from each proc's setSelect / setMsg calls.
 constexpr uint32_t kOptionDescriptions[] = {29, 30, 31, 32, 34, 33, 36};  // table at 0x94041890
+constexpr uint32_t kVaultDescriptions[] = {22, 27, 25, 23, 26, 28, 24};   // table at 0x94044670
+constexpr uint32_t kRecordsDescriptions[] = {78, 79, 80};                 // u16 table at 0x940419F4
 
 constexpr Screen kTopScreen{"main_menu.titles.select_mode", "main_menu.items.top", 6, Movement::SharedCursor,
                             Placement::NavigationTable, [](uint16_t cursor) { return 0u + cursor; }};
@@ -191,6 +236,20 @@ constexpr Screen kControlsScreen{"main_menu.titles.controls", nullptr, 0, Moveme
                                  nullptr, nullptr, NameListDetails};
 constexpr Screen kNamesScreen{"main_menu.titles.names", nullptr, 0, Movement::SharedCursor, Placement::Single,
                               nullptr, nullptr, NameListDetails};
+// Vault and Data. Each button's caption is on the model the highlight moves to: proc+0x644 (the screen's first model,
+// set by its enter) + cursor indexes the scene's model array (sora_menu_rule 0x806A586C), and the scene builder
+// (sora_scene 0x806CC0F4) gives each model's archive entry, whose caption material shows the texture named in the
+// items array's comment (strings_en.toml).
+constexpr Screen kVaultScreen{"main_menu.titles.vault", "main_menu.items.vault", 7, Movement::SharedCursor,
+                              Placement::NavigationTable, [](uint16_t cursor) { return kVaultDescriptions[cursor]; }};
+constexpr Screen kTrophiesStickersScreen{"main_menu.titles.trophies_stickers", "main_menu.items.trophies_stickers", 5,
+                                         Movement::SharedCursor, Placement::NavigationTable,
+                                         [](uint16_t cursor) { return 55u + cursor; }};
+constexpr Screen kDataScreen{"main_menu.titles.data", "main_menu.items.data", 3, Movement::SharedCursor,
+                             Placement::NavigationTable, [](uint16_t cursor) { return 37u + cursor; }};
+constexpr Screen kRecordsScreen{"main_menu.titles.records", "main_menu.items.records", 3, Movement::SharedCursor,
+                                Placement::NavigationTable,
+                                [](uint16_t cursor) { return kRecordsDescriptions[cursor]; }};
 
 // The screen that opened last. muMenuMain runs one proc at a time; the vtable tells a later object at the same
 // address apart.
@@ -213,25 +272,6 @@ struct EraseDialog {
     uint32_t listState = 0;  // the screen's state in the frame the dialog opened from: its list has focus
 };
 EraseDialog g_eraseDialog;
-
-// Whether `proc` is muMenuMain's current proc: the scene manager's current scene (*(0x805A0060)+4) is muMenuMain, and
-// its proc array (+0x35C) holds `proc` at its current id (+0x3D0). A proc that handed over to one not hooked here
-// (Sound Test, the button setup scene) is no longer current.
-bool IsCurrentProc(uint32_t proc) {
-    constexpr uint32_t kSceneManagerPointer = 0x805A0060;
-    constexpr uint32_t kManagerCurrentSceneOffset = 0x4;
-    constexpr uint32_t kMenuMainProcsOffset = 0x35C;
-    constexpr uint32_t kMenuMainCurrentProcOffset = 0x3D0;
-    constexpr uint32_t kMenuMainProcCount = 29;
-    try {
-        const uint32_t scene = Memory::Read32(Memory::Read32(kSceneManagerPointer) + kManagerCurrentSceneOffset);
-        if (scene == 0 || AccessibilityText::GuestCString(Memory::Read32(scene), 16) != "muMenuMain") return false;
-        const uint32_t id = Memory::Read32(scene + kMenuMainCurrentProcOffset);
-        return id < kMenuMainProcCount && Memory::Read32(scene + kMenuMainProcsOffset + 4 * id) == proc;
-    } catch (const Memory::AccessViolation&) {
-        return false;
-    }
-}
 
 bool IsOpen(uint32_t proc, const Screen& screen) {
     if (!g_openScreen || g_openScreen->proc != proc || g_openScreen->screen != &screen) return false;
@@ -624,6 +664,12 @@ MAIN_MENU_ENTER_HOOK(MainMenuRumbleEnter_9401cdec, 9401CDEC, kRumbleScreen)
 MAIN_MENU_ENTER_HOOK(MainMenuControlsEnter_9401e068, 9401E068, kControlsScreen)
 MAIN_MENU_ENTER_HOOK(MainMenuNamesEnter_9402ef70, 9402EF70, kNamesScreen)
 MAIN_MENU_ENTER_HOOK(MainMenuSoundEnter_9401b4a8, 9401B4A8, kSoundScreen)
+// Returning from a Vault scene (Stage Builder, Album, ...) rebuilds the menu scene and runs the Vault enter again: a
+// new opening, spoken with its title like any other.
+MAIN_MENU_ENTER_HOOK(MainMenuVaultEnter_94017a4c, 94017A4C, kVaultScreen)
+MAIN_MENU_ENTER_HOOK(MainMenuTrophiesStickersEnter_9402f6b4, 9402F6B4, kTrophiesStickersScreen)
+MAIN_MENU_ENTER_HOOK(MainMenuDataEnter_940181e0, 940181E0, kDataScreen)
+MAIN_MENU_ENTER_HOOK(MainMenuRecordsEnter_9401fdcc, 9401FDCC, kRecordsScreen)
 
 extern "C" void MainMenuMyMusicEnter_9401e5b8(CpuContext* ctx) {
     EnterScreen(ctx, &func_9401E5B8, kMyMusicScreen);
@@ -822,6 +868,34 @@ extern "C" void MainMenuNameListRedraw_80677354(CpuContext* ctx) {
     SpeakNameListEntry(*g_openScreen, task, row + scroll, true);
 }
 
+// The list has focus again after another state of the name task (state 2's enter does not redraw the list, so the
+// redraw hook stays quiet): the selected entry, interrupting after the keyboard, a cancelled step or the transfer
+// screen's Back, queued after a message. The opening is left to the screen enter.
+extern "C" void MainMenuNameListFocus_8067773c(CpuContext* ctx) {
+    const uint32_t task = ctx->gpr[3];
+    uint32_t previous = 0;
+    const bool havePrevious = Memory::TryRead32(task + kNameTaskPreviousStateOffset, previous);
+    func_8067773C(ctx);
+    if (!havePrevious || g_screenEntering || !g_openScreen || AccessibilityText::SilencedByMods()) return;
+    const Screen* screen = g_openScreen->screen;
+    if ((screen != &kControlsScreen && screen != &kNamesScreen) || !IsOpen(g_openScreen->proc, *screen)) return;
+    const auto listed = [previous](const auto& states) {
+        return std::find(std::begin(states), std::end(states), previous) != std::end(states);
+    };
+    const bool interrupt = listed(kNameInterruptingStates);
+    if (!interrupt && !listed(kNameMessageStates)) return;
+    uint32_t ownTask = 0;
+    if (!Memory::TryRead32(g_openScreen->proc + kProcNameTaskOffset, ownTask) || ownTask != task) return;
+    try {
+        const uint16_t row = Memory::Read16(task + kNameTaskRowOffset);
+        const uint16_t scroll = Memory::Read16(task + kNameTaskScrollOffset);
+        g_nameListSpoken = {};
+        SpeakNameListEntry(*g_openScreen, task, static_cast<uint32_t>(row) + scroll, interrupt);
+    } catch (const Memory::AccessViolation& e) {
+        LogMemoryError(RT_TAG_ACCESSIBILITY, "name list focus", e);
+    }
+}
+
 REGISTER_NATIVE_FUNCTION_AS(0x94018F18, MainMenuTopEnter_94018f18, "MainMenuTopEnter_94018f18");
 REGISTER_NATIVE_FUNCTION_AS(0x94019708, MainMenuGroupEnter_94019708, "MainMenuGroupEnter_94019708");
 REGISTER_NATIVE_FUNCTION_AS(0x9401716C, MainMenuSoloEnter_9401716c, "MainMenuSoloEnter_9401716c");
@@ -845,3 +919,9 @@ REGISTER_NATIVE_FUNCTION_AS(0x9401EF18, MainMenuMyMusicInput_9401ef18, "MainMenu
 REGISTER_NATIVE_FUNCTION_AS(0x80078CD8, MainMenuMyMusicFrequency_80078cd8, "MainMenuMyMusicFrequency_80078cd8");
 REGISTER_NATIVE_FUNCTION_AS(0x9402EF70, MainMenuNamesEnter_9402ef70, "MainMenuNamesEnter_9402ef70");
 REGISTER_NATIVE_FUNCTION_AS(0x80677354, MainMenuNameListRedraw_80677354, "MainMenuNameListRedraw_80677354");
+REGISTER_NATIVE_FUNCTION_AS(0x8067773C, MainMenuNameListFocus_8067773c, "MainMenuNameListFocus_8067773c");
+REGISTER_NATIVE_FUNCTION_AS(0x94017A4C, MainMenuVaultEnter_94017a4c, "MainMenuVaultEnter_94017a4c");
+REGISTER_NATIVE_FUNCTION_AS(0x9402F6B4, MainMenuTrophiesStickersEnter_9402f6b4,
+                            "MainMenuTrophiesStickersEnter_9402f6b4");
+REGISTER_NATIVE_FUNCTION_AS(0x940181E0, MainMenuDataEnter_940181e0, "MainMenuDataEnter_940181e0");
+REGISTER_NATIVE_FUNCTION_AS(0x9401FDCC, MainMenuRecordsEnter_9401fdcc, "MainMenuRecordsEnter_9401fdcc");

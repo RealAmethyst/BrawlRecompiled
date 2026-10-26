@@ -46,7 +46,8 @@ std::optional<size_t> MarkupLength(const std::string& text, size_t i) {
 }
 
 // The speakable form of a raw entry, up to a NUL outside markup: markup dropped (a ruby keeps its base text), tabs and line breaks as spaces,
-// full-width ASCII forms (U+FF01..U+FF5E) and the ideographic space folded to ASCII, runs of spaces collapsed.
+// full-width ASCII forms (U+FF01..U+FF5E) and the ideographic space folded to ASCII, the circled digits the game uses
+// for the Wii Remote's 1 and 2 buttons (U+2460..U+2468, name_remote) as digits, runs of spaces collapsed.
 std::optional<std::string> Speakable(const std::string& raw) {
     std::string text;
     for (size_t i = 0; i < raw.size();) {
@@ -60,6 +61,11 @@ std::optional<std::string> Speakable(const std::string& raw) {
                     i += 3;
                     continue;
                 }
+            } else if (byte == 0xE2 && i + 2 < raw.size() && static_cast<uint8_t>(raw[i + 1]) == 0x91 &&
+                       static_cast<uint8_t>(raw[i + 2]) >= 0xA0 && static_cast<uint8_t>(raw[i + 2]) <= 0xA8) {
+                text += static_cast<char>('1' + (static_cast<uint8_t>(raw[i + 2]) - 0xA0));
+                i += 3;
+                continue;
             } else if (byte == 0xE3 && raw.compare(i, 3, "\xE3\x80\x80") == 0) {
                 text += ' ';
                 i += 3;
