@@ -66,6 +66,14 @@ if (Test-Path -LiteralPath "$root\Play\prism.dll") {
         Copy-Item -LiteralPath $f.FullName -Destination "$engine\licenses\Prism-$($f.Directory.Name)-$($f.BaseName).txt"
     }
 }
+# Spatial audio (when the build has it): Steam Audio's licence and the notices for what Valve built into phonon.dll
+# (phonon.dll itself came with the other DLLs above).
+if (Test-Path -LiteralPath "$root\Play\phonon.dll") {
+    foreach ($f in 'steamaudio-LICENSE.md', 'steamaudio-THIRDPARTY.md') {
+        if (-not (Test-Path -LiteralPath "$root\Play\$f")) { throw "phonon.dll without $f`: run build-brawl.ps1" }
+        Copy-Item -LiteralPath "$root\Play\$f" -Destination "$engine\licenses\$([IO.Path]::GetFileNameWithoutExtension($f)).txt"
+    }
+}
 (Get-Content -LiteralPath "$PSScriptRoot\package-README.txt" -Raw).Replace('{VERSION}', $version) | Set-Content -LiteralPath "$stage\README.txt" -Encoding utf8
 
 # Guard: no disc data and no SD card contents come from the dev tree (the player makes both inside the folder).

@@ -81,27 +81,50 @@ if (-not $SkipTools) {
     Set-Status 'tools and dependencies ready'
 }
 
-# Screen-reader speech: Prism's official Windows release, pinned in runtime\cmake\PrismPin.cmake. The configure step
-# below runs offline (FETCHCONTENT_FULLY_DISCONNECTED), so the archive is fetched here and handed to it.
-$prismPin = Get-Content -LiteralPath (Join-Path $wc 'runtime\cmake\PrismPin.cmake') -Raw
-$prismVersion = [regex]::Match($prismPin, 'MKW_PRISM_VERSION "([^"]+)"').Groups[1].Value
-$prismHash = [regex]::Match($prismPin, 'MKW_PRISM_WINDOWS_SHA256 "([0-9a-f]{64})"').Groups[1].Value
-$prismArchive = Join-Path $toolchain "prism-windows-x64-$prismVersion.zip"
-if (-not $SkipTools -and $prismVersion -and $prismHash -and -not (Test-Path -LiteralPath $prismArchive)) {
-    Set-Status "speech: downloading Prism $prismVersion for Windows"
-    $temporary = "$prismArchive.part"
+# Accessibility downloads. The configure step below runs offline (FETCHCONTENT_FULLY_DISCONNECTED), so the files the
+# runtime's CMake would fetch are downloaded here, checked against the hashes pinned in runtime\cmake\, and handed to
+# it as local copies. A failed download only turns that feature off.
+function Get-PinnedValue([string]$Pin, [string]$Name) {
+    $text = Get-Content -LiteralPath (Join-Path $wc "runtime\cmake\$Pin") -Raw
+    return [regex]::Match($text, "$Name `"([^`"]+)`"").Groups[1].Value
+}
+function Get-PinnedDownload([string]$Feature, [string]$Uri, [string]$Destination, [string]$Hash) {
+    if ($SkipTools -or -not $Hash -or (Test-Path -LiteralPath $Destination)) { return }
+    Set-Status "${Feature}: downloading $(Split-Path -Leaf $Uri)"
+    $temporary = "$Destination.part"
     try {
-        Invoke-WebRequest -UseBasicParsing -OutFile $temporary `
-            -Uri "https://github.com/ethindp/prism/releases/download/v$prismVersion/prism-windows-x64.zip"
-        if ((Get-FileHash -LiteralPath $temporary -Algorithm SHA256).Hash -ne $prismHash) { throw 'hash mismatch' }
-        Move-Item -LiteralPath $temporary -Destination $prismArchive -Force
+        Invoke-WebRequest -UseBasicParsing -OutFile $temporary -Uri $Uri
+        if ((Get-FileHash -LiteralPath $temporary -Algorithm SHA256).Hash -ne $Hash) { throw 'hash mismatch' }
+        Move-Item -LiteralPath $temporary -Destination $Destination -Force
     } catch {
         Remove-Item -LiteralPath $temporary -ErrorAction SilentlyContinue
-        Set-Status "speech: Prism download failed ($($_.Exception.Message)); building without speech"
+        Set-Status "${Feature}: download failed ($($_.Exception.Message)); building without it"
     }
 }
-$prismArguments = @()
-if (Test-Path -LiteralPath $prismArchive) { $prismArguments = @("-DMKW_PRISM_WINDOWS_ARCHIVE=$($prismArchive -replace '\\', '/')") }
+function ConvertTo-CMakePath([string]$Path) { return $Path -replace '\\', '/' }
+$accessibilityArguments = @()
+
+# Screen-reader speech: Prism's official Windows release.
+$prismVersion = Get-PinnedValue 'PrismPin.cmake' 'MKW_PRISM_VERSION'
+$prismArchive = Join-Path $toolchain "prism-windows-x64-$prismVersion.zip"
+Get-PinnedDownload 'speech' "https://github.com/ethindp/prism/releases/download/v$prismVersion/prism-windows-x64.zip" `
+    $prismArchive (Get-PinnedValue 'PrismPin.cmake' 'MKW_PRISM_WINDOWS_SHA256')
+if (Test-Path -LiteralPath $prismArchive) { $accessibilityArguments += "-DMKW_PRISM_WINDOWS_ARCHIVE=$(ConvertTo-CMakePath $prismArchive)" }
+
+# Spatial audio: Valve's Steam Audio SDK and its licence text, from the same release tag.
+$steamAudioVersion = Get-PinnedValue 'SteamAudioPin.cmake' 'MKW_STEAM_AUDIO_VERSION'
+$steamAudioArchive = Join-Path $toolchain "steamaudio_$steamAudioVersion.zip"
+$steamAudioLicense = Join-Path $toolchain "steamaudio-$steamAudioVersion-LICENSE.md"
+Get-PinnedDownload 'spatial audio' `
+    "https://github.com/ValveSoftware/steam-audio/releases/download/v$steamAudioVersion/steamaudio_$steamAudioVersion.zip" `
+    $steamAudioArchive (Get-PinnedValue 'SteamAudioPin.cmake' 'MKW_STEAM_AUDIO_SHA256')
+Get-PinnedDownload 'spatial audio' `
+    "https://raw.githubusercontent.com/ValveSoftware/steam-audio/v$steamAudioVersion/LICENSE.md" `
+    $steamAudioLicense (Get-PinnedValue 'SteamAudioPin.cmake' 'MKW_STEAM_AUDIO_LICENSE_SHA256')
+if ((Test-Path -LiteralPath $steamAudioArchive) -and (Test-Path -LiteralPath $steamAudioLicense)) {
+    $accessibilityArguments += "-DMKW_STEAM_AUDIO_ARCHIVE=$(ConvertTo-CMakePath $steamAudioArchive)"
+    $accessibilityArguments += "-DMKW_STEAM_AUDIO_LICENSE_FILE=$(ConvertTo-CMakePath $steamAudioLicense)"
+}
 
 # 2. Translate (.NET 8 runtime; the translator is already built)
 if (-not $SkipTranslate) {
@@ -132,7 +155,7 @@ $configure = Get-MkwNativeConfigureArguments `
     -CxxCompiler (Join-Path $bin 'x86_64-w64-mingw32-clang++.exe') `
     -ResourceCompiler (Join-Path $bin 'x86_64-w64-mingw32-windres.exe') `
     -DependenciesDirectory (Join-Path $wc 'Dependencies') `
-    -AdditionalArguments (@("-DMKW_TRANSLATED_COMPILE_JOBS=$Jobs", '-DMKW_ENGINE_MODULE=ON', "-DMKW_ENGINE_MODULE_NAME=$module") + $prismArguments)
+    -AdditionalArguments (@("-DMKW_TRANSLATED_COMPILE_JOBS=$Jobs", '-DMKW_ENGINE_MODULE=ON', "-DMKW_ENGINE_MODULE_NAME=$module") + $accessibilityArguments)
 $cmake = Join-Path $toolchain 'CMake\bin\cmake.exe'
 Invoke-Step 'configure' $cmake $configure $workspace
 if ($ConfigureOnly) { Set-Status 'configure only: done'; exit 0 }
@@ -161,6 +184,14 @@ if (Test-Path -LiteralPath (Join-Path $build 'prism.dll')) {
     [IO.Directory]::CreateDirectory($wording) | Out-Null
     Copy-Item -Path (Join-Path $build 'accessibility\*') -Destination $wording -Recurse -Force
     Set-Status 'copied speech: Play\prism.dll and Play\accessibility'
+}
+# Spatial audio (when the build has it): Steam Audio, loaded at run time, and its licence and notices.
+if (Test-Path -LiteralPath (Join-Path $build 'phonon.dll')) {
+    Copy-ReplacingLocked (Join-Path $build 'phonon.dll') (Join-Path $root 'Play\phonon.dll')
+    foreach ($f in 'steamaudio-LICENSE.md', 'steamaudio-THIRDPARTY.md') {
+        Copy-Item -LiteralPath (Join-Path $build $f) -Destination (Join-Path $root "Play\$f") -Force
+    }
+    Set-Status 'copied spatial audio: Play\phonon.dll'
 }
 # Unattended test run: autotest\autorun.txt present -> start the game (its own autoexit.txt ends it) with logs.
 if (Test-Path (Join-Path $root 'autotest\autorun.txt')) {
