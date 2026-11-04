@@ -194,7 +194,7 @@ endif()
 # defaults (BUILD_SHARED_LIBS among them) stay out of this one, with only the Orca backend: speech goes to a running
 # screen reader, never a synthesiser. The game loads libprism.so at run time, so this adds no link dependency. Building
 # it needs glibmm-2.68 and giomm-2.68 and a download; without them, or in an offline prebuilt build, speech is off.
-option(MKW_SCREEN_READER_SPEECH "Speak through the player's running screen reader (Linux: Orca)" ON)
+option(MKW_SCREEN_READER_SPEECH "Speak through the player's running screen reader (Linux: Orca; Windows: NVDA, JAWS, ZDSR)" ON)
 if(MKW_SCREEN_READER_SPEECH AND MKW_PLATFORM_LINUX AND MKW_BUILD_PRODUCTS)
     find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
@@ -231,6 +231,66 @@ if(MKW_SCREEN_READER_SPEECH AND MKW_PLATFORM_LINUX AND MKW_BUILD_PRODUCTS)
             set(MKW_PRISM_INCLUDE_DIRS "${SOURCE_DIR}/include" "${BINARY_DIR}/generated/include")
             set(MKW_PRISM_LIBRARY "${BINARY_DIR}/libprism.so")
         endblock()
+    endif()
+endif()
+
+# Windows: Prism's official prebuilt release of the same version (NVDA's controller client and the JAWS and ZDSR
+# backends need MSVC to build). Its release prism.dll links the C++ runtime statically, so it adds no redistributable.
+# Only the header, that DLL and the licence texts are extracted. A failed download turns speech off instead of failing
+# the build. MKW_PRISM_WINDOWS_ARCHIVE may name an already downloaded copy of the archive.
+set(MKW_PRISM_WINDOWS_ARCHIVE "" CACHE FILEPATH "Local copy of the pinned prism-windows-x64.zip (optional)")
+if(MKW_SCREEN_READER_SPEECH AND MKW_PLATFORM_WINDOWS AND MKW_BUILD_PRODUCTS)
+    include("${CMAKE_CURRENT_LIST_DIR}/cmake/PrismPin.cmake")
+    set(_mkw_prism_dir "${CMAKE_BINARY_DIR}/_deps/prism-windows-${MKW_PRISM_VERSION}")
+    set(_mkw_prism_library "${_mkw_prism_dir}/dynamic/release/bin/prism.dll")
+    set(_mkw_prism_header "${_mkw_prism_dir}/include/prism.h")
+    set(_mkw_prism_error "")
+    if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|amd64|x86_64|X86_64)$")
+        set(_mkw_prism_error "no Prism library is wired up for this processor yet")
+    endif()
+    if(NOT _mkw_prism_error AND NOT (EXISTS "${_mkw_prism_library}" AND EXISTS "${_mkw_prism_header}"))
+        set(_mkw_prism_archive "${MKW_PRISM_WINDOWS_ARCHIVE}")
+        if(NOT _mkw_prism_archive)
+            set(_mkw_prism_archive "${_mkw_prism_dir}/prism-windows-x64.zip")
+        endif()
+        set(_mkw_prism_hash "")
+        if(EXISTS "${_mkw_prism_archive}")
+            file(SHA256 "${_mkw_prism_archive}" _mkw_prism_hash)
+        endif()
+        if(NOT _mkw_prism_hash STREQUAL MKW_PRISM_WINDOWS_SHA256)
+            if(MKW_PRISM_WINDOWS_ARCHIVE)
+                set(_mkw_prism_error "MKW_PRISM_WINDOWS_ARCHIVE does not match the pinned hash: ${MKW_PRISM_WINDOWS_ARCHIVE}")
+            elseif(MKW_NATIVE_PREBUILT_DIR OR FETCHCONTENT_FULLY_DISCONNECTED)
+                set(_mkw_prism_error "Prism is not downloaded in an offline or prebuilt build (set MKW_PRISM_WINDOWS_ARCHIVE)")
+            else()
+                message(STATUS "Downloading Prism ${MKW_PRISM_VERSION} for Windows (about 80 MB, once per build folder)")
+                file(DOWNLOAD
+                    "https://github.com/ethindp/prism/releases/download/v${MKW_PRISM_VERSION}/prism-windows-x64.zip"
+                    "${_mkw_prism_archive}"
+                    EXPECTED_HASH SHA256=${MKW_PRISM_WINDOWS_SHA256}
+                    TLS_VERIFY ON
+                    STATUS _mkw_prism_status)
+                list(GET _mkw_prism_status 0 _mkw_prism_code)
+                if(NOT _mkw_prism_code EQUAL 0)
+                    list(GET _mkw_prism_status 1 _mkw_prism_message)
+                    set(_mkw_prism_error "the Prism download failed: ${_mkw_prism_message}")
+                    file(REMOVE "${_mkw_prism_archive}")
+                endif()
+            endif()
+        endif()
+        if(NOT _mkw_prism_error)
+            file(ARCHIVE_EXTRACT INPUT "${_mkw_prism_archive}" DESTINATION "${_mkw_prism_dir}"
+                PATTERNS "include/prism.h" "include/prism_version.h" "dynamic/release/bin/prism.dll" "LICENSES/*")
+        endif()
+    endif()
+    if(_mkw_prism_error)
+        message(STATUS "Screen-reader speech off: ${_mkw_prism_error}")
+    else()
+        set(MKW_PRISM_INCLUDE_DIRS "${_mkw_prism_dir}/include")
+        set(MKW_PRISM_LIBRARY "${_mkw_prism_library}")
+        set(MKW_PRISM_LICENSES_DIR "${_mkw_prism_dir}/LICENSES")
+        # Nothing to build: the same target name as the Linux source build, so the products depend on it either way.
+        add_custom_target(mkw_prism)
     endif()
 endif()
 
