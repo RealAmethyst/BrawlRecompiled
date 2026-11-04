@@ -132,6 +132,14 @@ function Copy-ReplacingLocked($from, $to) {
 Copy-ReplacingLocked (Join-Path $build "$module.dll") (Join-Path $root "Play\$module.dll")
 Copy-ReplacingLocked (Join-Path $build 'WiiCompiled.exe') $playExe
 Set-Status "copied to Play\$module.dll and Play\SuperSmashBrosBrawl.exe"
+# Screen-reader speech (when the build has it): Prism, loaded at run time, and the speech wording.
+if (Test-Path -LiteralPath (Join-Path $build 'prism.dll')) {
+    Copy-ReplacingLocked (Join-Path $build 'prism.dll') (Join-Path $root 'Play\prism.dll')
+    $wording = Join-Path $root 'Play\accessibility'
+    [IO.Directory]::CreateDirectory($wording) | Out-Null
+    Copy-Item -Path (Join-Path $build 'accessibility\*') -Destination $wording -Recurse -Force
+    Set-Status 'copied speech: Play\prism.dll and Play\accessibility'
+}
 # Unattended test run: autotest\autorun.txt present -> start the game (its own autoexit.txt ends it) with logs.
 if (Test-Path (Join-Path $root 'autotest\autorun.txt')) {
     $auto = Join-Path $root 'autotest'

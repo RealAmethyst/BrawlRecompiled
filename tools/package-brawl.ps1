@@ -55,6 +55,17 @@ foreach ($dir in Get-ChildItem -LiteralPath "$root\wiicompiled\Dependencies" -Di
         Copy-Item -LiteralPath $f.FullName -Destination "$engine\licenses\$($dir.Name)-$($f.BaseName).txt"
     }
 }
+# Screen-reader speech (when the build has it): the speech wording, and the licence texts of Prism and of what its
+# prebuilt DLL contains (prism.dll itself came with the other DLLs above).
+if (Test-Path -LiteralPath "$root\Play\prism.dll") {
+    Mirror "$root\Play\accessibility" "$engine\accessibility"
+    $prismLicenses = Get-ChildItem -LiteralPath "$root\wiicompiled\native-build\_deps" -Directory -Filter 'prism-windows-*' |
+        Sort-Object Name | Select-Object -Last 1
+    if (-not $prismLicenses) { throw 'prism.dll without its licence texts: run build-brawl.ps1' }
+    foreach ($f in Get-ChildItem -LiteralPath "$($prismLicenses.FullName)\LICENSES" -Recurse -File) {
+        Copy-Item -LiteralPath $f.FullName -Destination "$engine\licenses\Prism-$($f.Directory.Name)-$($f.BaseName).txt"
+    }
+}
 (Get-Content -LiteralPath "$PSScriptRoot\package-README.txt" -Raw).Replace('{VERSION}', $version) | Set-Content -LiteralPath "$stage\README.txt" -Encoding utf8
 
 # Guard: no disc data and no SD card contents come from the dev tree (the player makes both inside the folder).

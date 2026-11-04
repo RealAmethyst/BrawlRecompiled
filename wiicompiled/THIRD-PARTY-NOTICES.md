@@ -154,7 +154,7 @@ trees themselves (fetched by `Launcher/Prepare-Dependencies.ps1`) so end-user bu
 | Tracy Profiler | pinned commit | BSD-3-Clause | <https://github.com/wolfpld/tracy> |
 | C++/WinRT | - | MIT (Microsoft) | <https://github.com/microsoft/cppwinrt> |
 | nodtool (disc image extraction) | v2.0.0-alpha.10 | MIT OR Apache-2.0 | <https://github.com/encounter/nod> |
-| Prism (screen-reader speech, Linux; shipped as `libprism.so`) | 0.18.3 | MPL-2.0 (bundled parts: Apache-2.0, MIT, BSD, public domain; see its `NOTICE`) | <https://github.com/ethindp/prism> |
+| Prism (screen-reader speech; shipped as `libprism.so` on Linux, as the official prebuilt `prism.dll` on Windows) | 0.18.3 | MPL-2.0 (bundled parts: Apache-2.0, MIT, BSD, public domain; see its `NOTICE`; the Windows DLL also contains NVDA's controller client, LGPL-2.1, and its other parts' licences ship in `licenses/`) | <https://github.com/ethindp/prism> |
 | Steam Audio (spatial audio; Valve's prebuilt `libphonon.so` / `phonon.dll`, Copyright 2017-2023 Valve Corporation) | 4.8.1 | Apache-2.0 (built-in components: see its `THIRDPARTY.md`) | <https://github.com/ValveSoftware/steam-audio> |
 
 ### Dual-licensed components - elections made by this project
