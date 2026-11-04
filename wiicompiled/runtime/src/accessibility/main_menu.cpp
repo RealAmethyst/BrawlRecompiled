@@ -5,6 +5,7 @@
 #include "ppc_runtime.h"
 #include "runtime_log.h"
 #include "speech.h"
+#include "training_menu_speech.h"
 #include "stage_select_speech.h"
 
 #include <algorithm>
@@ -740,6 +741,8 @@ extern "C" void MainMenuDescriptionSelect_9403a290(CpuContext* ctx) {
 
 extern "C" void MainMenuMessagePrint_800b91b8(CpuContext* ctx) {
     const uint32_t muMsg = ctx->gpr[3], slot = ctx->gpr[4], entry = ctx->gpr[5];
+    // The Training menu prints through the same function (training_menu.cpp).
+    if (TrainingMenuSpeech::Capturing()) TrainingMenuSpeech::OnPrintIndex(muMsg, slot, entry, ctx->gpr[6]);
     func_800B91B8(ctx);
     if (slot != kEraseQuestionSlot || !g_openScreen || g_openScreen->screen != &kEraseDataScreen) return;
     uint32_t dialogMuMsg = 0;

@@ -307,3 +307,9 @@ description = "Describe the movies when their descriptions are installed."
 [accessibility_menu.rows.description_volume]
 name = "Description volume"
 description = "How loud the movie descriptions are."
+
+[training_menu]
+# The Training pause menu (training_menu.cpp). Its row labels are art; the values and descriptions come from the game.
+title = "Training menu"
+# Row labels, in the menu's cursor order.
+rows = ["Speed", "Item", "Number of CPUs", "CPU behavior", "CPU damage", "Camera", "Information display", "Exit"]
