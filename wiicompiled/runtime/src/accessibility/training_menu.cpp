@@ -33,6 +33,7 @@ extern "C" void func_80105B3C(CpuContext* ctx);  // change: CPU behaviour
 extern "C" void func_80105C1C(CpuContext* ctx);  // change: CPU damage
 extern "C" void func_80105CC4(CpuContext* ctx);  // change: camera
 extern "C" void func_80105D8C(CpuContext* ctx);  // change: information display (also redraws the panel)
+extern "C" void func_801057DC(CpuContext* ctx);  // close (plays sound 6)
 
 // Named, not anonymous: the accessibility sources share one unity translation unit (cmake/PublicProducts.cmake).
 namespace TrainingMenuSpeech {
@@ -43,15 +44,17 @@ constexpr uint32_t kDescriptionSlot = 7;
 constexpr uint32_t kFirstDescriptionEntry = 17;
 constexpr uint32_t kMuMsgMessageTableOffset = 0x4;
 
-enum class Event { Setup, Open, Move, Change };
+enum class Event { Setup, Open, Move, Change, Close };
 
 struct State {
     int depth = 0;          // nesting of the hooked functions (one may call another)
     uint32_t muMsg = 0;     // the menu's MuMsg, learned from its description prints
     uint32_t row = 0;       // the highlighted row
+    bool open = false;      // spoken as open; reset by the close hook
+    uint32_t spokenRow = kRows;  // the row last spoken (kRows: none since opening)
     std::array<std::string, kValueSlots> values{};
     std::string description;
-    int changedSlot = -1;   // the lowest value slot printed during the current call
+    int changedSlot = -1;   // the lowest value slot whose text changed during the current call
     // Value prints of the current call, kept until it returns: setup prints the values before the description that
     // identifies the menu's MuMsg.
     struct Print {
@@ -77,7 +80,8 @@ void Store(uint32_t muMsg, uint32_t slot, std::string text) {
 void ApplyPending() {
     State& s = Get();
     for (State::Print& print : s.pending) {
-        if (print.muMsg != s.muMsg) continue;
+        // Several of these functions run every frame and reprint the same text: only a different text is a change.
+        if (print.muMsg != s.muMsg || s.values[print.slot] == print.text) continue;
         s.values[print.slot] = std::move(print.text);
         if (s.changedSlot < 0 || static_cast<int>(print.slot) < s.changedSlot)
             s.changedSlot = static_cast<int>(print.slot);
@@ -123,21 +127,41 @@ std::string Row(uint32_t row) {
 
 void Speak(Event event) {
     State& s = Get();
+    if (event == Event::Close) {
+        if (s.open) RT_LOG(RT_TAG_ACCESSIBILITY) << "training menu: closed" << std::endl;
+        s.open = false;
+        s.spokenRow = kRows;
+        return;
+    }
     if (AccessibilityText::SilencedByMods() || s.muMsg == 0) return;
     switch (event) {
     case Event::Setup:
         return;  // the menu is built hidden when Training starts; it speaks when opened
     case Event::Open:
+        if (s.open) return;
+        s.open = true;
+        s.spokenRow = s.row;
         Speech::Say(AccessibilityText::String("training_menu.title"), true);
         Speech::Say(Row(s.row), false);
+        RT_LOG(RT_TAG_ACCESSIBILITY) << "training menu: open, row " << s.row << std::endl;
         return;
     case Event::Move:
-        Speech::Say(AccessibilityText::Join({Row(s.row), AccessibilityText::Position(s.row + 1, kRows)}), true);
-        if (!s.description.empty()) Speech::Say(s.description, false);
-        return;
     case Event::Change:
-        if (s.changedSlot >= 0) Speech::Say(s.values[static_cast<size_t>(s.changedSlot)], true);
+        // The cursor function runs every frame while the menu is open and calls the value functions itself, so
+        // whichever is outermost, a new row is a move and a new value on the same row is a change.
+        if (!s.open) return;
+        if (s.row != s.spokenRow) {
+            s.spokenRow = s.row;
+            Speech::Say(AccessibilityText::Join({Row(s.row), AccessibilityText::Position(s.row + 1, kRows)}), true);
+            if (!s.description.empty()) Speech::Say(s.description, false);
+            RT_LOG(RT_TAG_ACCESSIBILITY) << "training menu: row " << s.row << std::endl;
+        } else if (s.changedSlot >= 0) {
+            Speech::Say(s.values[static_cast<size_t>(s.changedSlot)], true);
+            RT_LOG(RT_TAG_ACCESSIBILITY) << "training menu: slot " << s.changedSlot << " changed" << std::endl;
+        }
         return;
+    case Event::Close:
+        return;  // handled above
     }
 }
 
@@ -177,6 +201,7 @@ extern "C" void TrainingMenuBehavior_80105b3c(CpuContext* ctx) { Run<func_80105B
 extern "C" void TrainingMenuDamage_80105c1c(CpuContext* ctx) { Run<func_80105C1C>(ctx, Event::Change); }
 extern "C" void TrainingMenuCamera_80105cc4(CpuContext* ctx) { Run<func_80105CC4>(ctx, Event::Change); }
 extern "C" void TrainingMenuInformation_80105d8c(CpuContext* ctx) { Run<func_80105D8C>(ctx, Event::Change); }
+extern "C" void TrainingMenuClose_801057dc(CpuContext* ctx) { Run<func_801057DC>(ctx, Event::Close); }
 
 REGISTER_NATIVE_FUNCTION_AS(0x80104F28, TrainingMenuSetup_80104f28, "TrainingMenuSetup_80104f28");
 REGISTER_NATIVE_FUNCTION_AS(0x801055FC, TrainingMenuOpen_801055fc, "TrainingMenuOpen_801055fc");
@@ -188,3 +213,4 @@ REGISTER_NATIVE_FUNCTION_AS(0x80105B3C, TrainingMenuBehavior_80105b3c, "Training
 REGISTER_NATIVE_FUNCTION_AS(0x80105C1C, TrainingMenuDamage_80105c1c, "TrainingMenuDamage_80105c1c");
 REGISTER_NATIVE_FUNCTION_AS(0x80105CC4, TrainingMenuCamera_80105cc4, "TrainingMenuCamera_80105cc4");
 REGISTER_NATIVE_FUNCTION_AS(0x80105D8C, TrainingMenuInformation_80105d8c, "TrainingMenuInformation_80105d8c");
+REGISTER_NATIVE_FUNCTION_AS(0x801057DC, TrainingMenuClose_801057dc, "TrainingMenuClose_801057dc");
