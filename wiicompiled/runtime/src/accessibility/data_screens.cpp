@@ -4,6 +4,7 @@
 #include "ppc_runtime.h"
 #include "runtime_log.h"
 #include "speech.h"
+#include "training_menu_speech.h"
 
 #include <algorithm>
 #include <array>
@@ -778,6 +779,9 @@ extern "C" void DataScreensSoundTestEffectsInput_94023b88(CpuContext* ctx) {
 extern "C" void DataScreensMessagePrintf_800b9230(CpuContext* ctx) {
     using namespace DataScreenSpeech;
     const uint32_t muMsg = ctx->gpr[3], slot = ctx->gpr[4];
+    // The Training menu prints its numbers through the same function (training_menu.cpp).
+    if (TrainingMenuSpeech::Capturing())
+        TrainingMenuSpeech::OnPrintf(muMsg, slot, FormatGuestPrintf(*ctx).value_or(std::string()));
     uint32_t own = 0;
     const bool kept = g_printed.proc != 0 && muMsg != 0 && slot < kPrintedSlots &&
                       Memory::TryRead32(g_printed.proc + g_printed.muMsgOffset, own) && own == muMsg;
