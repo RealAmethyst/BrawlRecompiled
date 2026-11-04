@@ -81,6 +81,28 @@ if (-not $SkipTools) {
     Set-Status 'tools and dependencies ready'
 }
 
+# Screen-reader speech: Prism's official Windows release, pinned in runtime\cmake\PrismPin.cmake. The configure step
+# below runs offline (FETCHCONTENT_FULLY_DISCONNECTED), so the archive is fetched here and handed to it.
+$prismPin = Get-Content -LiteralPath (Join-Path $wc 'runtime\cmake\PrismPin.cmake') -Raw
+$prismVersion = [regex]::Match($prismPin, 'MKW_PRISM_VERSION "([^"]+)"').Groups[1].Value
+$prismHash = [regex]::Match($prismPin, 'MKW_PRISM_WINDOWS_SHA256 "([0-9a-f]{64})"').Groups[1].Value
+$prismArchive = Join-Path $toolchain "prism-windows-x64-$prismVersion.zip"
+if (-not $SkipTools -and $prismVersion -and $prismHash -and -not (Test-Path -LiteralPath $prismArchive)) {
+    Set-Status "speech: downloading Prism $prismVersion for Windows"
+    $temporary = "$prismArchive.part"
+    try {
+        Invoke-WebRequest -UseBasicParsing -OutFile $temporary `
+            -Uri "https://github.com/ethindp/prism/releases/download/v$prismVersion/prism-windows-x64.zip"
+        if ((Get-FileHash -LiteralPath $temporary -Algorithm SHA256).Hash -ne $prismHash) { throw 'hash mismatch' }
+        Move-Item -LiteralPath $temporary -Destination $prismArchive -Force
+    } catch {
+        Remove-Item -LiteralPath $temporary -ErrorAction SilentlyContinue
+        Set-Status "speech: Prism download failed ($($_.Exception.Message)); building without speech"
+    }
+}
+$prismArguments = @()
+if (Test-Path -LiteralPath $prismArchive) { $prismArguments = @("-DMKW_PRISM_WINDOWS_ARCHIVE=$($prismArchive -replace '\\', '/')") }
+
 # 2. Translate (.NET 8 runtime; the translator is already built)
 if (-not $SkipTranslate) {
     $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
@@ -110,7 +132,7 @@ $configure = Get-MkwNativeConfigureArguments `
     -CxxCompiler (Join-Path $bin 'x86_64-w64-mingw32-clang++.exe') `
     -ResourceCompiler (Join-Path $bin 'x86_64-w64-mingw32-windres.exe') `
     -DependenciesDirectory (Join-Path $wc 'Dependencies') `
-    -AdditionalArguments @("-DMKW_TRANSLATED_COMPILE_JOBS=$Jobs", '-DMKW_ENGINE_MODULE=ON', "-DMKW_ENGINE_MODULE_NAME=$module")
+    -AdditionalArguments (@("-DMKW_TRANSLATED_COMPILE_JOBS=$Jobs", '-DMKW_ENGINE_MODULE=ON', "-DMKW_ENGINE_MODULE_NAME=$module") + $prismArguments)
 $cmake = Join-Path $toolchain 'CMake\bin\cmake.exe'
 Invoke-Step 'configure' $cmake $configure $workspace
 if ($ConfigureOnly) { Set-Status 'configure only: done'; exit 0 }

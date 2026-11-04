@@ -2,9 +2,11 @@
 
 #include "accessibility_text.h"
 #include "memory.h"
+// Before game_layout.h: on Windows runtime_config.h brings in <windows.h>, whose DrawText macro also renames
+// GameLayout::DrawText where game_layout.cpp defines it, so the declaration must see the macro too.
+#include "runtime_config.h"
 #include "netplay/game_layout.h"
 #include "ppc_runtime.h"
-#include "runtime_config.h"
 #include "runtime_log.h"
 #include "spatial_audio.h"
 #include "speech.h"
