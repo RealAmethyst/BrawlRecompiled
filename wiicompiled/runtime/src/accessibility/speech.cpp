@@ -8,12 +8,23 @@
 #include <chrono>
 #include <condition_variable>
 #include <deque>
+#include <filesystem>
 #include <mutex>
 #include <system_error>
 #include <thread>
 #include <utility>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#endif
 #include <prism.h>
 
 namespace Speech {
@@ -21,15 +32,34 @@ namespace {
 
 // Screen-reader backends only, most preferred first. Prism's synthesiser backends (Speech Dispatcher, SAPI, OneCore
 // and the like) are deliberately absent: speech is for players who already run a screen reader.
+// Windows: the screen readers Prism talks to directly, NVDA first; its UIA backend is left out with the synthesisers.
+#if defined(_WIN32)
+constexpr PrismBackendId kScreenReaderBackends[] = {PRISM_BACKEND_NVDA, PRISM_BACKEND_JAWS, PRISM_BACKEND_ZDSR};
+constexpr const char* kPrismLibraryName = "prism.dll";
+#else
 constexpr PrismBackendId kScreenReaderBackends[] = {PRISM_BACKEND_ORCA};
+constexpr const char* kPrismLibraryName = "libprism.so";
+#endif
 
 // A screen reader started after the game is picked up on a later line, but not looked for on every line.
 constexpr auto kReconnectInterval = std::chrono::seconds(5);
 
-// libprism is loaded with dlopen from the executable's folder rather than linked: its Orca backend links glibmm,
-// and a machine without it must still run the game, silently.
+// Prism is loaded at run time from the executable's folder rather than linked: on Linux its Orca backend links glibmm,
+// and a machine without it must still run the game, silently; on Windows a missing prism.dll means silence too.
+#if defined(_WIN32)
+using LibraryHandle = HMODULE;
+void* FindSymbol(LibraryHandle library, const char* symbol) noexcept {
+    return reinterpret_cast<void*>(GetProcAddress(library, symbol));
+}
+void CloseLibrary(LibraryHandle library) noexcept { FreeLibrary(library); }
+#else
+using LibraryHandle = void*;
+void* FindSymbol(LibraryHandle library, const char* symbol) noexcept { return dlsym(library, symbol); }
+void CloseLibrary(LibraryHandle library) noexcept { dlclose(library); }
+#endif
+
 struct PrismApi {
-    void* handle = nullptr;
+    LibraryHandle handle = nullptr;
     decltype(&::prism_config_init) config_init = nullptr;
     decltype(&::prism_init) init = nullptr;
     decltype(&::prism_registry_exists) registry_exists = nullptr;
@@ -45,7 +75,7 @@ struct PrismApi {
 
     template <typename Fn>
     bool Bind(Fn& fn, const char* symbol) noexcept {
-        fn = reinterpret_cast<Fn>(dlsym(handle, symbol));
+        fn = reinterpret_cast<Fn>(FindSymbol(handle, symbol));
         return fn != nullptr;
     }
 
@@ -55,12 +85,24 @@ struct PrismApi {
             RT_LOG(RT_TAG_ACCESSIBILITY) << "speech off: the executable's folder is unknown" << std::endl;
             return false;
         }
-        const std::string path = (*directory / "libprism.so").string();
+        const std::filesystem::path library = *directory / kPrismLibraryName;
+        const std::string path = library.string();
+#if defined(_WIN32)
+        // Full path and LOAD_WITH_ALTERED_SEARCH_PATH: only the copy beside the game is used, and any DLL it needs
+        // is looked for in its own folder first.
+        handle = LoadLibraryExW(library.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        if (handle == nullptr) {
+            RT_LOG(RT_TAG_ACCESSIBILITY) << "speech off: cannot load " << path << " (error " << GetLastError() << ")"
+                                         << std::endl;
+            return false;
+        }
+#else
         handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
         if (handle == nullptr) {
             RT_LOG(RT_TAG_ACCESSIBILITY) << "speech off: " << dlerror() << std::endl;
             return false;
         }
+#endif
         const bool ok = Bind(config_init, "prism_config_init") && Bind(init, "prism_init") &&
                         Bind(registry_exists, "prism_registry_exists") &&
                         Bind(registry_create, "prism_registry_create") &&
@@ -72,7 +114,7 @@ struct PrismApi {
                         Bind(error_string, "prism_error_string");
         if (!ok) {
             RT_LOG(RT_TAG_ACCESSIBILITY) << "speech off: " << path << " lacks a Prism function" << std::endl;
-            dlclose(handle);
+            CloseLibrary(handle);
             handle = nullptr;
         }
         return ok;
